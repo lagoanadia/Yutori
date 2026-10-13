@@ -3,6 +3,7 @@ export const prerender = false;
 import Panel from '../../../layouts/Panel.astro';
 import { db, uno, todos, fecha, euros, FRANJAS, ESTADOS_TALLER, ESTADOS_RESERVA } from '../../../lib/db';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../../lib/reservas';
+import { actualizarCalendario, calendarioActivo } from '../../../lib/calendario';
 import { borrarFoto, urlFoto } from '../../../lib/fotos';
 import { codigoAleatorio, slugify, telefonoWhatsApp } from '../../../lib/util';
 
@@ -10,7 +11,7 @@ type Taller = {
   id: number; tallerista_id: number | null; titulo: string | null; slug: string | null; fecha: string; franja: string;
   hora_inicio: string | null; hora_fin: string | null; precio_cent: number | null; plazas: number; foto: string | null;
   texto: string | null; materiales: string | null; es_evento: number; datos_pago: string | null; estado: string;
-  pago_reserva_recibido: number; codigo_enlace: string | null; fecha_limite: string | null;
+  pago_reserva_recibido: number; codigo_enlace: string | null; fecha_limite: string | null; google_evento: string | null;
   tallerista: string | null; tallerista_nombre: string | null; telefono: string | null; reservas: number;
 };
 const id = Number(Astro.params.id);
@@ -54,11 +55,13 @@ if (Astro.request.method === 'POST') {
         for (let n = 2; await uno('SELECT id FROM talleres WHERE slug = ?1', slug); n++) slug = `${base}-${n}`;
       }
       await actualizar(`UPDATE talleres SET estado = 'publicado', slug = ?1 WHERE id = ?2`, slug);
+      actualizarCalendario(id);
       return Astro.redirect(`/panel/talleres/${id}?ok=publicado`, 303);
     }
   }
   if (accion === 'desactivar') {
     await actualizar(`UPDATE talleres SET estado = 'desactivado' WHERE id = ?1`);
+    actualizarCalendario(id);
     return Astro.redirect(`/panel/talleres/${id}?ok=desactivado`, 303);
   }
   if (accion === 'reactivar') {
@@ -176,6 +179,11 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
           <button class="boton" type="submit" disabled={!completo(t)}>Publicar en la web</button>
           {!completo(t) && <small>Se podrá publicar cuando la tallerista envíe todos los datos.</small>}
         </form>
+      )}
+      {t.estado === 'publicado' && (
+        <p class="calendario"><small>{calendarioActivo()
+          ? (t.google_evento ? 'Está en tu Google Calendar, con las apuntadas al día.' : 'Añadiéndose a tu Google Calendar…')
+          : 'Google Calendar todavía sin conectar.'}</small></p>
       )}
       {t.estado === 'publicado' && (
         <form method="post" class="accion">

@@ -6,6 +6,7 @@ import { db, todos } from '../lib/db';
 import { archivosDe, errorDeFoto, guardarFoto, MAX_MB } from '../lib/fotos';
 import { turnstileActivo, verificarTurnstile } from '../lib/turnstile';
 import { esEmail } from '../lib/util';
+import { avisoPropuesta } from '../lib/avisos';
 
 const MAX_FOTOS = 3;
 const categorias = await todos<{ id: number; nombre: string }>('SELECT id, nombre FROM categorias WHERE activa = 1 ORDER BY id');
@@ -51,10 +52,11 @@ if (Astro.request.method === 'POST') {
       for (const f of fotos) claves.push(await guardarFoto(f, 'propuestas'));
       await db()
         .prepare(`INSERT INTO talleristas (nombre, marca, instagram, email, telefono, categoria_id, propuesta, fotos, ha_impartido, autonoma, acepta_privacidad_en)
-                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, strftime('%Y-%m-%dT%H:%M:%S', 'now'))`)
+                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
         .bind(v.nombre, v.marca || null, v.instagram || null, v.email, v.telefono || null, Number(v.categoria), v.propuesta,
               JSON.stringify(claves), v.experiencia === 'si' ? 1 : 0, v.autonoma === 'si' ? 1 : 0)
-        .run();
+        .first<{ id: number }>()
+        .then((fila) => fila && avisoPropuesta(fila.id));
       return Astro.redirect('/colabora?enviado', 303);
     } catch (e) {
       errores.push(e instanceof Error && e.message.includes('imagen') ? e.message : 'Algo ha fallado al guardar tu propuesta. Inténtalo de nuevo en unos minutos.');

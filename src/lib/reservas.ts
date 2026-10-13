@@ -1,6 +1,8 @@
 // Reservas de talleres: plazas, plazo de pago y cambios de estado.
 import { db, todos, uno } from './db';
 import { codigoAleatorio } from './util';
+import { avisoPagoConfirmado, avisoPlazasLiberadas, avisoReservaHecha } from './avisos';
+import { actualizarCalendario } from './calendario';
 
 /** Horas que tiene un cliente para pagar antes de que su plaza se libere. TODO: confirmar con Iris. */
 export const PLAZO_PAGO_HORAS = 24;
@@ -21,10 +23,20 @@ export const hoyEspana = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Eur
 
 /** Libera las reservas pendientes cuyo plazo de pago ya pasó. Se llama antes de contar plazas. */
 export async function liberarCaducadas() {
-  await db()
+  const { results } = await db()
     .prepare(`UPDATE reservas SET estado = 'liberada'
-              WHERE estado = 'pendiente' AND caduca_en IS NOT NULL AND caduca_en < strftime('%Y-%m-%dT%H:%M:%S', 'now')`)
-    .run();
+              WHERE estado = 'pendiente' AND caduca_en IS NOT NULL AND caduca_en < strftime('%Y-%m-%dT%H:%M:%S', 'now')
+              RETURNING id, taller_id`)
+    .all<{ id: number; taller_id: number | null }>();
+  if (results.length === 0) return;
+  actualizarCalendario(...results.map((r) => r.taller_id));
+  // Aviso por email a cada persona cuya plaza se ha liberado.
+  const liberadas = await todos<{ codigo: string; nombre: string; email: string; titulo: string }>(`
+    SELECT r.codigo, r.nombre, r.email, COALESCE(t.titulo, c.nombre) AS titulo
+    FROM reservas r LEFT JOIN talleres t ON t.id = r.taller_id
+    LEFT JOIN grupos g ON g.id = r.grupo_id LEFT JOIN clases c ON c.id = g.clase_id
+    WHERE r.id IN (${results.map((r) => Number(r.id)).join(',')}) AND r.codigo IS NOT NULL`);
+  avisoPlazasLiberadas(liberadas);
 }
 
 const SELECT_TALLER = `
@@ -61,7 +73,10 @@ export async function reservarTaller(tallerId: number, d: { nombre: string; tele
       WHERE t.id = ?1 AND t.estado = 'publicado' AND t.plazas - ${OCUPADAS} >= ?5`)
     .bind(tallerId, d.nombre, d.telefono, d.email, d.plazas, `+${PLAZO_PAGO_HORAS} hours`, codigo)
     .run();
-  return resultado.meta.changes === 1 ? codigo : null;
+  if (resultado.meta.changes !== 1) return null;
+  await avisoReservaHecha(codigo);
+  actualizarCalendario(tallerId);
+  return codigo;
 }
 
 /** Reserva de taller o de clase. En las clases: titulo = nombre de la clase, fecha = sesión (suelta), mes (mensual). */
@@ -96,9 +111,11 @@ export async function cambiarEstadoReserva(id: number, accion: 'pagado' | 'cance
   const nuevo = accion === 'pagado' ? 'confirmada' : 'cancelada';
   // Una reserva liberada no se puede confirmar: su plaza puede tenerla ya otra persona.
   const desde = accion === 'pagado' ? `('pendiente')` : `('pendiente', 'confirmada')`;
-  await db()
+  const cambiada = await db()
     .prepare(`UPDATE reservas SET estado = ?1, caduca_en = NULL
-              WHERE id = ?2 AND estado IN ${desde} ${tallerId ? 'AND taller_id = ?3' : ''}`)
+              WHERE id = ?2 AND estado IN ${desde} ${tallerId ? 'AND taller_id = ?3' : ''} RETURNING codigo, taller_id`)
     .bind(nuevo, id, ...(tallerId ? [tallerId] : []))
-    .run();
+    .first<{ codigo: string | null; taller_id: number | null }>();
+  if (accion === 'pagado' && cambiada?.codigo) await avisoPagoConfirmado(cambiada.codigo);
+  actualizarCalendario(cambiada?.taller_id);
 }

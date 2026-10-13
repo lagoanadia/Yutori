@@ -3,6 +3,7 @@ import { db, todos, uno } from './db';
 import { MOSTRAR_NINOS } from '../data/yutori';
 import { hoyEspana, liberarCaducadas, PLAZO_PAGO_HORAS } from './reservas';
 import { diaSemana } from './util';
+import { avisoReservaHecha } from './avisos';
 
 export type Grupo = {
   id: number; clase_id: number; slug: string; nombre: string; tipo: string; colabora: string | null; texto: string | null;
@@ -121,6 +122,7 @@ export async function reservarMensual(grupoId: number, mes: string, d: DatosAlum
       RETURNING codigo`)
     .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor)
     .first<{ codigo: string }>();
+  if (r?.codigo) await avisoReservaHecha(r.codigo);
   return r?.codigo ?? null;
 }
 
@@ -138,6 +140,7 @@ export async function reservarSuelta(grupoId: number, fecha: string, d: DatosAlu
       RETURNING codigo`)
     .bind(grupoId, fecha, d.nombre, d.telefono, d.email, d.modalidad, `+${PLAZO_PAGO_HORAS} hours`, fecha.slice(0, 7))
     .first<{ codigo: string }>();
+  if (r?.codigo) await avisoReservaHecha(r.codigo);
   return r?.codigo ?? null;
 }
 

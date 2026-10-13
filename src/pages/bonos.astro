@@ -5,6 +5,7 @@ import Turnstile from '../components/Turnstile.astro';
 import { db } from '../lib/db';
 import { talleresPublicados } from '../lib/reservas';
 import { verificarTurnstile } from '../lib/turnstile';
+import { avisoSolicitud } from '../lib/avisos';
 import { esEmail } from '../lib/util';
 
 const talleres = await talleresPublicados();
@@ -39,9 +40,10 @@ if (Astro.request.method === 'POST') {
       : v.taller || 'Aún no sabe qué taller';
     await db()
       .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, mensaje, acepta_privacidad_en)
-                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%S', 'now'))`)
+                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
       .bind(v.nombre, v.email, v.telefono, v.tipo, detalle, v.para || null, v.mensaje || null)
-      .run();
+      .first<{ id: number }>()
+      .then((fila) => fila && avisoSolicitud(fila.id));
     return Astro.redirect('/bonos?enviado', 303);
   }
 }

@@ -4,6 +4,7 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import { db, uno, todos, euros, fecha, ESTADOS_RESERVA } from '../../lib/db';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
+import { avisoTallerEnviado } from '../../lib/avisos';
 import { borrarFoto, errorDeFoto, guardarFoto, MAX_MB, urlFoto } from '../../lib/fotos';
 import { esHora } from '../../lib/util';
 
@@ -89,6 +90,7 @@ if (editable && Astro.request.method === 'POST') {
               v.materiales === 'llevar' ? `Trae: ${v.queLlevar}` : 'Material incluido', v.texto, v.pago, claveFoto, t.id)
         .run();
       if (fotoNueva && t.foto) await borrarFoto(t.foto);
+      await avisoTallerEnviado(t.id);
       return Astro.redirect(`/t/${codigo}?guardado`, 303);
     } catch (e) {
       errores.push(e instanceof Error && e.message.includes('imagen') ? e.message : 'Algo ha fallado al guardar. Inténtalo de nuevo en unos minutos.');

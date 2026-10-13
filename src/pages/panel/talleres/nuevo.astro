@@ -3,6 +3,7 @@ export const prerender = false;
 import Panel from '../../../layouts/Panel.astro';
 import { db, todos, uno, FRANJAS } from '../../../lib/db';
 import { codigoAleatorio, esFecha, fechaLimite, franjasDeFecha } from '../../../lib/util';
+import { avisoHuecoCreado } from '../../../lib/avisos';
 
 const aceptadas = await todos<{ id: number; nombre: string; marca: string | null; categoria: string | null }>(`
   SELECT ta.id, ta.nombre, ta.marca, c.nombre AS categoria
@@ -47,6 +48,7 @@ if (Astro.request.method === 'POST') {
                 VALUES (?1, ?2, ?3, ?4, 'hueco', ?5, ?6) RETURNING id`)
       .bind(talleristaId, v.fecha, franja, plazas, codigoAleatorio(), v.limite || fechaLimite(v.fecha))
       .first<{ id: number }>();
+    await avisoHuecoCreado(nuevo!.id);
     return Astro.redirect(`/panel/talleres/${nuevo!.id}?ok=creado`, 303);
   }
 }

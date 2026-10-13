@@ -23,6 +23,14 @@
     "ACCESS_TEAM": "raspy-cherry-af72",
     "ACCESS_AUD": "",
     // Turnstile (anti-spam). La clave secreta va como Secret en Cloudflare: TURNSTILE_SECRET.
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAFV3R9uyiBT9YNxL"
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFV3R9uyiBT9YNxL",
+    // Dirección de la web para los enlaces de los emails y del calendario.
+    "SITIO_URL": "https://yutori.lagoanadia.workers.dev",
+    // Emails (Resend). Remitente con el dominio de Yutori, p. ej. "Yutori <reservas@dominio.es>". Vacío = no se envían.
+    // La clave va como Secret: RESEND_API_KEY.
+    "EMAIL_FROM": "",
+    // Google Calendar. La clave privada de la cuenta de servicio va como Secret: GOOGLE_SA_KEY.
+    "GOOGLE_CALENDAR_ID": "",
+    "GOOGLE_SA_EMAIL": ""
   }
 }

@@ -4,6 +4,7 @@ import Base from '../layouts/Base.astro';
 import Turnstile from '../components/Turnstile.astro';
 import { db, todos } from '../lib/db';
 import { verificarTurnstile } from '../lib/turnstile';
+import { avisoSolicitud } from '../lib/avisos';
 import { esEmail, esFecha } from '../lib/util';
 
 const MOTIVOS = ['Despedida', 'Cumpleaños', 'Grupo de amigas', 'Empresa', 'Otro'];
@@ -39,9 +40,10 @@ if (Astro.request.method === 'POST') {
   if (errores.length === 0) {
     await db()
       .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, motivo, categoria_id, fecha_aprox, personas, mensaje, acepta_privacidad_en)
-                VALUES ('privado', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, strftime('%Y-%m-%dT%H:%M:%S', 'now'))`)
+                VALUES ('privado', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
       .bind(v.nombre, v.email, v.telefono, v.motivo, v.categoria ? Number(v.categoria) : null, v.fecha || null, personas, v.mensaje || null)
-      .run();
+      .first<{ id: number }>()
+      .then((fila) => fila && avisoSolicitud(fila.id));
     return Astro.redirect('/privados?enviado', 303);
   }
 }
