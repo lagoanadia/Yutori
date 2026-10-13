@@ -56,6 +56,10 @@ export const FRANJAS: Record<string, string> = {
 
 export const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
+/** "55 €" si es entero, "42,50 €" si tiene céntimos. */
+export const eurosCorto = (cent: number | null) =>
+  cent == null ? '—' : `${(cent / 100).toLocaleString('es-ES', { maximumFractionDigits: 2, minimumFractionDigits: cent % 100 ? 2 : 0 })} €`;
+
 export const euros = (cent: number | null) =>
   cent == null ? '—' : (cent / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 

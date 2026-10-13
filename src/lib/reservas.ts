@@ -64,19 +64,30 @@ export async function reservarTaller(tallerId: number, d: { nombre: string; tele
   return resultado.meta.changes === 1 ? codigo : null;
 }
 
+/** Reserva de taller o de clase. En las clases: titulo = nombre de la clase, fecha = sesión (suelta), mes (mensual). */
 export type ReservaDetalle = {
-  id: number; codigo: string; nombre: string; telefono: string; email: string; plazas: number; estado: string;
-  caduca_en: string | null; creado_en: string; taller_id: number; titulo: string; slug: string; fecha: string;
-  hora_inicio: string; hora_fin: string; precio_cent: number; datos_pago: string; imparte: string;
+  id: number; codigo: string; tipo: 'taller' | 'clase_mensual' | 'clase_suelta'; nombre: string; telefono: string; email: string;
+  plazas: number; estado: string; caduca_en: string | null; creado_en: string; modalidad: string | null; nombre_menor: string | null;
+  mes: string | null; titulo: string; slug: string | null; fecha: string | null; dia_semana: number | null;
+  hora_inicio: string; hora_fin: string; precio_cent: number | null; precio_max_cent: number | null;
+  datos_pago: string | null; imparte: string;
 };
 
 export async function reservaPorCodigo(codigo: string) {
   await liberarCaducadas();
   return uno<ReservaDetalle>(`
-    SELECT r.id, r.codigo, r.nombre, r.telefono, r.email, r.plazas, r.estado, r.caduca_en, r.creado_en, t.id AS taller_id,
-           t.titulo, t.slug, t.fecha, t.hora_inicio, t.hora_fin, t.precio_cent, t.datos_pago,
-           COALESCE(ta.marca, ta.nombre, 'Yutori') AS imparte
-    FROM reservas r JOIN talleres t ON t.id = r.taller_id LEFT JOIN talleristas ta ON ta.id = t.tallerista_id
+    SELECT r.id, r.codigo, r.tipo, r.nombre, r.telefono, r.email, r.plazas, r.estado, r.caduca_en, r.creado_en,
+           r.modalidad, r.nombre_menor, r.mes,
+           COALESCE(t.titulo, c.nombre) AS titulo, t.slug,
+           COALESCE(t.fecha, r.fecha_sesion) AS fecha, g.dia_semana,
+           COALESCE(t.hora_inicio, g.hora_inicio) AS hora_inicio, COALESCE(t.hora_fin, g.hora_fin) AS hora_fin,
+           CASE r.tipo WHEN 'taller' THEN t.precio_cent WHEN 'clase_suelta' THEN c.precio_suelta_cent ELSE g.precio_mes_cent END AS precio_cent,
+           CASE r.tipo WHEN 'clase_mensual' THEN g.precio_mes_max_cent END AS precio_max_cent,
+           t.datos_pago,
+           CASE WHEN r.tipo = 'taller' THEN COALESCE(ta.marca, ta.nombre, 'Yutori') ELSE COALESCE(c.colabora, 'Yutori') END AS imparte
+    FROM reservas r
+    LEFT JOIN talleres t ON t.id = r.taller_id LEFT JOIN talleristas ta ON ta.id = t.tallerista_id
+    LEFT JOIN grupos g ON g.id = r.grupo_id LEFT JOIN clases c ON c.id = g.clase_id
     WHERE r.codigo = ?1`, codigo);
 }
 

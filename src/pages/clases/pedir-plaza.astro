@@ -1,54 +1,182 @@
 ---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
-import { clases, publicosVisibles, MOSTRAR_NINOS } from '../../data/yutori';
+import { DIAS } from '../../lib/db';
+import { disponibilidadSueltas, gruposActivos, meses, nombreMes, ocupacionMes, reservarMensual, reservarSuelta } from '../../lib/clases';
+import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
+import { esEmail } from '../../lib/util';
+
+const { actual, siguiente } = meses();
+const grupos = await gruposActivos();
+const [ocActual, ocSiguiente, sueltas] = await Promise.all([ocupacionMes(actual), ocupacionMes(siguiente), disponibilidadSueltas(grupos)]);
+const libresMes = (id: number, mes: string) => {
+  const g = grupos.find((x) => x.id === id)!;
+  return Math.max(0, g.plazas - ((mes === actual ? ocActual : ocSiguiente).get(id) ?? 0));
+};
+
+// Preselección desde /clases: ?clase=slug&suelta=1
+const q = Astro.url.searchParams;
+const primero = grupos.find((g) => g.slug === q.get('clase') && (q.has('suelta') ? g.publico === 'adultos' : true));
+const errores: string[] = [];
+let v = {
+  grupo: primero ? String(primero.id) : '', tipo: q.has('suelta') ? 'suelta' : 'mensual', mes: siguiente, fecha: '',
+  modalidad: '', nombre: '', telefono: '', email: '', menor: '',
+};
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = {
+    grupo: campo('grupo', 6), tipo: campo('tipo', 10), mes: campo('mes', 7), fecha: campo('fecha', 10), modalidad: campo('modalidad', 40),
+    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), menor: campo('menor', 120),
+  };
+  if (campo('web')) return Astro.redirect('/clases', 303);
+
+  const g = grupos.find((x) => String(x.id) === v.grupo);
+  const modalidades: string[] = g ? JSON.parse(g.modalidades) : [];
+  if (!g) errores.push('Elige la clase y el horario.');
+  if (!['mensual', 'suelta'].includes(v.tipo)) errores.push('Elige si quieres plaza mensual o una clase suelta.');
+  if (g && v.tipo === 'suelta' && g.publico !== 'adultos') errores.push('Las clases infantiles son solo con plaza mensual.');
+  if (v.tipo === 'mensual' && ![actual, siguiente].includes(v.mes)) errores.push('Elige el mes.');
+  if (g && v.tipo === 'suelta' && !(sueltas.get(g.id) ?? []).some((s) => s.fecha === v.fecha)) errores.push('Elige el día de tu clase suelta.');
+  if (modalidades.length > 0 && !modalidades.includes(v.modalidad)) errores.push('Elige la modalidad (con o sin máquina).');
+  if (g?.publico === 'ninos' && !v.menor) errores.push('Escribe el nombre del niño o niña.');
+  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
+  if (!esEmail(v.email)) errores.push('Escribe un email válido.');
+  if (datos.get('condiciones') !== 'on' || datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar las condiciones y la política de privacidad.');
+
+  if (errores.length === 0 && !(await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP')))) {
+    errores.push('No hemos podido comprobar que no eres un robot. Vuelve a intentarlo.');
+  }
+
+  if (errores.length === 0 && g) {
+    const alumna = { nombre: v.nombre, telefono: v.telefono, email: v.email, modalidad: v.modalidad || null, menor: g.publico === 'ninos' ? v.menor : null };
+    const codigo = v.tipo === 'mensual' ? await reservarMensual(g.id, v.mes, alumna) : await reservarSuelta(g.id, v.fecha, alumna);
+    if (codigo) return Astro.redirect(`/reserva/${codigo}`, 303);
+    errores.push(v.tipo === 'mensual'
+      ? `No quedan plazas en ese horario para ${nombreMes(v.mes)}. Prueba otro horario o escríbenos para la lista de espera.`
+      : 'Ese día ya no quedan plazas. Prueba otro día.');
+  }
+}
+
+const fechaCorta = (f: string) => new Date(`${f}T00:00:00Z`).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const etiquetaGrupo = (g: (typeof grupos)[number]) => `${DIAS[g.dia_semana]} ${g.hora_inicio}-${g.hora_fin}`;
+const clasesUnicas = [...new Map(grupos.map((g) => [`${g.slug}|${g.publico}`, g])).values()];
 ---
-<Base titulo="Pedir plaza en una clase">
+<Base titulo="Reservar plaza en una clase">
+  <Fragment slot="head">
+    {turnstileActivo() && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+  </Fragment>
   <section class="seccion">
     <div class="contenedor">
-      <h1>Pedir plaza en una clase</h1>
-      <p class="intro">Cuéntanos qué clase te interesa y te confirmamos la plaza.</p>
+      <p class="script">Curso 26/27</p>
+      <h1>Reservar plaza en una clase</h1>
+      <p class="intro">Elige tu clase y si vienes cada semana o a una clase suelta. Te confirmamos la plaza cuando recibamos el pago.</p>
 
-      <form class="formulario" data-prototipo>
+      {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+      <form class="formulario" method="post" id="form-clase">
         <div class="campo">
           <label for="grupo">Clase y horario</label>
           <select id="grupo" name="grupo" required>
-            {clases.flatMap((c) => publicosVisibles(c).map((p) => (
-              <optgroup label={`${c.nombre} · ${c.tipo} · ${p.para}`}>
-                {p.grupos.map((g) => <option value={`${c.id}-${p.para}-${g.dia}-${g.inicio}`}>{g.dia} {g.inicio}-{g.fin}</option>)}
+            <option value="">Elige uno</option>
+            {clasesUnicas.map((c) => (
+              <optgroup label={`${c.nombre} · ${c.tipo} · ${c.publico === 'ninos' ? 'Niños' : 'Adultos'}`}>
+                {grupos.filter((g) => g.slug === c.slug && g.publico === c.publico).map((g) => (
+                  <option value={g.id} selected={String(g.id) === v.grupo} data-publico={g.publico} data-modalidades={g.modalidades}>
+                    {g.nombre} · {etiquetaGrupo(g)}{g.publico === 'ninos' ? ' (niños)' : ''}
+                  </option>
+                ))}
               </optgroup>
+            ))}
+          </select>
+        </div>
+
+        <fieldset class="campo">
+          <legend>¿Cómo quieres venir?</legend>
+          <label class="casilla"><input type="radio" name="tipo" value="mensual" checked={v.tipo !== 'suelta'} /> Cada semana (plaza mensual, se paga del 1 al 5)</label>
+          <label class="casilla" data-solo-adultos><input type="radio" name="tipo" value="suelta" checked={v.tipo === 'suelta'} /> Una clase suelta (solo adultos, se paga al reservar)</label>
+        </fieldset>
+
+        <div class="campo" data-tipo="mensual">
+          <label for="mes">¿Desde qué mes?</label>
+          <select id="mes" name="mes">
+            {[actual, siguiente].map((m) => <option value={m} selected={m === v.mes}>{nombreMes(m)}</option>)}
+          </select>
+          <small data-libres-mes></small>
+        </div>
+
+        <div class="campo" data-tipo="suelta">
+          <label for="fecha">Día de la clase suelta</label>
+          <select id="fecha" name="fecha">
+            <option value="">Elige un día</option>
+            {[...sueltas].flatMap(([gid, lista]) => lista.map((s) => (
+              <option value={s.fecha} data-grupo={gid} data-lleno={s.libres === 0 ? '1' : undefined} disabled={s.libres === 0} selected={String(gid) === v.grupo && s.fecha === v.fecha}>
+                {fechaCorta(s.fecha)} · {s.libres === 0 ? 'completo' : `${s.libres} ${s.libres === 1 ? 'plaza libre' : 'plazas libres'}`}
+              </option>
             )))}
           </select>
         </div>
-        <fieldset class="campo">
-          <legend>¿Cómo quieres venir?</legend>
-          <label class="casilla"><input type="radio" name="tipo" value="mensual" checked /> Cada semana (pago mensual)</label>
-          <label class="casilla"><input type="radio" name="tipo" value="suelta" /> Una clase suelta (adultos, 20 €)</label>
-        </fieldset>
-        <div class="campo">
-          <label for="modalidad">Modalidad (solo costura)</label>
+
+        <div class="campo" data-modalidad>
+          <label for="modalidad">Modalidad</label>
           <select id="modalidad" name="modalidad">
-            <option value="">No aplica</option>
-            <option>Con máquina</option>
-            <option>Sin máquina</option>
+            <option value="">Elige una</option>
+            <option selected={v.modalidad === 'Con máquina'}>Con máquina</option>
+            <option selected={v.modalidad === 'Sin máquina'}>Sin máquina</option>
           </select>
         </div>
-        <div class="dos-col">
-          <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
-          <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required /></div>
+
+        <div class="campo" data-solo-ninos>
+          <label for="menor">Nombre del niño o niña</label>
+          <small>Rellena el resto del formulario con tus datos como madre, padre o tutor.</small>
+          <input id="menor" name="menor" maxlength="120" value={v.menor} />
         </div>
-        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
-        {MOSTRAR_NINOS && (
-          <div class="campo">
-            <label for="menor">Nombre del niño o niña (solo clases infantiles)</label>
-            <small>Si la plaza es para un menor, rellena el resto del formulario con tus datos como madre, padre o tutor.</small>
-            <input id="menor" name="menor" />
-          </div>
-        )}
-        <label class="casilla"><input type="checkbox" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
-        <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
-        <button class="boton" type="submit">Pedir plaza</button>
-        <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se envía nada.</p>
+
+        <div class="dos-col">
+          <div class="campo"><label for="nombre">Nombre y apellido</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+          <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+        </div>
+        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+        <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+        <label class="casilla"><input type="checkbox" name="condiciones" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
+        <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+        {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
+        <button class="boton" type="submit">Reservar plaza</button>
       </form>
     </div>
   </section>
 </Base>
+
+<script is:inline define:vars={{ libres: Object.fromEntries(grupos.map((g) => [g.id, { [actual]: libresMes(g.id, actual), [siguiente]: libresMes(g.id, siguiente) }])) }}>
+  // Muestra solo los campos que tocan según el grupo y el tipo elegidos. Sin JavaScript, se ve todo y el servidor valida.
+  const form = document.getElementById('form-clase');
+  const grupo = form.querySelector('#grupo');
+  const mes = form.querySelector('#mes');
+  const fecha = form.querySelector('#fecha');
+  const actualizar = () => {
+    const op = grupo.selectedOptions[0];
+    const ninos = op?.dataset.publico === 'ninos';
+    const conModalidad = (op?.dataset.modalidades ?? '[]') !== '[]';
+    if (ninos) form.querySelector('input[name=tipo][value=mensual]').checked = true;
+    const tipo = form.querySelector('input[name=tipo]:checked').value;
+    form.querySelector('[data-solo-adultos]').hidden = ninos;
+    form.querySelector('[data-solo-ninos]').hidden = !ninos;
+    form.querySelector('[data-modalidad]').hidden = !conModalidad;
+    form.querySelector('[data-tipo=mensual]').hidden = tipo !== 'mensual';
+    form.querySelector('[data-tipo=suelta]').hidden = tipo !== 'suelta';
+    for (const o of fecha.options) {
+      if (!o.value) continue;
+      const otro = o.dataset.grupo !== grupo.value;
+      o.hidden = otro; // Safari no oculta opciones: también se desactivan
+      o.disabled = otro || o.dataset.lleno === '1';
+    }
+    if (fecha.selectedOptions[0]?.disabled) fecha.value = '';
+    const n = libres[grupo.value]?.[mes.value];
+    form.querySelector('[data-libres-mes]').textContent = n === undefined ? '' : n === 0 ? 'No quedan plazas ese mes en este horario.' : `Quedan ${n} plazas.`;
+  };
+  form.addEventListener('change', actualizar);
+  actualizar();
+</script>

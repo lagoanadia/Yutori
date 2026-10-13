@@ -191,3 +191,5 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .apuntada__acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .boton-texto--peligro { color: var(--aviso); }
+[hidden] { display: none !important; }
+.campo .casilla { font-weight: 400; }

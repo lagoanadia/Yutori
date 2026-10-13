@@ -1,48 +1,117 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
-import { todos, euros, DIAS } from '../../lib/db';
+import { todos, eurosCorto, fecha, DIAS, ESTADOS_RESERVA } from '../../lib/db';
+import { gruposActivos, meses, nombreMes, renovarMes } from '../../lib/clases';
+import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
 
-// Mes siguiente (el que Iris organiza sobre el día 20).
-const hoy = new Date();
-const siguiente = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + 1, 1));
-const mes = siguiente.toISOString().slice(0, 7);
-const nombreMes = siguiente.toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const { actual, siguiente } = meses();
+const mes = Astro.url.searchParams.get('mes') === actual ? actual : siguiente;
+let renovadas: number | null = null;
 
-const grupos = await todos<{
-  id: number; clase: string; tipo: string; dia_semana: number; hora_inicio: string; hora_fin: string; plazas: number;
-  precio_mes_cent: number | null; precio_mes_max_cent: number | null; publico: string; confirmadas: number; pendientes: number;
-}>(`
-  SELECT g.*, c.nombre AS clase, c.tipo,
-    (SELECT count(*) FROM reservas r WHERE r.grupo_id = g.id AND r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada') AS confirmadas,
-    (SELECT count(*) FROM reservas r WHERE r.grupo_id = g.id AND r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'pendiente') AS pendientes
-  FROM grupos g JOIN clases c ON c.id = g.clase_id
-  WHERE g.activo = 1 AND c.activa = 1
-  ORDER BY g.dia_semana, g.hora_inicio
-`, mes);
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
+  if (accion === 'renovar') {
+    renovadas = await renovarMes(actual, siguiente);
+  } else if (accion === 'pagado' || accion === 'cancelar') {
+    await cambiarEstadoReserva(Number(datos.get('reserva')), accion);
+    return Astro.redirect(`/panel/clases?mes=${mes}&ok=guardado#g${datos.get('grupo')}`, 303);
+  }
+}
+await liberarCaducadas();
+
+const grupos = await gruposActivos();
+const alumnas = await todos<{ id: number; grupo_id: number; nombre: string; nombre_menor: string | null; telefono: string; email: string; modalidad: string | null; estado: string }>(
+  `SELECT id, grupo_id, nombre, nombre_menor, telefono, email, modalidad, estado FROM reservas
+   WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY estado DESC, creado_en`, mes);
+const sueltas = await todos<{ id: number; grupo_id: number; nombre: string; telefono: string; fecha_sesion: string; estado: string; caduca_en: string | null }>(
+  `SELECT id, grupo_id, nombre, telefono, fecha_sesion, estado, caduca_en FROM reservas
+   WHERE tipo = 'clase_suelta' AND substr(fecha_sesion, 1, 7) = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY fecha_sesion`, mes);
+const confirmadasActual = (await todos<{ n: number }>(
+  `SELECT count(*) AS n FROM reservas WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado = 'confirmada'`, actual))[0]?.n ?? 0;
 ---
 <Panel titulo="Clases semanales">
-  <p class="intro">Alumnas mensuales de <strong>{nombreMes}</strong>. Las plazas que queden libres se pueden ofrecer como clases sueltas.</p>
-  <table class="tabla">
-    <thead><tr><th>Horario</th><th>Clase</th><th>Alumnas</th><th>Libres</th><th>Precio mes</th></tr></thead>
-    <tbody>
-      {grupos.map((g) => {
-        const ocupadas = g.confirmadas + g.pendientes;
-        return (
-          <tr>
-            <td data-label="Horario"><strong>{DIAS[g.dia_semana]}</strong> {g.hora_inicio}-{g.hora_fin}</td>
-            <td data-label="Clase">{g.clase} <small>· {g.tipo}</small>{g.publico === 'ninos' && <> <span class="estado">Niños</span></>}</td>
-            <td data-label="Alumnas">
-              <span class="ocupacion">
-                <span class="ocupacion__barra"><span style={`width:${Math.min(100, (ocupadas / g.plazas) * 100)}%`}></span></span>
-                {g.confirmadas} confirmadas{g.pendientes > 0 && `, ${g.pendientes} pendientes`}
-              </span>
-            </td>
-            <td data-label="Libres">{Math.max(0, g.plazas - ocupadas)} de {g.plazas}</td>
-            <td data-label="Precio mes">{euros(g.precio_mes_cent)}{g.precio_mes_max_cent && ` - ${euros(g.precio_mes_max_cent)}`}</td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
+  <nav class="filtros" aria-label="Mes">
+    <a href={`/panel/clases?mes=${actual}`} aria-current={mes === actual ? 'true' : undefined}>{nombreMes(actual)}</a>
+    <a href={`/panel/clases?mes=${siguiente}`} aria-current={mes === siguiente ? 'true' : undefined}>{nombreMes(siguiente)}</a>
+  </nav>
+
+  {renovadas !== null && (
+    <p class="aviso-ok" role="status">
+      {renovadas === 0 ? 'No había alumnas nuevas que renovar: ya estaban todas apuntadas.' : `${renovadas} ${renovadas === 1 ? 'alumna renovada' : 'alumnas renovadas'} para ${nombreMes(siguiente)}, pendientes de pago.`}
+    </p>
+  )}
+
+  <form method="post" class="tarjeta renovar">
+    <input type="hidden" name="accion" value="renovar" />
+    <div>
+      <strong>Prioridad para tus alumnas</strong>
+      <p>Reserva su plaza de {nombreMes(siguiente)} a las {confirmadasActual} alumnas confirmadas de {nombreMes(actual)}, antes de abrir las plazas libres. Quedan pendientes de pago hasta que te paguen.</p>
+    </div>
+    <button class="boton" type="submit" disabled={confirmadasActual === 0}>Renovar alumnas</button>
+  </form>
+
+  {grupos.map((g) => {
+    const lista = alumnas.filter((a) => a.grupo_id === g.id);
+    const sueltasGrupo = sueltas.filter((s) => s.grupo_id === g.id);
+    return (
+      <section class="grupo" id={`g${g.id}`}>
+        <h2>
+          {DIAS[g.dia_semana]} {g.hora_inicio}-{g.hora_fin} · {g.nombre}
+          {g.publico === 'ninos' && <span class="estado">Niños</span>}
+        </h2>
+        <p class="grupo__resumen">
+          <span class="ocupacion">
+            <span class="ocupacion__barra"><span style={`width:${Math.min(100, (lista.length / g.plazas) * 100)}%`}></span></span>
+            {lista.length} de {g.plazas} plazas mensuales
+          </span>
+          <small> · {eurosCorto(g.precio_mes_cent)}{g.precio_mes_max_cent && `-${eurosCorto(g.precio_mes_max_cent)}`}/mes</small>
+        </p>
+        {lista.length === 0 && sueltasGrupo.length === 0 ? <p class="vacio">Nadie apuntado en {nombreMes(mes)}.</p> : (
+          <ul class="lista-apuntadas">
+            {lista.map((a) => (
+              <li class="tarjeta apuntada">
+                <div>
+                  <strong>{a.nombre_menor ? `${a.nombre_menor} (${a.nombre})` : a.nombre}</strong>{a.modalidad && <small> · {a.modalidad}</small>}<br />
+                  <small><a href={`tel:${a.telefono}`}>{a.telefono}</a> · <a href={`mailto:${a.email}`}>{a.email}</a></small><br />
+                  <span class={`estado estado--${a.estado}`}>{ESTADOS_RESERVA[a.estado]}</span>
+                </div>
+                <form method="post" class="apuntada__acciones">
+                  <input type="hidden" name="reserva" value={a.id} />
+                  <input type="hidden" name="grupo" value={g.id} />
+                  {a.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
+                  <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta plaza? Quedará libre.')">Cancelar</button>
+                </form>
+              </li>
+            ))}
+            {sueltasGrupo.map((s) => (
+              <li class="tarjeta apuntada suelta">
+                <div>
+                  <strong>{s.nombre}</strong> <small>· clase suelta el {fecha(s.fecha_sesion)}</small><br />
+                  <small><a href={`tel:${s.telefono}`}>{s.telefono}</a></small><br />
+                  <span class={`estado estado--${s.estado}`}>{ESTADOS_RESERVA[s.estado]}</span>
+                  {s.estado === 'pendiente' && s.caduca_en && <small> · hasta {fecha(s.caduca_en)}</small>}
+                </div>
+                <form method="post" class="apuntada__acciones">
+                  <input type="hidden" name="reserva" value={s.id} />
+                  <input type="hidden" name="grupo" value={g.id} />
+                  {s.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
+                  <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta clase suelta?')">Cancelar</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  })}
 </Panel>
+
+<style>
+  .renovar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .renovar p { margin: 4px 0 0; color: var(--tinta-suave); max-width: 60ch; }
+  .grupo h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 1.2rem; }
+  .grupo__resumen { margin: 0 0 12px; }
+  .suelta { border-style: dashed; }
+</style>

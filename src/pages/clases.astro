@@ -1,6 +1,31 @@
 ---
+export const prerender = false;
 import Base from '../layouts/Base.astro';
-import { clases, PLAZAS_CLASE, MOSTRAR_NINOS, politicaClases, publicosVisibles } from '../data/yutori';
+import { PLAZAS_CLASE, MOSTRAR_NINOS, politicaClases } from '../data/yutori';
+import { DIAS, eurosCorto } from '../lib/db';
+import { gruposActivos, meses, nombreMes, ocupacionMes, type Grupo } from '../lib/clases';
+import { hoyEspana } from '../lib/reservas';
+
+// Desde el día 20 se muestran ya las plazas del mes siguiente (es cuando se organiza).
+const { actual, siguiente } = meses();
+const mesMostrado = Number(hoyEspana().slice(8, 10)) >= 20 ? siguiente : actual;
+const [grupos, ocupacion] = await Promise.all([gruposActivos(), ocupacionMes(mesMostrado)]);
+
+type Clase = { slug: string; nombre: string; tipo: string; colabora: string | null; texto: string | null; temas: string[];
+  kit: boolean; modalidades: string[]; precioSuelta: number | null; publicos: Map<string, Grupo[]> };
+const clases = new Map<string, Clase>();
+for (const g of grupos) {
+  const c = clases.get(g.slug) ?? {
+    slug: g.slug, nombre: g.nombre, tipo: g.tipo, colabora: g.colabora, texto: g.texto, temas: JSON.parse(g.temas),
+    kit: !!g.kit_incluido, modalidades: JSON.parse(g.modalidades), precioSuelta: g.precio_suelta_cent, publicos: new Map(),
+  };
+  c.publicos.set(g.publico, [...(c.publicos.get(g.publico) ?? []), g]);
+  clases.set(g.slug, c);
+}
+const precioMes = (g: Grupo) => g.precio_mes_max_cent
+  ? `${(g.precio_mes_cent ?? 0) / 100}-${eurosCorto(g.precio_mes_max_cent)}/mes`
+  : `${eurosCorto(g.precio_mes_cent)}/mes`;
+const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
 ---
 <Base titulo="Clases semanales" descripcion="Clases semanales de ganchillo, acuarela y costura y bordado en A Coruña, para adultos y niños. Grupos de 8 personas como máximo.">
   <section class="seccion">
@@ -10,35 +35,42 @@ import { clases, PLAZAS_CLASE, MOSTRAR_NINOS, politicaClases, publicosVisibles }
       <p class="intro">Grupos pequeños de {PLAZAS_CLASE} personas como máximo{MOSTRAR_NINOS && ', para adultos y para peques'}. Puedes reservar tu plaza cada mes o venir a una clase suelta si quedan plazas libres.</p>
 
       <div class="rejilla clases">
-        {clases.map((c) => (
-          <article class="tarjeta clase" id={c.id}>
+        {[...clases.values()].map((c) => (
+          <article class="tarjeta clase" id={c.slug}>
             <div class="foto-hueco">Foto de la clase</div>
             <span class="etiqueta">{c.tipo}</span>
             <h2>{c.nombre}</h2>
             {c.colabora && <p class="clase__colabora">{c.colabora}</p>}
-            <p>{c.descripcion}</p>
-            <ul class="temas" aria-label="Qué se trabaja">
-              {c.temas.map((t) => <li>{t}</li>)}
-            </ul>
+            <p>{c.texto}</p>
+            <ul class="temas" aria-label="Qué se trabaja">{c.temas.map((t) => <li>{t}</li>)}</ul>
 
-            {publicosVisibles(c).map((p) => (
+            {[...c.publicos].map(([publico, lista]) => (
               <div class="publico">
-                <h3>{p.para} <span class="publico__precio">{p.precioMes}{p.precioSuelta && ` · ${p.precioSuelta} clase suelta`}</span></h3>
+                <h3>
+                  {publico === 'ninos' ? 'Niños' : 'Adultos'}
+                  <span class="publico__precio">{precioMes(lista[0])}{publico === 'adultos' && c.precioSuelta && ` · ${eurosCorto(c.precioSuelta)} clase suelta`}</span>
+                </h3>
                 <ul class="horarios">
-                  {p.grupos.map((g) => <li><strong>{g.dia}</strong> {g.inicio}-{g.fin}</li>)}
+                  {lista.map((g) => (
+                    <li>
+                      <span><strong>{DIAS[g.dia_semana]}</strong> {g.hora_inicio}-{g.hora_fin}</span>
+                      <span class:list={['libres', { 'libres--no': libres(g) === 0 }]}>{libres(g) === 0 ? 'Completo' : `${libres(g)} libres`}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
+            <p class="mes-plazas">Plazas de {nombreMes(mesMostrado)}</p>
 
             <ul class="incluye">
               <li>Grupo máximo de {PLAZAS_CLASE} personas</li>
-              {c.kitIncluido && <li>Kit de iniciación incluido</li>}
-              {c.modalidades && <li>Modalidades: {c.modalidades.join(' / ')}</li>}
+              {c.kit && <li>Kit de iniciación incluido</li>}
+              {c.modalidades.length > 0 && <li>Modalidades: {c.modalidades.join(' / ')}</li>}
             </ul>
 
             <div class="botones">
-              <a class="boton" href={`/clases/pedir-plaza?clase=${c.id}`}>Reservar plaza</a>
-              <a class="boton boton--borde" href={`/clases/pedir-plaza?clase=${c.id}&suelta=1`}>Clase suelta</a>
+              <a class="boton" href={`/clases/pedir-plaza?clase=${c.slug}`}>Reservar plaza</a>
+              {c.publicos.has('adultos') && <a class="boton boton--borde" href={`/clases/pedir-plaza?clase=${c.slug}&suelta=1`}>Clase suelta</a>}
             </div>
           </article>
         ))}
@@ -70,7 +102,10 @@ import { clases, PLAZAS_CLASE, MOSTRAR_NINOS, politicaClases, publicosVisibles }
   .publico h3 { font-size: 1.1rem; margin: 8px 0 4px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; }
   .publico__precio { font-family: var(--sans); font-size: 0.95rem; font-weight: 700; color: var(--tinta); }
   .horarios { list-style: none; padding: 0; margin: 0 0 12px; }
-  .horarios li { padding: 6px 0; border-bottom: 1px dashed var(--borde); }
+  .horarios li { padding: 6px 0; border-bottom: 1px dashed var(--borde); display: flex; justify-content: space-between; gap: 8px; }
+  .libres { font-size: 0.9rem; font-weight: 700; color: var(--verde); white-space: nowrap; }
+  .libres--no { color: var(--aviso); }
+  .mes-plazas { font-size: 0.85rem; color: var(--tinta-suave); margin-top: -4px; }
   .incluye { padding-left: 1.2em; color: var(--tinta-suave); margin: 4px 0 16px; }
   .clase .botones { margin-top: auto; }
 </style>
