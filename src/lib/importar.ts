@@ -67,7 +67,8 @@ function mapearTallerista(f: Fila, categorias: Map<string, number>): Mapeo {
   const categoriaId = f.categoria ? categorias.get(normalizar(f.categoria)) ?? null : null;
   if (f.categoria && categoriaId === null) e.push(`la categoría «${f.categoria}» no existe en el panel`);
 
-  const estado = f.estado ? codigoDe(f.estado, ESTADOS_TALLERISTA) : 'nueva';
+  // Las talleristas que se importan ya son de Yutori: entran como aceptadas salvo que el texto diga otra cosa.
+  const estado = f.estado ? codigoDe(f.estado, ESTADOS_TALLERISTA) : 'aceptada';
   if (!estado) e.push(`el estado «${f.estado}» no vale (usa: ${Object.values(ESTADOS_TALLERISTA).join(', ')})`);
 
   const haImpartido = siNo(f.ha_impartido ?? '', 'ha_impartido', e);

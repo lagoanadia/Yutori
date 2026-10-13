@@ -3,6 +3,7 @@ export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { z } from 'zod';
 import { importar, leerEntrada, MAX_BYTES, MAX_FILAS, preparar, type Entrada, type Preparado } from '../../lib/importar';
+import { PLANTILLAS } from '../../lib/plantillas';
 
 const errores: string[] = [];
 const okN = Astro.url.searchParams.get('ok');
@@ -64,6 +65,32 @@ if (Astro.request.method === 'POST') {
     Si las columnas tienen nombre (nombre, email…) se leen directamente; si no, la IA separa las personas por ti.
     Nada se guarda hasta que confirmes la vista previa. Las personas que ya existan (mismo nombre y email) se saltan.
   </p>
+
+  <section class="plantillas">
+    <h2>Qué necesita cada cosa</h2>
+    <p class="intro">Si tus datos llevan estas columnas con su nombre, se leen directamente. Descarga la plantilla para rellenarla en la hoja de cálculo.</p>
+    {(Object.keys(PLANTILLAS) as (keyof typeof PLANTILLAS)[]).map((tipo) => (
+      <details class="tarjeta">
+        <summary><strong>{PLANTILLAS[tipo].titulo}</strong></summary>
+        <div class="tabla-envoltorio">
+          <table class="tabla">
+            <thead><tr><th>Columna</th><th>Obligatoria</th><th>Qué poner</th><th>Ejemplo</th></tr></thead>
+            <tbody>
+              {PLANTILLAS[tipo].columnas.map((c) => (
+                <tr>
+                  <td data-label="Columna"><code>{c.nombre}</code></td>
+                  <td data-label="Obligatoria">{c.obligatoria}</td>
+                  <td data-label="Qué poner">{c.descripcion}</td>
+                  <td data-label="Ejemplo">{c.ejemplo}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p><a class="boton boton--borde" href={`/panel/importar/plantilla?tipo=${tipo}`} download>Descargar plantilla CSV</a></p>
+      </details>
+    ))}
+  </section>
 
   {okN && <div class="aviso-ok" role="status">Importadas {okN} filas.</div>}
 
