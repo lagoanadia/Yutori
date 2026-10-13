@@ -7,8 +7,7 @@
     {
       "binding": "DB",
       "database_name": "yutori",
-      // TODO: pegar aquí el "Database ID" de la D1 creada en Cloudflare.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "232406db-e2a0-4762-a48a-750d99b9318b",
       "migrations_dir": "migrations"
     }
   ],
