@@ -15,7 +15,7 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
             <figure class="tarjeta resena">
               <span class="resenas__estrellas" aria-label="5 estrellas">★★★★★</span>
               <blockquote>{r.texto}</blockquote>
-              <figcaption>{r.autora}</figcaption>
+              <figcaption>{r.autora} <small>· {r.cuando}</small></figcaption>
             </figure>
           ))
         : [1, 2, 3].map(() => (

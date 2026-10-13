@@ -1,29 +1,43 @@
 ---
 import Base from '../layouts/Base.astro';
-import { clases, PLAZAS_CLASE, politicaClases } from '../data/yutori';
+import { clases, PLAZAS_CLASE, MOSTRAR_NINOS, politicaClases, publicosVisibles } from '../data/yutori';
 ---
-<Base titulo="Clases semanales" descripcion="Clases semanales de ganchillo, acuarela y costura y bordado en A Coruña. Grupos de 8 personas como máximo.">
+<Base titulo="Clases semanales" descripcion="Clases semanales de ganchillo, acuarela y costura y bordado en A Coruña, para adultos y niños. Grupos de 8 personas como máximo.">
   <section class="seccion">
     <div class="contenedor">
       <p class="script">Curso 26/27</p>
       <h1>Clases semanales</h1>
-      <p class="intro">Grupos pequeños de {PLAZAS_CLASE} personas como máximo. Puedes apuntarte cada mes o venir a una clase suelta si quedan plazas libres.</p>
+      <p class="intro">Grupos pequeños de {PLAZAS_CLASE} personas como máximo{MOSTRAR_NINOS && ', para adultos y para peques'}. Puedes reservar tu plaza cada mes o venir a una clase suelta si quedan plazas libres.</p>
 
       <div class="rejilla clases">
         {clases.map((c) => (
-          <article class="tarjeta" id={c.id}>
+          <article class="tarjeta clase" id={c.id}>
             <div class="foto-hueco">Foto de la clase</div>
             <span class="etiqueta">{c.tipo}</span>
             <h2>{c.nombre}</h2>
+            {c.colabora && <p class="clase__colabora">{c.colabora}</p>}
             <p>{c.descripcion}</p>
-            <h3>Horarios</h3>
-            <ul class="horarios">
-              {c.grupos.map((g) => <li><strong>{g.dia}</strong> {g.inicio}-{g.fin}</li>)}
+            <ul class="temas" aria-label="Qué se trabaja">
+              {c.temas.map((t) => <li>{t}</li>)}
             </ul>
-            {c.modalidades && <p><strong>Modalidades:</strong> {c.modalidades.join(' · ')}</p>}
-            <p class="precios"><span>{c.precioMes}</span> · Clase suelta {c.precioSuelta} <span class="ejemplo">Ejemplo</span></p>
+
+            {publicosVisibles(c).map((p) => (
+              <div class="publico">
+                <h3>{p.para} <span class="publico__precio">{p.precioMes}{p.precioSuelta && ` · ${p.precioSuelta} clase suelta`}</span></h3>
+                <ul class="horarios">
+                  {p.grupos.map((g) => <li><strong>{g.dia}</strong> {g.inicio}-{g.fin}</li>)}
+                </ul>
+              </div>
+            ))}
+
+            <ul class="incluye">
+              <li>Grupo máximo de {PLAZAS_CLASE} personas</li>
+              {c.kitIncluido && <li>Kit de iniciación incluido</li>}
+              {c.modalidades && <li>Modalidades: {c.modalidades.join(' / ')}</li>}
+            </ul>
+
             <div class="botones">
-              <a class="boton" href={`/clases/pedir-plaza?clase=${c.id}`}>Pedir plaza mensual</a>
+              <a class="boton" href={`/clases/pedir-plaza?clase=${c.id}`}>Reservar plaza</a>
               <a class="boton boton--borde" href={`/clases/pedir-plaza?clase=${c.id}&suelta=1`}>Clase suelta</a>
             </div>
           </article>
@@ -47,8 +61,16 @@ import { clases, PLAZAS_CLASE, politicaClases } from '../data/yutori';
 
 <style>
   .clases { margin-top: 32px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-  .clases h2 { font-size: 1.7rem; }
-  .horarios { list-style: none; padding: 0; margin: 0 0 16px; }
+  .clase { display: flex; flex-direction: column; }
+  .clase .etiqueta { align-self: flex-start; }
+  .clase h2 { font-size: 1.7rem; margin-bottom: 0.2em; }
+  .clase__colabora { font-family: var(--script); color: var(--verde); font-size: 1.4rem; margin-bottom: 8px; }
+  .temas { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .temas li { font-size: 0.85rem; background: var(--salvia-suave); color: var(--verde); border-radius: 999px; padding: 2px 10px; }
+  .publico h3 { font-size: 1.1rem; margin: 8px 0 4px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; }
+  .publico__precio { font-family: var(--sans); font-size: 0.95rem; font-weight: 700; color: var(--tinta); }
+  .horarios { list-style: none; padding: 0; margin: 0 0 12px; }
   .horarios li { padding: 6px 0; border-bottom: 1px dashed var(--borde); }
-  .precios { font-family: var(--serif); color: var(--verde); font-size: 1.15rem; }
+  .incluye { padding-left: 1.2em; color: var(--tinta-suave); margin: 4px 0 16px; }
+  .clase .botones { margin-top: auto; }
 </style>
