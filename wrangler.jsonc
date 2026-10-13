@@ -23,6 +23,6 @@
     "ACCESS_TEAM": "raspy-cherry-af72",
     "ACCESS_AUD": "",
     // Turnstile (anti-spam). La clave secreta va como Secret en Cloudflare: TURNSTILE_SECRET.
-    "TURNSTILE_SITE_KEY": ""
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFV3R9uyiBT9YNxL"
   }
 }
