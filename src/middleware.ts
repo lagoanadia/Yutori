@@ -1,6 +1,7 @@
 import { defineMiddleware, sequence } from 'astro:middleware';
 import { env } from 'cloudflare:workers';
 import { usuarioDeAccess } from './lib/acceso';
+import { claveConfigurada, COOKIE_PANEL, sesionValida } from './lib/sesion';
 
 /** Cabeceras de seguridad para las páginas del servidor. Las estáticas las llevan en public/_headers. */
 const SEGURIDAD: Record<string, string> = {
@@ -36,23 +37,32 @@ const panel = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  // En local (npm run dev) el panel se abre sin pantalla de acceso.
-  if (import.meta.env.DEV) {
+  // En local (npm run dev) el panel se abre sin pantalla de acceso (salvo que haya PANEL_CLAVE en .dev.vars, para probarla).
+  if (import.meta.env.DEV && !claveConfigurada()) {
     context.locals.usuario = 'local';
     return next();
   }
 
-  // En internet: si Access aún no está configurado, el panel no existe.
-  if (!env.ACCESS_AUD) {
-    return new Response('No encontrado', { status: 404 });
+  // 1) Con dominio: Cloudflare Access (código por email).
+  if (env.ACCESS_AUD) {
+    const usuario = await usuarioDeAccess(context.request, env.ACCESS_TEAM, env.ACCESS_AUD);
+    if (!usuario) return new Response('Acceso no autorizado', { status: 403 });
+    context.locals.usuario = usuario;
+    return next();
   }
 
-  const usuario = await usuarioDeAccess(context.request, env.ACCESS_TEAM, env.ACCESS_AUD);
-  if (!usuario) {
-    return new Response('Acceso no autorizado', { status: 403 });
+  // 2) Sin dominio: contraseña del panel (secreto PANEL_CLAVE).
+  if (claveConfigurada()) {
+    if (pathname === '/panel/entrar') return next();
+    if (await sesionValida(context.cookies.get(COOKIE_PANEL)?.value)) {
+      context.locals.usuario = 'clave';
+      return next();
+    }
+    return context.redirect(`/panel/entrar?volver=${encodeURIComponent(pathname + context.url.search)}`, 303);
   }
-  context.locals.usuario = usuario;
-  return next();
+
+  // 3) Sin ninguna de las dos: el panel no existe en internet.
+  return new Response('No encontrado', { status: 404 });
 });
 
 export const onRequest = sequence(cabeceras, panel);

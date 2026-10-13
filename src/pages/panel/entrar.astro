@@ -1,0 +1,48 @@
+---
+// Entrada al panel con contraseña (solo se usa mientras no haya Cloudflare Access).
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import Turnstile from '../../components/Turnstile.astro';
+import { claveConfigurada, claveCorrecta, crearCookie } from '../../lib/sesion';
+import { verificarTurnstile } from '../../lib/turnstile';
+
+if (!claveConfigurada()) return Astro.redirect('/panel', 303);
+
+const volverPedido = Astro.url.searchParams.get('volver') ?? '/panel';
+// Solo se vuelve a páginas del panel (nunca a otra web).
+const volver = /^\/panel(\/|\?|$)/.test(volverPedido) && !volverPedido.startsWith('/panel/entrar') ? volverPedido : '/panel';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const humano = await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP'));
+  if (humano && (await claveCorrecta(String(datos.get('clave') ?? '')))) {
+    return new Response(null, { status: 303, headers: { Location: volver, 'Set-Cookie': await crearCookie() } });
+  }
+  // Pausa tras un intento fallido: hace mucho más lento adivinar la contraseña.
+  await new Promise((r) => setTimeout(r, 1500));
+  error = humano ? 'Contraseña incorrecta.' : 'No hemos podido comprobar que no eres un robot. Vuelve a intentarlo.';
+}
+---
+<Base titulo="Entrar al panel" noindex>
+  <section class="seccion">
+    <div class="contenedor entrar">
+      <p class="script">Panel de Yutori</p>
+      <h1>Entrar</h1>
+      {error && <div class="errores" role="alert"><p>{error}</p></div>}
+      <form method="post" class="formulario tarjeta">
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <input id="clave" name="clave" type="password" autocomplete="current-password" required autofocus />
+        </div>
+        <Turnstile />
+        <button class="boton" type="submit">Entrar</button>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .entrar { max-width: 420px; }
+  .entrar .errores p { margin: 0; }
+</style>

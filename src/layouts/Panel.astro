@@ -40,7 +40,9 @@ const aviso = AVISOS[Astro.url.searchParams.get('ok') ?? ''];
     <header class="barra">
       <div class="contenedor barra__fila">
         <a class="barra__marca" href="/panel">Yutori <span>panel</span></a>
-        <span class="barra__usuario">{Astro.locals.usuario === 'local' ? 'Modo local' : Astro.locals.usuario}</span>
+        {Astro.locals.usuario === 'clave'
+          ? <form method="post" action="/panel/salir"><button class="barra__salir" type="submit">Salir</button></form>
+          : <span class="barra__usuario">{Astro.locals.usuario === 'local' ? 'Modo local' : Astro.locals.usuario}</span>}
       </div>
       <nav class="contenedor barra__menu" aria-label="Panel">
         {menu.map((m) => <a href={m.href} aria-current={actual === m.href ? 'page' : undefined}>{m.texto}</a>)}
@@ -60,6 +62,7 @@ const aviso = AVISOS[Astro.url.searchParams.get('ok') ?? ''];
   .barra__marca { color: #fff; text-decoration: none; font-family: var(--serif); font-size: 1.4rem; font-weight: 700; }
   .barra__marca span { font-family: var(--sans); font-size: 0.85rem; font-weight: 400; opacity: 0.85; }
   .barra__usuario { font-size: 0.85rem; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra__salir { background: none; border: 1px solid rgba(255, 255, 255, 0.6); color: #fff; border-radius: 999px; padding: 4px 14px; font: inherit; font-size: 0.9rem; cursor: pointer; }
   .barra__menu { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
   .barra__menu a { color: #fff; text-decoration: none; white-space: nowrap; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 0.95rem; }
   .barra__menu a[aria-current='page'] { background: var(--crema); color: var(--verde); }
