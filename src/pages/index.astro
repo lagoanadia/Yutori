@@ -26,7 +26,7 @@ const servicios = [
       </div>
       <div class="portada__imagen">
         <div class="foto-hueco portada__foto">Foto del espacio</div>
-        <Mariposa size={96} class="portada__mariposa" />
+        <Mariposa size={150} class="portada__mariposa" />
       </div>
     </div>
   </section>
@@ -80,7 +80,7 @@ const servicios = [
   .portada .script { font-size: 2rem; margin-bottom: 8px; }
   .portada__imagen { position: relative; }
   .portada__foto { aspect-ratio: 4 / 5; border-radius: 200px 200px var(--radio) var(--radio); margin: 0; }
-  .portada__imagen :global(.portada__mariposa) { position: absolute; right: -8px; bottom: -16px; color: var(--verde); background: var(--crema); border-radius: 50%; padding: 8px; }
+  .portada__imagen :global(.portada__mariposa) { position: absolute; right: 12px; bottom: -16px; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px; box-shadow: var(--sombra); width: 150px; height: auto; box-sizing: content-box; }
   @media (min-width: 860px) {
     .portada { padding: 72px 0 56px; }
     .portada__fila { grid-template-columns: 1.2fr 1fr; }
