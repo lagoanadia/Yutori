@@ -1,12 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
-import LegalPendiente from '../components/LegalPendiente.astro';
+import TextoLegal from '../components/TextoLegal.astro';
 ---
 <Base titulo="Cookies">
-  <LegalPendiente titulo="Cookies" contenido={[
-    'Esta web no usa cookies de publicidad ni de análisis.',
-    'La analítica (Cloudflare Web Analytics) no usa cookies.',
-    'Las fuentes se cargan desde la propia web, no desde Google.',
-    'El mapa se abre en Google Maps solo si pulsas el botón.',
-  ]} />
+  <TextoLegal titulo="Política de cookies">
+    <p><strong>Esta web no usa cookies de publicidad ni de seguimiento, y por eso no te mostramos ningún banner de cookies.</strong></p>
+
+    <h2>Qué usamos y por qué</h2>
+    <table>
+      <thead><tr><th>Qué</th><th>Para qué</th><th>Tipo</th></tr></thead>
+      <tbody>
+        <tr><td>Cloudflare Web Analytics</td><td>Contar visitas de forma anónima y agregada</td><td>Sin cookies</td></tr>
+        <tr><td>Cloudflare Turnstile</td><td>Comprobar que quien envía un formulario no es un robot</td><td>Técnica y necesaria para la seguridad</td></tr>
+        <tr><td>Acceso al panel de gestión</td><td>Mantener la sesión de quien administra la web</td><td>Técnica (solo en el panel privado)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Contenidos de otras webs</h2>
+    <p>Las fuentes tipográficas se cargan desde esta misma web, no desde Google. El mapa y las reseñas de Google se abren en Google solo si pulsas los botones correspondientes: a partir de ese momento se aplican las condiciones de Google.</p>
+
+    <h2>Cómo borrarlas</h2>
+    <p>Puedes borrar las cookies técnicas desde la configuración de tu navegador cuando quieras.</p>
+  </TextoLegal>
 </Base>

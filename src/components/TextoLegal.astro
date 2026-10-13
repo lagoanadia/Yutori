@@ -1,0 +1,25 @@
+---
+// Contenedor de las páginas legales. Avisa mientras falten los datos del titular.
+import { titular } from '../data/yutori';
+const { titulo } = Astro.props as { titulo: string };
+const faltanDatos = !titular.nombre || !titular.nif;
+---
+<section class="seccion">
+  <div class="contenedor texto-legal">
+    <h1>{titulo}</h1>
+    {faltanDatos && <p class="aviso-prototipo">Borrador: faltan los datos del titular (nombre y NIF) antes de publicar la web.</p>}
+    <slot />
+    <p class="revision">Última revisión: {titular.revision}.</p>
+  </div>
+</section>
+
+<style>
+  .texto-legal { max-width: 760px; }
+  .texto-legal :global(h2) { font-size: 1.35rem; margin-top: 32px; }
+  .texto-legal :global(li) { margin-bottom: 6px; }
+  .texto-legal :global(table) { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.95rem; display: block; overflow-x: auto; }
+  @media (min-width: 700px) { .texto-legal :global(table) { display: table; } }
+  .texto-legal :global(td) { min-width: 120px; }
+  .texto-legal :global(th), .texto-legal :global(td) { text-align: left; padding: 8px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  .revision { color: var(--tinta-suave); font-size: 0.9rem; margin-top: 32px; }
+</style>

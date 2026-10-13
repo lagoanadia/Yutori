@@ -31,6 +31,8 @@
     "EMAIL_FROM": "",
     // Google Calendar. La clave privada de la cuenta de servicio va como Secret: GOOGLE_SA_KEY.
     "GOOGLE_CALENDAR_ID": "",
-    "GOOGLE_SA_EMAIL": ""
+    "GOOGLE_SA_EMAIL": "",
+    // Cloudflare Web Analytics (sin cookies). Token público del sitio; vacío = sin analítica.
+    "CF_ANALYTICS_TOKEN": ""
   }
 }

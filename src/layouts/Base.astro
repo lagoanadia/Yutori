@@ -6,6 +6,7 @@ import '@fontsource/nunito-sans/700.css';
 import '@fontsource/parisienne/400.css';
 import '../styles/global.css';
 import Mariposa from '../components/Mariposa.astro';
+import { env } from 'cloudflare:workers';
 import { negocio, whatsappUrl } from '../data/yutori';
 
 interface Props {
@@ -25,6 +26,10 @@ const menu = [
   { href: '/espacio', texto: 'El espacio' },
 ];
 const actual = Astro.url.pathname.replace(/\/$/, '');
+const tituloCompleto = titulo === 'Inicio'
+  ? `${negocio.nombre} ${negocio.subtitulo} · Talleres creativos en A Coruña`
+  : `${titulo} · ${negocio.nombre} ${negocio.subtitulo}`;
+const sitio = env.SITIO_URL || Astro.url.origin;
 ---
 <!doctype html>
 <html lang="es">
@@ -32,9 +37,23 @@ const actual = Astro.url.pathname.replace(/\/$/, '');
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{titulo === 'Inicio' ? `${negocio.nombre} ${negocio.subtitulo} · Talleres creativos en A Coruña` : `${titulo} · ${negocio.nombre} ${negocio.subtitulo}`}</title>
+    <title>{tituloCompleto}</title>
     <meta name="description" content={descripcion} />
     {(noindex || !negocio.indexar) && <meta name="robots" content="noindex, nofollow" />}
+    {negocio.indexar && !noindex && <link rel="canonical" href={new URL(Astro.url.pathname, sitio).href} />}
+    <!-- Vista previa al compartir el enlace (WhatsApp, Instagram, Facebook…) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={`${negocio.nombre} ${negocio.subtitulo}`} />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:title" content={tituloCompleto} />
+    <meta property="og:description" content={descripcion} />
+    <meta property="og:image" content={new URL('/og.jpg', sitio).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    {env.CF_ANALYTICS_TOKEN && !noindex && (
+      <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: env.CF_ANALYTICS_TOKEN })}></script>
+    )}
     <slot name="head" />
   </head>
   <body>

@@ -1,14 +1,56 @@
 ---
 import Base from '../layouts/Base.astro';
-import LegalPendiente from '../components/LegalPendiente.astro';
+import TextoLegal from '../components/TextoLegal.astro';
+import { negocio, titular } from '../data/yutori';
+const pendiente = (v: string) => v || '[pendiente]';
 ---
 <Base titulo="Política de privacidad">
-  <LegalPendiente titulo="Política de privacidad" contenido={[
-    'Responsable del tratamiento: titular de Yutori (pendiente).',
-    'Para qué usamos tus datos: gestionar reservas, clases, talleres privados, bonos y propuestas de talleristas.',
-    'Con quién se comparten: con la tallerista que imparte el taller que reservas (nombre y teléfono).',
-    'Servicios que intervienen: alojamiento web y base de datos (Cloudflare), envío de emails (Resend) y calendario (Google).',
-    'Cuánto tiempo los guardamos: plazos por definir, incluidas las propuestas de talleristas en reserva.',
-    'Tus derechos: acceso, rectificación, supresión, oposición, limitación y portabilidad, escribiendo a yutori.espaciocreativo@gmail.com, y reclamación ante la AEPD.',
-  ]} />
+  <TextoLegal titulo="Política de privacidad">
+    <p>Aquí te contamos, de forma clara, qué datos tuyos guardamos, para qué y cuáles son tus derechos, según el Reglamento General de Protección de Datos (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD).</p>
+
+    <h2>Responsable</h2>
+    <ul>
+      <li><strong>Responsable:</strong> {pendiente(titular.nombre)} ({negocio.nombre} {negocio.subtitulo}), NIF {pendiente(titular.nif)}</li>
+      <li><strong>Dirección:</strong> {negocio.direccion}, {negocio.ciudad}</li>
+      <li><strong>Email:</strong> <a href={`mailto:${negocio.email}`}>{negocio.email}</a></li>
+    </ul>
+
+    <h2>Qué datos tratamos y para qué</h2>
+    <table>
+      <thead><tr><th>Cuándo</th><th>Qué datos</th><th>Para qué</th><th>Base legal</th></tr></thead>
+      <tbody>
+        <tr><td>Reservas de talleres y clases</td><td>Nombre, teléfono, email, plazas y, en clases infantiles, el nombre del niño o niña</td><td>Gestionar tu plaza, el pago y avisarte de cambios</td><td>Ejecución del servicio que pides</td></tr>
+        <tr><td>Talleres privados y bonos regalo</td><td>Nombre, teléfono, email y lo que nos cuentes</td><td>Responder y preparar tu propuesta o tu bono</td><td>Medidas precontractuales a petición tuya</td></tr>
+        <tr><td>Propuestas de talleristas</td><td>Nombre, marca, contacto, propuesta y fotos</td><td>Valorar tu propuesta y contactarte para futuras colaboraciones</td><td>Tu consentimiento</td></tr>
+        <tr><td>Emails automáticos</td><td>Email</td><td>Confirmaciones y avisos de tu reserva</td><td>Ejecución del servicio</td></tr>
+      </tbody>
+    </table>
+    <p>No usamos tus datos para publicidad ni los vendemos.</p>
+
+    <h2>Con quién se comparten</h2>
+    <ul>
+      <li><strong>Con la artesana que imparte el taller que reservas:</strong> tu nombre, teléfono y número de plazas, para que pueda gestionar tu pago y tu plaza. Te lo pedimos de forma expresa al reservar.</li>
+      <li><strong>Con los servicios que hacen funcionar la web</strong>, que actúan por nuestra cuenta y solo con este fin:
+        <ul>
+          <li>Cloudflare: alojamiento de la web, base de datos, fotos y protección contra bots (Turnstile).</li>
+          <li>Resend: envío de los emails automáticos.</li>
+          <li>Google: calendario de los talleres.</li>
+        </ul>
+        Algunos de estos proveedores pueden tratar datos fuera de la Unión Europea, con las garantías que exige el RGPD (cláusulas contractuales tipo o marco de privacidad UE-EE. UU.).
+      </li>
+    </ul>
+
+    <h2>Cuánto tiempo los guardamos</h2>
+    <ul>
+      <li>Reservas: el tiempo necesario para gestionarlas y, después, durante los plazos que exige la ley (por ejemplo, fiscales).</li>
+      <li>Peticiones de talleres privados y bonos: hasta un año después de la última comunicación.</li>
+      <li>Propuestas de talleristas, incluidas las que quedan "en reserva" para el futuro: hasta 2 años, salvo que nos pidas borrarlas antes.</li>
+    </ul>
+
+    <h2>Menores</h2>
+    <p>Las reservas de clases infantiles las hace siempre la madre, el padre o la persona tutora, que es quien facilita los datos del niño o niña.</p>
+
+    <h2>Tus derechos</h2>
+    <p>Puedes pedir acceder a tus datos, corregirlos, borrarlos, limitar su uso, oponerte o llevártelos, y retirar tu consentimiento cuando quieras, escribiendo a <a href={`mailto:${negocio.email}`}>{negocio.email}</a>. Si crees que no hemos tratado bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" rel="noopener" target="_blank">aepd.es</a>).</p>
+  </TextoLegal>
 </Base>

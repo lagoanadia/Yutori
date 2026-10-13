@@ -17,6 +17,14 @@ export const negocio = {
   indexar: false,
 };
 
+// Titular de la web para los textos legales. TODO: datos reales (los pide la LSSI).
+export const titular = {
+  nombre: '', // nombre y apellidos o razón social
+  nif: '',
+  // Fecha de la última revisión de los textos legales.
+  revision: '13 de octubre de 2026',
+};
+
 // Nota de Google Maps a 13/10/2026. Actualizar de vez en cuando.
 export const resenasGoogle = { nota: '5,0', total: 32 };
 
