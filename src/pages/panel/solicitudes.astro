@@ -1,0 +1,49 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { todos, fecha, ESTADOS_SOLICITUD } from '../../lib/db';
+
+const estado = Astro.url.searchParams.get('estado');
+const filtro = estado && estado in ESTADOS_SOLICITUD ? estado : null;
+
+const filas = await todos<{
+  id: number; tipo: string; nombre: string; email: string; telefono: string | null; motivo: string | null;
+  categoria: string | null; fecha_aprox: string | null; personas: number | null; tipo_bono: string | null;
+  detalle: string | null; para_quien: string | null; mensaje: string | null; estado: string; creado_en: string;
+}>(`
+  SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id
+  ${filtro ? 'WHERE s.estado = ?1' : ''}
+  ORDER BY s.creado_en DESC
+`, ...(filtro ? [filtro] : []));
+---
+<Panel titulo="Privados y bonos">
+  <nav class="filtros" aria-label="Filtrar por estado">
+    <a href="/panel/solicitudes" aria-current={!filtro ? 'true' : undefined}>Todas</a>
+    {Object.entries(ESTADOS_SOLICITUD).map(([k, v]) => <a href={`?estado=${k}`} aria-current={filtro === k ? 'true' : undefined}>{v}</a>)}
+  </nav>
+
+  {filas.length === 0 ? <p class="vacio">No hay solicitudes{filtro ? ' con este estado' : ''}.</p> : (
+    <table class="tabla">
+      <thead><tr><th>Tipo</th><th>Quién</th><th>Detalles</th><th>Llegó</th><th>Estado</th></tr></thead>
+      <tbody>
+        {filas.map((s) => (
+          <tr>
+            <td data-label="Tipo"><strong>{s.tipo === 'privado' ? 'Taller privado' : 'Bono regalo'}</strong></td>
+            <td data-label="Quién">
+              {s.nombre}<br />
+              <small>{s.telefono && <><a href={`tel:${s.telefono}`}>{s.telefono}</a> · </>}<a href={`mailto:${s.email}`}>{s.email}</a></small>
+            </td>
+            <td data-label="Detalles">
+              {s.tipo === 'privado'
+                ? <>{s.motivo}{s.categoria && ` · ${s.categoria}`}{s.personas && ` · ${s.personas} personas`}{s.fecha_aprox && ` · ${fecha(s.fecha_aprox)}`}</>
+                : <>Bono {s.tipo_bono === 'importe' ? 'por importe' : 'taller'}: {s.detalle}{s.para_quien && ` · para ${s.para_quien}`}</>}
+              {s.mensaje && <><br /><small>“{s.mensaje}”</small></>}
+            </td>
+            <td data-label="Llegó">{fecha(s.creado_en)}</td>
+            <td><span class={`estado estado--${s.estado}`}>{ESTADOS_SOLICITUD[s.estado]}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</Panel>

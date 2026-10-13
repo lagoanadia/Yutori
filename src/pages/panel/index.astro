@@ -1,0 +1,60 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { todos, uno, fecha, ESTADOS_RESERVA, TIPOS_RESERVA } from '../../lib/db';
+
+const cifras = await uno<Record<string, number>>(`
+  SELECT
+    (SELECT count(*) FROM talleristas WHERE estado = 'nueva') AS talleristas_nuevas,
+    (SELECT count(*) FROM talleres WHERE estado = 'enviado') AS talleres_por_revisar,
+    (SELECT count(*) FROM talleres WHERE estado IN ('hueco', 'enviado') AND pago_reserva_recibido = 0) AS pagos_25_pendientes,
+    (SELECT count(*) FROM reservas WHERE estado = 'pendiente') AS reservas_pendientes,
+    (SELECT count(*) FROM solicitudes WHERE estado = 'nueva') AS solicitudes_nuevas,
+    (SELECT count(*) FROM talleres WHERE estado = 'publicado' AND fecha >= date('now')) AS talleres_proximos
+`);
+
+const ultimas = await todos<{ id: number; tipo: string; nombre: string; estado: string; creado_en: string; que: string | null }>(`
+  SELECT r.id, r.tipo, r.nombre, r.estado, r.creado_en,
+         COALESCE(t.titulo, c.nombre) AS que
+  FROM reservas r
+  LEFT JOIN talleres t ON t.id = r.taller_id
+  LEFT JOIN grupos g ON g.id = r.grupo_id
+  LEFT JOIN clases c ON c.id = g.clase_id
+  ORDER BY r.creado_en DESC LIMIT 5
+`);
+
+const tarjetas = [
+  { n: cifras?.reservas_pendientes ?? 0, texto: 'reservas pendientes de pago', href: '/panel/reservas?estado=pendiente' },
+  { n: cifras?.talleristas_nuevas ?? 0, texto: 'talleristas nuevas', href: '/panel/talleristas?estado=nueva' },
+  { n: cifras?.talleres_por_revisar ?? 0, texto: 'talleres por revisar', href: '/panel/talleres?estado=enviado' },
+  { n: cifras?.pagos_25_pendientes ?? 0, texto: 'pagos de 25 € sin recibir', href: '/panel/talleres' },
+  { n: cifras?.solicitudes_nuevas ?? 0, texto: 'privados y bonos nuevos', href: '/panel/solicitudes?estado=nueva' },
+  { n: cifras?.talleres_proximos ?? 0, texto: 'talleres publicados próximos', href: '/panel/talleres?estado=publicado', neutra: true },
+];
+---
+<Panel titulo="Resumen">
+  <div class="cifras">
+    {tarjetas.map((t) => (
+      <a class:list={['cifra', { alerta: !t.neutra && t.n > 0 }]} href={t.href}>
+        <strong>{t.n}</strong>{t.texto}
+      </a>
+    ))}
+  </div>
+
+  <h2>Últimas reservas</h2>
+  {ultimas.length === 0 ? <p class="vacio">Todavía no hay reservas.</p> : (
+    <table class="tabla">
+      <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Estado</th></tr></thead>
+      <tbody>
+        {ultimas.map((r) => (
+          <tr>
+            <td data-label="Cuándo">{fecha(r.creado_en)}</td>
+            <td data-label="Quién">{r.nombre}</td>
+            <td data-label="Qué">{r.que} <small>· {TIPOS_RESERVA[r.tipo]}</small></td>
+            <td><span class={`estado estado--${r.estado}`}>{ESTADOS_RESERVA[r.estado]}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</Panel>

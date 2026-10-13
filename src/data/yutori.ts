@@ -11,6 +11,8 @@ export const negocio = {
   instagram: 'https://www.instagram.com/yutori.espaciocreativo/',
   instagramUsuario: '@yutori.espaciocreativo',
   whatsapp: '', // TODO: número de Iris en formato 34XXXXXXXXX
+  // Prototipo: Google no debe mostrar la web. Cambiar a true el día que se publique con su dominio.
+  indexar: false,
 };
 
 export const whatsappUrl = (texto = 'Hola Yutori, tengo una pregunta') =>

@@ -1,0 +1,77 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { todos, fecha, DIAS, ESTADOS_RESERVA, TIPOS_RESERVA } from '../../lib/db';
+
+const params = Astro.url.searchParams;
+const estado = params.get('estado');
+const tipo = params.get('tipo');
+const filtroEstado = estado && estado in ESTADOS_RESERVA ? estado : null;
+const filtroTipo = tipo && tipo in TIPOS_RESERVA ? tipo : null;
+
+const condiciones: string[] = [];
+const valores: string[] = [];
+if (filtroEstado) { valores.push(filtroEstado); condiciones.push(`r.estado = ?${valores.length}`); }
+if (filtroTipo) { valores.push(filtroTipo); condiciones.push(`r.tipo = ?${valores.length}`); }
+
+const filas = await todos<{
+  id: number; tipo: string; nombre: string; telefono: string; email: string; plazas: number; modalidad: string | null;
+  estado: string; caduca_en: string | null; creado_en: string; mes: string | null; fecha_sesion: string | null;
+  taller: string | null; taller_fecha: string | null; clase: string | null; dia_semana: number | null; hora_inicio: string | null;
+}>(`
+  SELECT r.*, t.titulo AS taller, t.fecha AS taller_fecha, c.nombre AS clase, g.dia_semana, g.hora_inicio
+  FROM reservas r
+  LEFT JOIN talleres t ON t.id = r.taller_id
+  LEFT JOIN grupos g ON g.id = r.grupo_id
+  LEFT JOIN clases c ON c.id = g.clase_id
+  ${condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : ''}
+  ORDER BY r.creado_en DESC
+`, ...valores);
+
+const enlace = (cambios: Record<string, string | null>) => {
+  const p = new URLSearchParams();
+  const e = 'estado' in cambios ? cambios.estado : filtroEstado;
+  const t = 'tipo' in cambios ? cambios.tipo : filtroTipo;
+  if (e) p.set('estado', e);
+  if (t) p.set('tipo', t);
+  return `/panel/reservas${p.size ? '?' + p : ''}`;
+};
+---
+<Panel titulo="Reservas">
+  <nav class="filtros" aria-label="Filtrar por estado">
+    <a href={enlace({ estado: null })} aria-current={!filtroEstado ? 'true' : undefined}>Todos los estados</a>
+    {Object.entries(ESTADOS_RESERVA).map(([k, v]) => <a href={enlace({ estado: k })} aria-current={filtroEstado === k ? 'true' : undefined}>{v}</a>)}
+  </nav>
+  <nav class="filtros" aria-label="Filtrar por tipo">
+    <a href={enlace({ tipo: null })} aria-current={!filtroTipo ? 'true' : undefined}>Todos los tipos</a>
+    {Object.entries(TIPOS_RESERVA).map(([k, v]) => <a href={enlace({ tipo: k })} aria-current={filtroTipo === k ? 'true' : undefined}>{v}</a>)}
+  </nav>
+
+  {filas.length === 0 ? <p class="vacio">No hay reservas con estos filtros.</p> : (
+    <table class="tabla">
+      <thead><tr><th>Quién</th><th>Qué</th><th>Plazas</th><th>Reservó</th><th>Estado</th></tr></thead>
+      <tbody>
+        {filas.map((r) => (
+          <tr>
+            <td data-label="Quién">
+              <strong>{r.nombre}</strong><br />
+              <small><a href={`tel:${r.telefono}`}>{r.telefono}</a> · <a href={`mailto:${r.email}`}>{r.email}</a></small>
+            </td>
+            <td data-label="Qué">
+              {r.tipo === 'taller'
+                ? <>{r.taller} <small>· {fecha(r.taller_fecha)}</small></>
+                : <>{r.clase} <small>· {DIAS[r.dia_semana ?? 0]} {r.hora_inicio} · {r.tipo === 'clase_mensual' ? `mes ${r.mes}` : fecha(r.fecha_sesion)}</small></>}
+              {r.modalidad && <><br /><small>{r.modalidad}</small></>}
+            </td>
+            <td data-label="Plazas">{r.plazas}</td>
+            <td data-label="Reservó">{fecha(r.creado_en)}</td>
+            <td>
+              <span class={`estado estado--${r.estado}`}>{ESTADOS_RESERVA[r.estado]}</span>
+              {r.estado === 'pendiente' && r.caduca_en && <><br /><small>caduca {fecha(r.caduca_en)}</small></>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</Panel>

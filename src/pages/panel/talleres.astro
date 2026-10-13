@@ -1,0 +1,61 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { todos, fecha, euros, ESTADOS_TALLER, FRANJAS } from '../../lib/db';
+
+const estado = Astro.url.searchParams.get('estado');
+const filtro = estado && estado in ESTADOS_TALLER ? estado : null;
+
+const filas = await todos<{
+  id: number; titulo: string | null; fecha: string; franja: string; hora_inicio: string | null; hora_fin: string | null;
+  precio_cent: number | null; plazas: number; estado: string; pago_reserva_recibido: number; es_evento: number;
+  fecha_limite: string | null; tallerista: string | null; ocupadas: number;
+}>(`
+  SELECT t.*, COALESCE(ta.marca, ta.nombre) AS tallerista,
+         (SELECT COALESCE(sum(r.plazas), 0) FROM reservas r
+           WHERE r.taller_id = t.id AND r.estado IN ('pendiente', 'confirmada')) AS ocupadas
+  FROM talleres t LEFT JOIN talleristas ta ON ta.id = t.tallerista_id
+  ${filtro ? 'WHERE t.estado = ?1' : ''}
+  ORDER BY t.fecha, t.franja
+`, ...(filtro ? [filtro] : []));
+---
+<Panel titulo="Talleres">
+  <nav class="filtros" aria-label="Filtrar por estado">
+    <a href="/panel/talleres" aria-current={!filtro ? 'true' : undefined}>Todos</a>
+    {Object.entries(ESTADOS_TALLER).map(([k, v]) => (
+      <a href={`?estado=${k}`} aria-current={filtro === k ? 'true' : undefined}>{v}</a>
+    ))}
+  </nav>
+
+  {filas.length === 0 ? <p class="vacio">No hay talleres{filtro ? ' con este estado' : ''}.</p> : (
+    <table class="tabla">
+      <thead><tr><th>Fecha</th><th>Taller</th><th>Quién</th><th>Plazas</th><th>Precio</th><th>25 €</th><th>Estado</th></tr></thead>
+      <tbody>
+        {filas.map((t) => (
+          <tr>
+            <td data-label="Fecha">
+              {fecha(t.fecha)}<br />
+              <small>{FRANJAS[t.franja]}{t.hora_inicio && ` · ${t.hora_inicio}-${t.hora_fin}`}</small>
+            </td>
+            <td data-label="Taller">
+              {t.titulo ?? <small>Pendiente de que la tallerista lo envíe</small>}
+              {t.es_evento ? <> <span class="estado">Evento</span></> : null}
+            </td>
+            <td data-label="Quién">{t.tallerista ?? 'Iris (Yutori)'}</td>
+            <td data-label="Plazas">
+              <span class="ocupacion">
+                <span class="ocupacion__barra"><span style={`width:${Math.min(100, (t.ocupadas / t.plazas) * 100)}%`}></span></span>
+                {t.ocupadas}/{t.plazas}
+              </span>
+            </td>
+            <td data-label="Precio">{euros(t.precio_cent)}</td>
+            <td data-label="25 €">
+              {t.tallerista ? (t.pago_reserva_recibido ? 'Recibidos' : <span class="estado estado--pendiente">Pendiente{t.fecha_limite && ` · antes del ${fecha(t.fecha_limite)}`}</span>) : '—'}
+            </td>
+            <td><span class={`estado estado--${t.estado}`}>{ESTADOS_TALLER[t.estado]}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</Panel>

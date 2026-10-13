@@ -1,0 +1,92 @@
+---
+import '@fontsource/playfair-display/700.css';
+import '@fontsource/nunito-sans/400.css';
+import '@fontsource/nunito-sans/700.css';
+import '../styles/global.css';
+
+interface Props { titulo: string }
+const { titulo } = Astro.props;
+
+const menu = [
+  { href: '/panel', texto: 'Resumen' },
+  { href: '/panel/talleristas', texto: 'Talleristas' },
+  { href: '/panel/talleres', texto: 'Talleres' },
+  { href: '/panel/reservas', texto: 'Reservas' },
+  { href: '/panel/clases', texto: 'Clases' },
+  { href: '/panel/solicitudes', texto: 'Privados y bonos' },
+];
+const actual = Astro.url.pathname.replace(/\/$/, '');
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{titulo} · Panel de Yutori</title>
+  </head>
+  <body>
+    <header class="barra">
+      <div class="contenedor barra__fila">
+        <a class="barra__marca" href="/panel">Yutori <span>panel</span></a>
+        <span class="barra__usuario">{Astro.locals.usuario === 'local' ? 'Modo local' : Astro.locals.usuario}</span>
+      </div>
+      <nav class="contenedor barra__menu" aria-label="Panel">
+        {menu.map((m) => <a href={m.href} aria-current={actual === m.href ? 'page' : undefined}>{m.texto}</a>)}
+      </nav>
+    </header>
+    <main class="contenedor panel">
+      <h1>{titulo}</h1>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  .barra { background: var(--verde); color: #fff; position: sticky; top: 0; z-index: 5; }
+  .barra__fila { display: flex; justify-content: space-between; align-items: center; min-height: 56px; gap: 12px; }
+  .barra__marca { color: #fff; text-decoration: none; font-family: var(--serif); font-size: 1.4rem; font-weight: 700; }
+  .barra__marca span { font-family: var(--sans); font-size: 0.85rem; font-weight: 400; opacity: 0.85; }
+  .barra__usuario { font-size: 0.85rem; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra__menu { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+  .barra__menu a { color: #fff; text-decoration: none; white-space: nowrap; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 0.95rem; }
+  .barra__menu a[aria-current='page'] { background: var(--crema); color: var(--verde); }
+
+  .panel { padding: 24px 0 64px; }
+  .panel h1 { font-size: 1.9rem; }
+  .panel h2 { font-size: 1.35rem; margin-top: 32px; }
+
+  .cifras { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-bottom: 8px; }
+  .cifra { background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 16px; text-decoration: none; color: var(--tinta); }
+  .cifra strong { display: block; font-family: var(--serif); font-size: 2rem; color: var(--verde); line-height: 1.1; }
+  .cifra.alerta strong { color: var(--aviso); }
+
+  .filtros { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+  .filtros a { text-decoration: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--borde); color: var(--tinta); background: var(--crema-claro); font-size: 0.95rem; }
+  .filtros a[aria-current='true'] { background: var(--verde); color: #fff; border-color: var(--verde); }
+
+  .tabla { width: 100%; border-collapse: collapse; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; }
+  .tabla th, .tabla td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  .tabla th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--tinta-suave); }
+  .tabla tr:last-child td { border-bottom: 0; }
+  .tabla small { color: var(--tinta-suave); }
+  @media (max-width: 760px) {
+    .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; }
+    .tabla thead { display: none; }
+    .tabla { background: none; border: 0; }
+    .tabla tr { background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 8px 4px; margin-bottom: 12px; }
+    .tabla td { border: 0; padding: 4px 12px; }
+    .tabla td[data-label]::before { content: attr(data-label) ': '; font-weight: 700; color: var(--tinta-suave); font-size: 0.85rem; }
+  }
+
+  .estado { display: inline-block; font-size: 0.8rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--salvia-suave); color: var(--verde); white-space: nowrap; }
+  .estado--nueva, .estado--pendiente, .estado--hueco, .estado--enviado { background: #fdebd3; color: #8a4b12; }
+  .estado--confirmada, .estado--publicado, .estado--aceptada { background: #d9eedd; color: #23613a; }
+  .estado--descartada, .estado--cancelada, .estado--liberada, .estado--desactivado, .estado--cerrada { background: #ece7dc; color: #6b6458; }
+
+  .vacio { color: var(--tinta-suave); background: var(--crema-claro); border: 1px dashed var(--borde); border-radius: var(--radio); padding: 16px; }
+  .ocupacion { display: inline-flex; align-items: center; gap: 8px; }
+  .ocupacion__barra { width: 80px; height: 8px; border-radius: 999px; background: var(--salvia-suave); overflow: hidden; }
+  .ocupacion__barra span { display: block; height: 100%; background: var(--verde); }
+</style>

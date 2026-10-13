@@ -1,0 +1,75 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { todos, fecha, ESTADOS_TALLERISTA } from '../../lib/db';
+
+type Fila = {
+  id: number; nombre: string; marca: string | null; instagram: string | null; email: string; telefono: string | null;
+  categoria: string | null; propuesta: string; ha_impartido: number | null; autonoma: number | null; estado: string; creado_en: string;
+};
+
+const estado = Astro.url.searchParams.get('estado');
+const filtro = estado && estado in ESTADOS_TALLERISTA ? estado : null;
+
+const filas = await todos<Fila>(`
+  SELECT ta.*, c.nombre AS categoria
+  FROM talleristas ta LEFT JOIN categorias c ON c.id = ta.categoria_id
+  ${filtro ? 'WHERE ta.estado = ?1' : ''}
+  ORDER BY c.nombre, ta.creado_en DESC
+`, ...(filtro ? [filtro] : []));
+
+// Categorías que ya tienen una tallerista aceptada: sirve para avisar de repetidas.
+const cubiertas = new Set(
+  (await todos<{ categoria_id: number }>(`SELECT DISTINCT categoria_id FROM talleristas WHERE estado = 'aceptada' AND categoria_id IS NOT NULL`))
+    .map((r) => r.categoria_id)
+);
+const idsCategoria = new Map((await todos<{ id: number; nombre: string }>('SELECT id, nombre FROM categorias')).map((c) => [c.nombre, c.id]));
+
+const grupos = new Map<string, Fila[]>();
+for (const f of filas) {
+  const clave = f.categoria ?? 'Sin categoría';
+  grupos.set(clave, [...(grupos.get(clave) ?? []), f]);
+}
+const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
+---
+<Panel titulo="Talleristas">
+  <nav class="filtros" aria-label="Filtrar por estado">
+    <a href="/panel/talleristas" aria-current={!filtro ? 'true' : undefined}>Todas</a>
+    {Object.entries(ESTADOS_TALLERISTA).map(([k, v]) => (
+      <a href={`?estado=${k}`} aria-current={filtro === k ? 'true' : undefined}>{v}</a>
+    ))}
+  </nav>
+
+  {filas.length === 0 && <p class="vacio">No hay talleristas{filtro ? ' con este estado' : ''}.</p>}
+
+  {[...grupos].map(([categoria, lista]) => (
+    <section>
+      <h2>
+        {categoria}
+        {cubiertas.has(idsCategoria.get(categoria) ?? -1) && <span class="estado estado--aceptada">Categoría cubierta</span>}
+      </h2>
+      <table class="tabla">
+        <thead><tr><th>Tallerista</th><th>Propuesta</th><th>Experiencia</th><th>Autónoma</th><th>Llegó</th><th>Estado</th></tr></thead>
+        <tbody>
+          {lista.map((t) => (
+            <tr>
+              <td data-label="Tallerista">
+                <strong>{t.nombre}</strong>{t.marca && <> · {t.marca}</>}<br />
+                <small>{t.instagram} · <a href={`mailto:${t.email}`}>{t.email}</a>{t.telefono && <> · {t.telefono}</>}</small>
+              </td>
+              <td data-label="Propuesta">{t.propuesta}</td>
+              <td data-label="Ha dado talleres">{siNo(t.ha_impartido)}</td>
+              <td data-label="Autónoma">{siNo(t.autonoma)}</td>
+              <td data-label="Llegó">{fecha(t.creado_en)}</td>
+              <td><span class={`estado estado--${t.estado}`}>{ESTADOS_TALLERISTA[t.estado]}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  ))}
+</Panel>
+
+<style>
+  h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+</style>

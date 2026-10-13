@@ -32,6 +32,7 @@ const actual = Astro.url.pathname.replace(/\/$/, '');
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{titulo === 'Inicio' ? `${negocio.nombre} ${negocio.subtitulo} · Talleres creativos en A Coruña` : `${titulo} · ${negocio.nombre} ${negocio.subtitulo}`}</title>
     <meta name="description" content={descripcion} />
+    {!negocio.indexar && <meta name="robots" content="noindex, nofollow" />}
   </head>
   <body>
     <a class="saltar" href="#contenido">Saltar al contenido</a>

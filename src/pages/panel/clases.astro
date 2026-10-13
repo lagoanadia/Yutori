@@ -1,0 +1,48 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { todos, euros, DIAS } from '../../lib/db';
+
+// Mes siguiente (el que Iris organiza sobre el día 20).
+const hoy = new Date();
+const siguiente = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + 1, 1));
+const mes = siguiente.toISOString().slice(0, 7);
+const nombreMes = siguiente.toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+const grupos = await todos<{
+  id: number; clase: string; tipo: string; dia_semana: number; hora_inicio: string; hora_fin: string; plazas: number;
+  precio_mes_cent: number | null; confirmadas: number; pendientes: number;
+}>(`
+  SELECT g.*, c.nombre AS clase, c.tipo, c.precio_mes_cent,
+    (SELECT count(*) FROM reservas r WHERE r.grupo_id = g.id AND r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada') AS confirmadas,
+    (SELECT count(*) FROM reservas r WHERE r.grupo_id = g.id AND r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'pendiente') AS pendientes
+  FROM grupos g JOIN clases c ON c.id = g.clase_id
+  WHERE g.activo = 1 AND c.activa = 1
+  ORDER BY g.dia_semana, g.hora_inicio
+`, mes);
+---
+<Panel titulo="Clases semanales">
+  <p class="intro">Alumnas mensuales de <strong>{nombreMes}</strong>. Las plazas que queden libres se pueden ofrecer como clases sueltas.</p>
+  <table class="tabla">
+    <thead><tr><th>Horario</th><th>Clase</th><th>Alumnas</th><th>Libres</th><th>Precio mes</th></tr></thead>
+    <tbody>
+      {grupos.map((g) => {
+        const ocupadas = g.confirmadas + g.pendientes;
+        return (
+          <tr>
+            <td data-label="Horario"><strong>{DIAS[g.dia_semana]}</strong> {g.hora_inicio}-{g.hora_fin}</td>
+            <td data-label="Clase">{g.clase} <small>· {g.tipo}</small></td>
+            <td data-label="Alumnas">
+              <span class="ocupacion">
+                <span class="ocupacion__barra"><span style={`width:${Math.min(100, (ocupadas / g.plazas) * 100)}%`}></span></span>
+                {g.confirmadas} confirmadas{g.pendientes > 0 && `, ${g.pendientes} pendientes`}
+              </span>
+            </td>
+            <td data-label="Libres">{Math.max(0, g.plazas - ocupadas)} de {g.plazas}</td>
+            <td data-label="Precio mes">{euros(g.precio_mes_cent)}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</Panel>
