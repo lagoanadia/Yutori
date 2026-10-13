@@ -132,7 +132,7 @@ if (Astro.request.method === 'POST') {
               <input id="web" name="web" tabindex="-1" autocomplete="off" />
             </div>
             <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que Yutori guarde mi propuesta para futuras colaboraciones.</label>
-            {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es"></div>}
+            {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
             <button class="boton" type="submit">Enviar propuesta</button>
           </form>
         </>

@@ -160,8 +160,8 @@ input:focus, select:focus, textarea:focus, .boton:focus-visible, a:focus-visible
   outline: 3px solid var(--salvia);
   outline-offset: 2px;
 }
-.casilla { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
-.casilla input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+.casilla { display: block; position: relative; padding-left: 32px; font-weight: 400; }
+.casilla input { position: absolute; left: 0; top: 3px; width: 20px; height: 20px; margin: 0; }
 fieldset { border: 0; padding: 0; margin: 0; }
 .dos-col { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 
