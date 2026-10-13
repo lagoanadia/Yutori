@@ -1,0 +1,201 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import { db, uno, fecha, euros, FRANJAS, ESTADOS_TALLER } from '../../../lib/db';
+import { borrarFoto, urlFoto } from '../../../lib/fotos';
+import { codigoAleatorio, slugify, telefonoWhatsApp } from '../../../lib/util';
+
+type Taller = {
+  id: number; tallerista_id: number | null; titulo: string | null; slug: string | null; fecha: string; franja: string;
+  hora_inicio: string | null; hora_fin: string | null; precio_cent: number | null; plazas: number; foto: string | null;
+  texto: string | null; materiales: string | null; es_evento: number; datos_pago: string | null; estado: string;
+  pago_reserva_recibido: number; codigo_enlace: string | null; fecha_limite: string | null;
+  tallerista: string | null; tallerista_nombre: string | null; telefono: string | null; reservas: number;
+};
+const id = Number(Astro.params.id);
+const cargar = () => uno<Taller>(`
+  SELECT t.*, COALESCE(ta.marca, ta.nombre) AS tallerista, ta.nombre AS tallerista_nombre, ta.telefono,
+         (SELECT count(*) FROM reservas r WHERE r.taller_id = t.id) AS reservas
+  FROM talleres t LEFT JOIN talleristas ta ON ta.id = t.tallerista_id WHERE t.id = ?1`, id);
+
+let t = Number.isInteger(id) ? await cargar() : null;
+if (!t) return new Response('No encontrado', { status: 404 });
+
+const completo = (x: Taller) => Boolean(x.titulo && x.hora_inicio && x.hora_fin && x.precio_cent != null && x.foto && x.texto && x.datos_pago);
+const errores: string[] = [];
+
+if (Astro.request.method === 'POST') {
+  const accion = String((await Astro.request.formData()).get('accion') ?? '');
+  const actualizar = (sql: string, ...p: unknown[]) => db().prepare(sql).bind(...p, id).run();
+
+  if (accion === 'pago') {
+    await actualizar('UPDATE talleres SET pago_reserva_recibido = 1 - pago_reserva_recibido WHERE id = ?1');
+    return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
+  }
+  if (accion === 'publicar') {
+    if (!completo(t)) errores.push('Faltan datos del taller: la tallerista tiene que rellenarlos desde su enlace.');
+    if (t.tallerista_id && !t.pago_reserva_recibido) errores.push('Marca primero los 25 € de la reserva como recibidos.');
+    if (errores.length === 0) {
+      let slug = t.slug;
+      if (!slug) {
+        const base = `${slugify(t.titulo!)}-${t.fecha.slice(5)}`;
+        slug = base;
+        for (let n = 2; await uno('SELECT id FROM talleres WHERE slug = ?1', slug); n++) slug = `${base}-${n}`;
+      }
+      await actualizar(`UPDATE talleres SET estado = 'publicado', slug = ?1 WHERE id = ?2`, slug);
+      return Astro.redirect(`/panel/talleres/${id}?ok=publicado`, 303);
+    }
+  }
+  if (accion === 'desactivar') {
+    await actualizar(`UPDATE talleres SET estado = 'desactivado' WHERE id = ?1`);
+    return Astro.redirect(`/panel/talleres/${id}?ok=desactivado`, 303);
+  }
+  if (accion === 'reactivar') {
+    await actualizar(`UPDATE talleres SET estado = ?1 WHERE id = ?2`, t.titulo ? 'enviado' : 'hueco');
+    return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
+  }
+  if (accion === 'enlace') {
+    await actualizar('UPDATE talleres SET codigo_enlace = ?1 WHERE id = ?2', codigoAleatorio());
+    return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
+  }
+  if (accion === 'eliminar') {
+    if (t.reservas > 0) errores.push('Este taller ya tiene reservas: desactívalo en lugar de eliminarlo.');
+    else {
+      await db().prepare('DELETE FROM talleres WHERE id = ?1').bind(id).run();
+      await borrarFoto(t.foto);
+      return Astro.redirect('/panel/talleres?ok=eliminado', 303);
+    }
+  }
+}
+
+const enlace = t.codigo_enlace ? new URL(`/t/${t.codigo_enlace}`, Astro.url.origin).href : null;
+const [a, m, d] = t.fecha.split('-').map(Number);
+const diaTexto = new Date(Date.UTC(a, m - 1, d)).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', timeZone: 'UTC' });
+const mesTexto = new Date(Date.UTC(a, m - 1, 1)).toLocaleDateString('es-ES', { month: 'long', timeZone: 'UTC' });
+const limiteTexto = t.fecha_limite
+  ? new Date(t.fecha_limite + 'T00:00:00Z').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+  : null;
+const momento = t.franja.endsWith('manana') ? 'mañana' : 'tarde';
+const mensaje = `¡Buenos días! Te confirmo fecha para el taller de ${mesTexto}:\n*${diaTexto} por la ${momento}*.\n\n` +
+  `${limiteTexto ? `Antes del ${limiteTexto}` : 'Cuando puedas'} necesito que rellenes los datos de tu taller aquí:\n${enlace}\n` +
+  `(nombre, horario, foto del producto —no cartel—, texto informativo y cómo te pagan las alumnas)\n\n` +
+  `Y el pago de la reserva (25 €/taller). ¡Gracias! ✨`;
+const tel = telefonoWhatsApp(t.telefono);
+const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+---
+<Panel titulo={t.titulo ?? `Hueco · ${fecha(t.fecha)}`}>
+  <p><a href="/panel/talleres">← Todos los talleres</a></p>
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+  <p class="cabecera-taller">
+    <span class={`estado estado--${t.estado}`}>{ESTADOS_TALLER[t.estado]}</span>
+    <strong>{fecha(t.fecha)}</strong> · {FRANJAS[t.franja]} · {t.tallerista ?? 'Iris (Yutori)'} · {t.plazas} plazas
+    {t.reservas > 0 && <> · <a href={`/panel/reservas`}>{t.reservas} reservas</a></>}
+  </p>
+
+  <div class="ficha-panel">
+    <section class="tarjeta">
+      <h2>Datos del taller</h2>
+      {!t.titulo ? (
+        <p class="vacio">La tallerista todavía no ha enviado los datos{limiteTexto && ` (fecha límite: ${limiteTexto})`}.</p>
+      ) : (
+        <>
+          {t.foto && <img class="foto-taller" src={urlFoto(t.foto)} alt={`Foto de ${t.titulo}`} />}
+          <dl class="datos">
+            <dt>Horario</dt><dd>{t.hora_inicio}-{t.hora_fin}</dd>
+            <dt>Precio</dt><dd>{euros(t.precio_cent)}</dd>
+            <dt>Plazas</dt><dd>{t.plazas}</dd>
+            <dt>Materiales</dt><dd>{t.materiales ?? '—'}</dd>
+            <dt>Cómo se paga</dt><dd>{t.datos_pago ?? '—'}</dd>
+            <dt>Evento especial</dt><dd>{t.es_evento ? 'Sí' : 'No'}</dd>
+          </dl>
+          <p class="texto">{t.texto}</p>
+          {t.estado === 'publicado' && t.slug && <p><small>Dirección en la web: /talleres/{t.slug}</small></p>}
+        </>
+      )}
+    </section>
+
+    <section class="tarjeta">
+      <h2>Acciones</h2>
+
+      {t.tallerista_id && (
+        <form method="post" class="accion">
+          <input type="hidden" name="accion" value="pago" />
+          <p>25 € de la reserva: <strong>{t.pago_reserva_recibido ? 'recibidos' : 'pendientes'}</strong></p>
+          <button class="boton boton--borde" type="submit">{t.pago_reserva_recibido ? 'Marcar como no recibidos' : 'Marcar como recibidos'}</button>
+        </form>
+      )}
+
+      {(t.estado === 'enviado' || t.estado === 'hueco') && (
+        <form method="post" class="accion">
+          <input type="hidden" name="accion" value="publicar" />
+          <button class="boton" type="submit" disabled={!completo(t)}>Publicar en la web</button>
+          {!completo(t) && <small>Se podrá publicar cuando la tallerista envíe todos los datos.</small>}
+        </form>
+      )}
+      {t.estado === 'publicado' && (
+        <form method="post" class="accion">
+          <input type="hidden" name="accion" value="desactivar" />
+          <button class="boton boton--borde" type="submit">Desactivar (quitar de la web)</button>
+        </form>
+      )}
+      {t.estado === 'desactivado' && (
+        <form method="post" class="accion">
+          <input type="hidden" name="accion" value="reactivar" />
+          <button class="boton boton--borde" type="submit">Reactivar</button>
+        </form>
+      )}
+
+      {enlace && (
+        <div class="enlace">
+          <h3>Enlace privado {t.tallerista_id ? 'de la tallerista' : '(para rellenar tú)'}</h3>
+          <p><input readonly value={enlace} aria-label="Enlace privado" onclick="this.select()" /></p>
+          <div class="botones">
+            <button class="boton boton--borde" type="button" data-copiar={enlace}>Copiar enlace</button>
+            {t.tallerista_id && <a class="boton" href={whatsapp} target="_blank" rel="noopener">Enviar por WhatsApp</a>}
+          </div>
+          {t.tallerista_id && !tel && <small>No tenemos su teléfono: WhatsApp te dejará elegir el contacto.</small>}
+          <form method="post" class="accion">
+            <input type="hidden" name="accion" value="enlace" />
+            <button class="enlace-nuevo" type="submit">Generar un enlace nuevo (el anterior deja de funcionar)</button>
+          </form>
+        </div>
+      )}
+
+      {t.estado !== 'publicado' && t.reservas === 0 && (
+        <form method="post" class="accion peligro" onsubmit="return confirm('¿Eliminar este hueco? No se puede deshacer.')">
+          <input type="hidden" name="accion" value="eliminar" />
+          <button class="enlace-nuevo" type="submit">Eliminar hueco</button>
+        </form>
+      )}
+    </section>
+  </div>
+</Panel>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copiar]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(b.dataset.copiar ?? '');
+      b.textContent = '¡Copiado!';
+    });
+  });
+</script>
+
+<style>
+  .cabecera-taller { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .ficha-panel { display: grid; gap: 20px; }
+  @media (min-width: 900px) { .ficha-panel { grid-template-columns: 1.4fr 1fr; align-items: start; } }
+  .foto-taller { border-radius: 12px; max-height: 320px; object-fit: cover; width: 100%; margin-bottom: 12px; }
+  .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; }
+  .datos dt { font-weight: 700; color: var(--tinta-suave); }
+  .datos dd { margin: 0; overflow-wrap: anywhere; }
+  .texto { white-space: pre-line; margin-top: 12px; }
+  .accion { margin-bottom: 16px; display: grid; gap: 6px; justify-items: start; }
+  .accion p { margin: 0; }
+  .enlace { border-top: 1px solid var(--borde); padding-top: 12px; margin-top: 8px; }
+  .enlace h3 { font-size: 1.05rem; }
+  .enlace input { font-size: 0.9rem; }
+  .enlace .botones { margin-bottom: 8px; }
+  .enlace-nuevo { background: none; border: 0; padding: 0; color: var(--tinta-suave); text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.9rem; }
+  .peligro .enlace-nuevo { color: var(--aviso); }
+</style>

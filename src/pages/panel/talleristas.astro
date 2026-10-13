@@ -54,10 +54,10 @@ const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
           {lista.map((t) => (
             <tr>
               <td data-label="Tallerista">
-                <strong>{t.nombre}</strong>{t.marca && <> · {t.marca}</>}<br />
+                <a href={`/panel/talleristas/${t.id}`}><strong>{t.nombre}</strong>{t.marca && <> · {t.marca}</>}</a><br />
                 <small>{t.instagram} · <a href={`mailto:${t.email}`}>{t.email}</a>{t.telefono && <> · {t.telefono}</>}</small>
               </td>
-              <td data-label="Propuesta">{t.propuesta}</td>
+              <td data-label="Propuesta">{t.propuesta.length > 140 ? `${t.propuesta.slice(0, 140)}…` : t.propuesta}</td>
               <td data-label="Ha dado talleres">{siNo(t.ha_impartido)}</td>
               <td data-label="Autónoma">{siNo(t.autonoma)}</td>
               <td data-label="Llegó">{fecha(t.creado_en)}</td>

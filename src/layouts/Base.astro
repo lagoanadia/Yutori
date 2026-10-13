@@ -11,9 +11,11 @@ import { negocio, whatsappUrl } from '../data/yutori';
 interface Props {
   titulo: string;
   descripcion?: string;
+  /** Páginas privadas (enlace de tallerista): nunca en Google, aunque la web se indexe. */
+  noindex?: boolean;
 }
 
-const { titulo, descripcion = 'Talleres creativos en el centro de A Coruña: clases de acuarela, ganchillo, costura y bordado, talleres mensuales, talleres privados y bonos regalo.' } = Astro.props;
+const { titulo, noindex = false, descripcion ='Talleres creativos en el centro de A Coruña: clases de acuarela, ganchillo, costura y bordado, talleres mensuales, talleres privados y bonos regalo.' } = Astro.props;
 
 const menu = [
   { href: '/clases', texto: 'Clases' },
@@ -32,7 +34,8 @@ const actual = Astro.url.pathname.replace(/\/$/, '');
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{titulo === 'Inicio' ? `${negocio.nombre} ${negocio.subtitulo} · Talleres creativos en A Coruña` : `${titulo} · ${negocio.nombre} ${negocio.subtitulo}`}</title>
     <meta name="description" content={descripcion} />
-    {!negocio.indexar && <meta name="robots" content="noindex, nofollow" />}
+    {(noindex || !negocio.indexar) && <meta name="robots" content="noindex, nofollow" />}
+    <slot name="head" />
   </head>
   <body>
     <a class="saltar" href="#contenido">Saltar al contenido</a>

@@ -1,0 +1,93 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import { db, todos, uno, FRANJAS } from '../../../lib/db';
+import { codigoAleatorio, esFecha, fechaLimite, franjasDeFecha } from '../../../lib/util';
+
+const aceptadas = await todos<{ id: number; nombre: string; marca: string | null; categoria: string | null }>(`
+  SELECT ta.id, ta.nombre, ta.marca, c.nombre AS categoria
+  FROM talleristas ta LEFT JOIN categorias c ON c.id = ta.categoria_id
+  WHERE ta.estado = 'aceptada' ORDER BY COALESCE(ta.marca, ta.nombre)`);
+
+const errores: string[] = [];
+let v = { quien: Astro.url.searchParams.get('tallerista') ?? '', fecha: '', momento: 'tarde', plazas: '8', limite: '' };
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string) => String(datos.get(k) ?? '').trim();
+  v = { quien: campo('quien'), fecha: campo('fecha'), momento: campo('momento'), plazas: campo('plazas'), limite: campo('limite') };
+
+  const talleristaId = v.quien ? Number(v.quien) : null;
+  if (talleristaId !== null && !aceptadas.some((a) => a.id === talleristaId)) errores.push('Elige una tallerista aceptada.');
+
+  let franja = '';
+  if (!esFecha(v.fecha)) {
+    errores.push('Elige la fecha del taller.');
+  } else {
+    const posibles = franjasDeFecha(v.fecha);
+    franja = posibles.find((f) => f.endsWith(v.momento === 'manana' ? 'manana' : 'tarde')) ?? '';
+    if (posibles.length === 0) errores.push('Los talleres son los viernes por la tarde, sábados y domingos.');
+    else if (!franja) errores.push('Los viernes solo hay talleres por la tarde.');
+    if (v.fecha < new Date().toISOString().slice(0, 10)) errores.push('La fecha ya ha pasado.');
+  }
+
+  const plazas = Number(v.plazas);
+  if (!Number.isInteger(plazas) || plazas < 1 || plazas > 30) errores.push('Las plazas tienen que ser un número entre 1 y 30.');
+  if (v.limite && !esFecha(v.limite)) errores.push('La fecha límite no es válida.');
+
+  if (errores.length === 0) {
+    const ocupada = await uno<{ id: number }>(
+      `SELECT id FROM talleres WHERE fecha = ?1 AND franja = ?2 AND estado <> 'desactivado'`, v.fecha, franja);
+    if (ocupada) errores.push(`Esa franja (${FRANJAS[franja]}) ya tiene un taller. Elige otra o desactiva el otro.`);
+  }
+
+  if (errores.length === 0) {
+    const nuevo = await db()
+      .prepare(`INSERT INTO talleres (tallerista_id, fecha, franja, plazas, estado, codigo_enlace, fecha_limite)
+                VALUES (?1, ?2, ?3, ?4, 'hueco', ?5, ?6) RETURNING id`)
+      .bind(talleristaId, v.fecha, franja, plazas, codigoAleatorio(), v.limite || fechaLimite(v.fecha))
+      .first<{ id: number }>();
+    return Astro.redirect(`/panel/talleres/${nuevo!.id}?ok=creado`, 303);
+  }
+}
+---
+<Panel titulo="Nuevo hueco de taller">
+  <p><a href="/panel/talleres">← Todos los talleres</a></p>
+  <p class="intro">Reserva el día para una tallerista. Después le envías su enlace privado para que rellene el taller.</p>
+
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+  <form method="post" class="formulario tarjeta">
+    <div class="campo">
+      <label for="quien">Quién lo imparte</label>
+      <select id="quien" name="quien">
+        <option value="" selected={v.quien === ''}>Iris (Yutori)</option>
+        {aceptadas.map((a) => (
+          <option value={a.id} selected={String(a.id) === v.quien}>{a.marca ? `${a.marca} (${a.nombre})` : a.nombre}{a.categoria && ` · ${a.categoria}`}</option>
+        ))}
+      </select>
+      {aceptadas.length === 0 && <small>Aún no hay talleristas aceptadas: acéptalas desde su ficha.</small>}
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="fecha">Fecha</label><input id="fecha" name="fecha" type="date" value={v.fecha} required /></div>
+      <fieldset class="campo">
+        <legend>Franja</legend>
+        <label class="casilla"><input type="radio" name="momento" value="manana" checked={v.momento === 'manana'} /> Mañana</label>
+        <label class="casilla"><input type="radio" name="momento" value="tarde" checked={v.momento !== 'manana'} /> Tarde</label>
+      </fieldset>
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="plazas">Plazas</label><input id="plazas" name="plazas" type="number" min="1" max="30" inputmode="numeric" value={v.plazas} required /></div>
+      <div class="campo">
+        <label for="limite">Fecha límite para enviar el taller</label>
+        <input id="limite" name="limite" type="date" value={v.limite} />
+        <small>Si la dejas vacía: el miércoles antes del día 20 del mes anterior.</small>
+      </div>
+    </div>
+    <button class="boton" type="submit">Crear hueco</button>
+  </form>
+</Panel>
+
+<style>
+  .tarjeta.formulario { max-width: 640px; }
+</style>

@@ -16,6 +16,16 @@ const menu = [
   { href: '/panel/solicitudes', texto: 'Privados y bonos' },
 ];
 const actual = Astro.url.pathname.replace(/\/$/, '');
+
+// Aviso tras guardar algo (las acciones redirigen con ?ok=código).
+const AVISOS: Record<string, string> = {
+  guardado: 'Cambios guardados.',
+  creado: 'Hueco creado. Envía el enlace privado a la tallerista.',
+  publicado: 'Taller publicado.',
+  desactivado: 'Taller desactivado.',
+  eliminado: 'Hueco eliminado.',
+};
+const aviso = AVISOS[Astro.url.searchParams.get('ok') ?? ''];
 ---
 <!doctype html>
 <html lang="es">
@@ -38,6 +48,7 @@ const actual = Astro.url.pathname.replace(/\/$/, '');
     </header>
     <main class="contenedor panel">
       <h1>{titulo}</h1>
+      {aviso && <p class="aviso-ok" role="status">{aviso}</p>}
       <slot />
     </main>
   </body>

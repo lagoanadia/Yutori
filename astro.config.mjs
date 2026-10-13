@@ -8,4 +8,6 @@ export default defineConfig({
   // Páginas públicas: HTML estático. Panel y formularios: en el servidor (prerender = false).
   // passthrough: no usamos Cloudflare Images, las fotos se sirven tal cual.
   adapter: cloudflare({ imageService: 'passthrough' }),
+  // Rechaza formularios (POST) enviados desde otras webs.
+  security: { checkOrigin: true },
 });

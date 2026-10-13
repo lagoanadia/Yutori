@@ -1,0 +1,112 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import { db, todos, uno, fecha, FRANJAS, ESTADOS_TALLER, ESTADOS_TALLERISTA } from '../../../lib/db';
+import { urlFoto } from '../../../lib/fotos';
+
+const id = Number(Astro.params.id);
+type Tallerista = {
+  id: number; nombre: string; marca: string | null; instagram: string | null; email: string; telefono: string | null;
+  categoria_id: number | null; categoria: string | null; propuesta: string; fotos: string; ha_impartido: number | null;
+  autonoma: number | null; estado: string; notas: string | null; creado_en: string;
+};
+const cargar = () => uno<Tallerista>(
+  'SELECT ta.*, c.nombre AS categoria FROM talleristas ta LEFT JOIN categorias c ON c.id = ta.categoria_id WHERE ta.id = ?1', id);
+
+let t = Number.isInteger(id) ? await cargar() : null;
+if (!t) return new Response('No encontrada', { status: 404 });
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const estado = String(datos.get('estado') ?? '');
+  const notas = String(datos.get('notas') ?? '').trim().slice(0, 3000);
+  if (estado in ESTADOS_TALLERISTA) {
+    await db().prepare('UPDATE talleristas SET estado = ?1, notas = ?2 WHERE id = ?3').bind(estado, notas || null, id).run();
+  }
+  return Astro.redirect(`/panel/talleristas/${id}?ok=guardado`, 303);
+}
+
+const fotos: string[] = JSON.parse(t.fotos || '[]');
+const otrasAceptadas = t.categoria_id
+  ? await todos<{ id: number; nombre: string; marca: string | null }>(
+      `SELECT id, nombre, marca FROM talleristas WHERE estado = 'aceptada' AND categoria_id = ?1 AND id <> ?2`, t.categoria_id, id)
+  : [];
+const susTalleres = await todos<{ id: number; titulo: string | null; fecha: string; franja: string; estado: string }>(
+  'SELECT id, titulo, fecha, franja, estado FROM talleres WHERE tallerista_id = ?1 ORDER BY fecha DESC', id);
+const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
+---
+<Panel titulo={t.marca ? `${t.nombre} · ${t.marca}` : t.nombre}>
+  <p><a href="/panel/talleristas">← Todas las talleristas</a></p>
+
+  {otrasAceptadas.length > 0 && (
+    <p class="errores">
+      La categoría <strong>{t.categoria}</strong> ya está cubierta por {otrasAceptadas.map((o) => o.marca ?? o.nombre).join(', ')}.
+      Puedes dejarla "En reserva" por si algún día hace falta.
+    </p>
+  )}
+
+  <div class="ficha-panel">
+    <section class="tarjeta">
+      <h2>Propuesta</h2>
+      <p class="propuesta">{t.propuesta}</p>
+      <dl class="datos">
+        <dt>Categoría</dt><dd>{t.categoria ?? '—'}</dd>
+        <dt>Email</dt><dd><a href={`mailto:${t.email}`}>{t.email}</a></dd>
+        <dt>Teléfono</dt><dd>{t.telefono ? <a href={`tel:${t.telefono}`}>{t.telefono}</a> : '—'}</dd>
+        <dt>Instagram</dt><dd>{t.instagram ?? '—'}</dd>
+        <dt>Ha dado talleres</dt><dd>{siNo(t.ha_impartido)}</dd>
+        <dt>Autónoma</dt><dd>{siNo(t.autonoma)}</dd>
+        <dt>Llegó</dt><dd>{fecha(t.creado_en)}</dd>
+      </dl>
+      {fotos.length > 0 && (
+        <div class="fotos">
+          {fotos.map((f) => <a href={urlFoto(f)} target="_blank"><img src={urlFoto(f)} alt="Foto enviada por la tallerista" loading="lazy" /></a>)}
+        </div>
+      )}
+    </section>
+
+    <section class="tarjeta">
+      <h2>Tu decisión</h2>
+      <form method="post" class="formulario">
+        <div class="campo">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado">
+            {Object.entries(ESTADOS_TALLERISTA).map(([k, v]) => <option value={k} selected={k === t.estado}>{v}</option>)}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="notas">Notas privadas</label>
+          <textarea id="notas" name="notas" rows="4" maxlength="3000">{t.notas}</textarea>
+        </div>
+        <button class="boton" type="submit">Guardar</button>
+      </form>
+
+      {t.estado === 'aceptada' && (
+        <p class="crear"><a class="boton boton--borde" href={`/panel/talleres/nuevo?tallerista=${t.id}`}>Crear hueco de taller</a></p>
+      )}
+
+      <h3>Sus talleres</h3>
+      {susTalleres.length === 0 ? <p class="vacio">Todavía ninguno.</p> : (
+        <ul class="sus-talleres">
+          {susTalleres.map((s) => (
+            <li><a href={`/panel/talleres/${s.id}`}>{fecha(s.fecha)} · {FRANJAS[s.franja]}</a> — {s.titulo ?? 'sin título aún'} <span class={`estado estado--${s.estado}`}>{ESTADOS_TALLER[s.estado]}</span></li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </div>
+</Panel>
+
+<style>
+  .ficha-panel { display: grid; gap: 20px; }
+  @media (min-width: 900px) { .ficha-panel { grid-template-columns: 1.4fr 1fr; align-items: start; } }
+  .propuesta { white-space: pre-line; }
+  .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 16px 0; }
+  .datos dt { font-weight: 700; color: var(--tinta-suave); }
+  .datos dd { margin: 0; overflow-wrap: anywhere; }
+  .fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .fotos img { aspect-ratio: 1; object-fit: cover; border-radius: 10px; width: 100%; }
+  .crear { margin-top: 16px; }
+  .sus-talleres { padding-left: 1.2em; }
+  .sus-talleres li { margin-bottom: 8px; }
+</style>

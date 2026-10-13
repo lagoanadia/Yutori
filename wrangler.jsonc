@@ -11,9 +11,18 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      // Fotos de propuestas de talleristas y de talleres.
+      "binding": "FOTOS",
+      "bucket_name": "yutori-fotos"
+    }
+  ],
   "vars": {
     // Cloudflare Access para /panel. Vacío = el panel no se abre en internet (solo en local).
     "ACCESS_TEAM": "raspy-cherry-af72",
-    "ACCESS_AUD": ""
+    "ACCESS_AUD": "",
+    // Turnstile (anti-spam). La clave secreta va como Secret en Cloudflare: TURNSTILE_SECRET.
+    "TURNSTILE_SITE_KEY": ""
   }
 }

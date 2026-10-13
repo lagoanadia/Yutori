@@ -1,56 +1,147 @@
 ---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
 import Base from '../layouts/Base.astro';
-import { categorias } from '../data/yutori';
+import { db, todos } from '../lib/db';
+import { archivosDe, errorDeFoto, guardarFoto, MAX_MB } from '../lib/fotos';
+import { turnstileActivo, verificarTurnstile } from '../lib/turnstile';
+import { esEmail } from '../lib/util';
+
+const MAX_FOTOS = 3;
+const categorias = await todos<{ id: number; nombre: string }>('SELECT id, nombre FROM categorias WHERE activa = 1 ORDER BY id');
+
+const enviado = Astro.url.searchParams.has('enviado');
+const errores: string[] = [];
+let v: Record<string, string> = {};
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max = 300) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = {
+    nombre: campo('nombre', 120), marca: campo('marca', 120), instagram: campo('instagram', 80),
+    email: campo('email', 160), telefono: campo('telefono', 30), categoria: campo('categoria', 10),
+    propuesta: campo('propuesta', 3000), experiencia: campo('experiencia', 2), autonoma: campo('autonoma', 2),
+  };
+
+  // Trampa para bots: un humano nunca rellena el campo oculto "web". Se finge que todo fue bien.
+  if (campo('web')) return Astro.redirect('/colabora?enviado', 303);
+
+  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (!esEmail(v.email)) errores.push('Escribe un email válido para que podamos responderte.');
+  if (!categorias.some((c) => String(c.id) === v.categoria)) errores.push('Elige la categoría de tu taller.');
+  if (v.propuesta.length < 10) errores.push('Cuéntanos tu propuesta: idea de taller, duración y precio aproximado.');
+  if (!['si', 'no'].includes(v.experiencia)) errores.push('Dinos si has impartido talleres antes.');
+  if (!['si', 'no'].includes(v.autonoma)) errores.push('Dinos si eres autónoma.');
+  if (datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar la política de privacidad.');
+
+  const fotos = archivosDe(datos.getAll('fotos'));
+  if (fotos.length > MAX_FOTOS) errores.push(`Puedes enviar como máximo ${MAX_FOTOS} fotos.`);
+  for (const f of fotos) {
+    const error = errorDeFoto(f);
+    if (error) errores.push(error);
+  }
+
+  if (errores.length === 0 && !(await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP')))) {
+    errores.push('No hemos podido comprobar que no eres un robot. Vuelve a intentarlo.');
+  }
+
+  if (errores.length === 0) {
+    try {
+      const claves = [];
+      for (const f of fotos) claves.push(await guardarFoto(f, 'propuestas'));
+      await db()
+        .prepare(`INSERT INTO talleristas (nombre, marca, instagram, email, telefono, categoria_id, propuesta, fotos, ha_impartido, autonoma, acepta_privacidad_en)
+                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, strftime('%Y-%m-%dT%H:%M:%S', 'now'))`)
+        .bind(v.nombre, v.marca || null, v.instagram || null, v.email, v.telefono || null, Number(v.categoria), v.propuesta,
+              JSON.stringify(claves), v.experiencia === 'si' ? 1 : 0, v.autonoma === 'si' ? 1 : 0)
+        .run();
+      return Astro.redirect('/colabora?enviado', 303);
+    } catch (e) {
+      errores.push(e instanceof Error && e.message.includes('imagen') ? e.message : 'Algo ha fallado al guardar tu propuesta. Inténtalo de nuevo en unos minutos.');
+    }
+  }
+}
 ---
 <Base titulo="Da un taller en Yutori" descripcion="¿Eres artesana o artista? Propón tu taller en Yutori Espacio Creativo, A Coruña.">
+  <Fragment slot="head">
+    {turnstileActivo() && !enviado && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+  </Fragment>
   <section class="seccion">
     <div class="contenedor">
       <p class="script">Familia Yutori</p>
       <h1>Da un taller en Yutori</h1>
-      <p class="intro">Gracias por tu interés en formar parte de la familia Yutori. Estamos preparando la programación de talleres y clases y queremos contar con nuevas ideas. Cuéntanos la tuya y pronto tendrás noticias nuestras.</p>
 
-      <form class="formulario" data-prototipo>
-        <div class="dos-col">
-          <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
-          <div class="campo"><label for="marca">Nombre de marca</label><input id="marca" name="marca" /></div>
+      {enviado ? (
+        <div class="tarjeta gracias" role="status">
+          <h2>¡Gracias por tu interés en formar parte de la familia Yutori!</h2>
+          <p>Hemos recibido tu propuesta. Estamos preparando la programación de talleres y clases y queremos contar con nuevas ideas: pronto tendrás noticias nuestras.</p>
+          <a class="boton boton--borde" href="/">Volver al inicio</a>
         </div>
-        <div class="dos-col">
-          <div class="campo"><label for="instagram">Instagram de marca</label><input id="instagram" name="instagram" placeholder="@tumarca" /></div>
-          <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
-        </div>
-        <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" /></div>
-        <div class="campo">
-          <label for="categoria">Categoría del taller</label>
-          <select id="categoria" name="categoria" required>
-            <option value="">Elige una</option>
-            {categorias.map((c) => <option>{c}</option>)}
-          </select>
-        </div>
-        <div class="campo">
-          <label for="propuesta">Tu propuesta</label>
-          <small>Idea de taller o talleres, duración y precio aproximado.</small>
-          <textarea id="propuesta" name="propuesta" rows="5" required></textarea>
-        </div>
-        <div class="campo">
-          <label for="fotos">Alguna foto de tus talleres o trabajos</label>
-          <input id="fotos" name="fotos" type="file" accept="image/*" multiple />
-        </div>
-        <div class="dos-col">
-          <fieldset class="campo">
-            <legend>¿Has impartido talleres antes?</legend>
-            <label class="casilla"><input type="radio" name="experiencia" value="si" required /> Sí</label>
-            <label class="casilla"><input type="radio" name="experiencia" value="no" /> No</label>
-          </fieldset>
-          <fieldset class="campo">
-            <legend>¿Eres autónoma?</legend>
-            <label class="casilla"><input type="radio" name="autonoma" value="si" required /> Sí</label>
-            <label class="casilla"><input type="radio" name="autonoma" value="no" /> No</label>
-          </fieldset>
-        </div>
-        <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que Yutori guarde mi propuesta para futuras colaboraciones.</label>
-        <button class="boton" type="submit">Enviar propuesta</button>
-        <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se envía nada. En el bloque 3 la propuesta llegará al panel de Iris, clasificada por categoría.</p>
-      </form>
+      ) : (
+        <>
+          <p class="intro">Estamos preparando la programación de talleres y clases y queremos contar con nuevas ideas. Cuéntanos la tuya y pronto tendrás noticias nuestras.</p>
+
+          {errores.length > 0 && (
+            <div class="errores" role="alert">
+              <p><strong>Revisa estos datos:</strong></p>
+              <ul>{errores.map((e) => <li>{e}</li>)}</ul>
+            </div>
+          )}
+
+          <form class="formulario" method="post" enctype="multipart/form-data">
+            <div class="dos-col">
+              <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+              <div class="campo"><label for="marca">Nombre de marca</label><input id="marca" name="marca" maxlength="120" value={v.marca} /></div>
+            </div>
+            <div class="dos-col">
+              <div class="campo"><label for="instagram">Instagram de marca</label><input id="instagram" name="instagram" placeholder="@tumarca" maxlength="80" value={v.instagram} /></div>
+              <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+            </div>
+            <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} /></div>
+            <div class="campo">
+              <label for="categoria">Categoría del taller</label>
+              <select id="categoria" name="categoria" required>
+                <option value="">Elige una</option>
+                {categorias.map((c) => <option value={c.id} selected={String(c.id) === v.categoria}>{c.nombre}</option>)}
+              </select>
+            </div>
+            <div class="campo">
+              <label for="propuesta">Tu propuesta</label>
+              <small>Idea de taller o talleres, duración y precio aproximado.</small>
+              <textarea id="propuesta" name="propuesta" rows="5" maxlength="3000" required>{v.propuesta}</textarea>
+            </div>
+            <div class="campo">
+              <label for="fotos">Alguna foto de tus talleres o trabajos</label>
+              <small>Hasta {MAX_FOTOS} fotos JPG, PNG o WebP de {MAX_MB} MB como máximo.</small>
+              <input id="fotos" name="fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple />
+            </div>
+            <div class="dos-col">
+              <fieldset class="campo">
+                <legend>¿Has impartido talleres antes?</legend>
+                <label class="casilla"><input type="radio" name="experiencia" value="si" checked={v.experiencia === 'si'} required /> Sí</label>
+                <label class="casilla"><input type="radio" name="experiencia" value="no" checked={v.experiencia === 'no'} /> No</label>
+              </fieldset>
+              <fieldset class="campo">
+                <legend>¿Eres autónoma?</legend>
+                <label class="casilla"><input type="radio" name="autonoma" value="si" checked={v.autonoma === 'si'} required /> Sí</label>
+                <label class="casilla"><input type="radio" name="autonoma" value="no" checked={v.autonoma === 'no'} /> No</label>
+              </fieldset>
+            </div>
+            <div class="trampa" aria-hidden="true">
+              <label for="web">No rellenes este campo</label>
+              <input id="web" name="web" tabindex="-1" autocomplete="off" />
+            </div>
+            <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que Yutori guarde mi propuesta para futuras colaboraciones.</label>
+            {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es"></div>}
+            <button class="boton" type="submit">Enviar propuesta</button>
+          </form>
+        </>
+      )}
     </div>
   </section>
 </Base>
+
+<style>
+  .gracias { max-width: 640px; }
+  .gracias h2 { font-size: 1.5rem; }
+</style>

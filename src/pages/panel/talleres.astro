@@ -20,6 +20,7 @@ const filas = await todos<{
 `, ...(filtro ? [filtro] : []));
 ---
 <Panel titulo="Talleres">
+  <p><a class="boton" href="/panel/talleres/nuevo">Nuevo hueco de taller</a></p>
   <nav class="filtros" aria-label="Filtrar por estado">
     <a href="/panel/talleres" aria-current={!filtro ? 'true' : undefined}>Todos</a>
     {Object.entries(ESTADOS_TALLER).map(([k, v]) => (
@@ -38,7 +39,8 @@ const filas = await todos<{
               <small>{FRANJAS[t.franja]}{t.hora_inicio && ` · ${t.hora_inicio}-${t.hora_fin}`}</small>
             </td>
             <td data-label="Taller">
-              {t.titulo ?? <small>Pendiente de que la tallerista lo envíe</small>}
+              <a href={`/panel/talleres/${t.id}`}>{t.titulo ?? 'Hueco sin rellenar'}</a>
+              {!t.titulo && <><br /><small>Pendiente de que la tallerista lo envíe</small></>}
               {t.es_evento ? <> <span class="estado">Evento</span></> : null}
             </td>
             <td data-label="Quién">{t.tallerista ?? 'Iris (Yutori)'}</td>

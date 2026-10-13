@@ -1,0 +1,174 @@
+---
+// Enlace privado de cada tallerista: rellena los datos de su taller. El código largo del enlace es la llave.
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { db, uno, euros } from '../../lib/db';
+import { borrarFoto, errorDeFoto, guardarFoto, MAX_MB, urlFoto } from '../../lib/fotos';
+import { esHora } from '../../lib/util';
+
+type Taller = {
+  id: number; tallerista_id: number | null; titulo: string | null; fecha: string; franja: string; hora_inicio: string | null;
+  hora_fin: string | null; precio_cent: number | null; plazas: number; foto: string | null; texto: string | null;
+  materiales: string | null; datos_pago: string | null; estado: string; pago_reserva_recibido: number;
+  fecha_limite: string | null; nombre: string | null;
+};
+
+const codigo = Astro.params.codigo ?? '';
+const cargar = () => uno<Taller>(`
+  SELECT t.*, ta.nombre FROM talleres t LEFT JOIN talleristas ta ON ta.id = t.tallerista_id
+  WHERE t.codigo_enlace = ?1`, codigo);
+const t = codigo.length >= 16 ? await cargar() : null;
+if (!t) return new Response('Este enlace no existe o ya no está activo. Pide a Iris uno nuevo.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+
+const editable = t.estado === 'hueco' || t.estado === 'enviado';
+const guardado = Astro.url.searchParams.has('guardado');
+const errores: string[] = [];
+
+const llevar = (t.materiales ?? '').startsWith('Trae: ');
+let v = {
+  titulo: t.titulo ?? '', inicio: t.hora_inicio ?? '', fin: t.hora_fin ?? '',
+  precio: t.precio_cent != null ? String(t.precio_cent / 100).replace('.', ',') : '', plazas: String(t.plazas),
+  materiales: llevar ? 'llevar' : 'incluido', queLlevar: llevar ? t.materiales!.slice(6) : '',
+  texto: t.texto ?? '', pago: t.datos_pago ?? '',
+};
+
+if (editable && Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max = 300) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = {
+    titulo: campo('titulo', 100), inicio: campo('inicio', 5), fin: campo('fin', 5), precio: campo('precio', 10),
+    plazas: campo('plazas', 3), materiales: campo('materiales', 10), queLlevar: campo('que_llevar', 200),
+    texto: campo('texto', 3000), pago: campo('pago', 300),
+  };
+
+  const precio = Number(v.precio.replace(',', '.'));
+  const plazas = Number(v.plazas);
+  if (v.titulo.length < 3) errores.push('Escribe el nombre del taller.');
+  if (!esHora(v.inicio) || !esHora(v.fin)) errores.push('Indica la hora de inicio y de fin (por ejemplo 11:00 y 13:00).');
+  else if (v.inicio >= v.fin) errores.push('La hora de fin tiene que ser después de la de inicio.');
+  if (!Number.isFinite(precio) || precio < 0 || precio > 500) errores.push('Indica el precio por persona en euros.');
+  if (!Number.isInteger(plazas) || plazas < 1 || plazas > 30) errores.push('Indica un número de plazas entre 1 y 30.');
+  if (v.materiales === 'llevar' && !v.queLlevar) errores.push('Dinos qué tienen que traer las alumnas.');
+  if (v.texto.length < 20) errores.push('Escribe un texto informativo: qué se hace en el taller y qué se llevan.');
+  if (v.pago.length < 5) errores.push('Explica cómo te pagan las alumnas (por ejemplo, Bizum al 600 000 000).');
+
+  const foto = datos.get('foto');
+  const fotoNueva = foto instanceof File && foto.size > 0 ? foto : null;
+  if (fotoNueva) {
+    const error = errorDeFoto(fotoNueva);
+    if (error) errores.push(error);
+  } else if (!t.foto) {
+    errores.push('Sube una foto del taller en la que se vea el producto (no el cartel).');
+  }
+
+  if (errores.length === 0) {
+    try {
+      const claveFoto = fotoNueva ? await guardarFoto(fotoNueva, 'talleres') : t.foto;
+      await db()
+        .prepare(`UPDATE talleres SET titulo = ?1, hora_inicio = ?2, hora_fin = ?3, precio_cent = ?4, plazas = ?5,
+                    materiales = ?6, texto = ?7, datos_pago = ?8, foto = ?9, estado = 'enviado' WHERE id = ?10`)
+        .bind(v.titulo, v.inicio, v.fin, Math.round(precio * 100), plazas,
+              v.materiales === 'llevar' ? `Trae: ${v.queLlevar}` : 'Material incluido', v.texto, v.pago, claveFoto, t.id)
+        .run();
+      if (fotoNueva && t.foto) await borrarFoto(t.foto);
+      return Astro.redirect(`/t/${codigo}?guardado`, 303);
+    } catch (e) {
+      errores.push(e instanceof Error && e.message.includes('imagen') ? e.message : 'Algo ha fallado al guardar. Inténtalo de nuevo en unos minutos.');
+    }
+  }
+}
+
+const [a, m, d] = t.fecha.split('-').map(Number);
+const dia = new Date(Date.UTC(a, m - 1, d)).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const momento = t.franja.endsWith('manana') ? 'por la mañana' : 'por la tarde';
+const limite = t.fecha_limite
+  ? new Date(t.fecha_limite + 'T00:00:00Z').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+  : null;
+---
+<Base titulo="Tu taller en Yutori" noindex>
+  <section class="seccion">
+    <div class="contenedor">
+      <p class="script">{t.nombre ? `¡Hola, ${t.nombre.split(' ')[0]}!` : 'Tu taller'}</p>
+      <h1>Tu taller del {dia}, {momento}</h1>
+
+      {guardado && editable && (
+        <p class="aviso-ok" role="status">¡Recibido, gracias! Iris lo revisará antes de publicarlo. Puedes volver a este enlace para cambiar algo mientras no esté publicado.</p>
+      )}
+
+      {t.tallerista_id && (
+        <ul class="resumen">
+          {limite && editable && <li><strong>Fecha límite para enviarlo:</strong> {limite}.</li>}
+          <li><strong>Pago de la reserva del espacio (25 €):</strong> {t.pago_reserva_recibido ? 'recibido, ¡gracias!' : 'pendiente. Iris te indicará cómo hacerlo.'}</li>
+        </ul>
+      )}
+
+      {!editable ? (
+        <div class="tarjeta publicado">
+          {t.estado === 'publicado'
+            ? <><h2>Tu taller ya está publicado</h2><p>Si necesitas cambiar algo, escríbele a Iris.</p></>
+            : <><h2>Este taller no está activo</h2><p>Si crees que es un error, escríbele a Iris.</p></>}
+          <dl class="datos">
+            <dt>Taller</dt><dd>{t.titulo}</dd>
+            <dt>Horario</dt><dd>{t.hora_inicio}-{t.hora_fin}</dd>
+            <dt>Precio</dt><dd>{euros(t.precio_cent)}</dd>
+            <dt>Plazas</dt><dd>{t.plazas}</dd>
+          </dl>
+        </div>
+      ) : (
+        <>
+          <p class="intro">Rellena los datos de tu taller. Con ellos Iris preparará el calendario del mes.</p>
+          {errores.length > 0 && (
+            <div class="errores" role="alert">
+              <p><strong>Revisa estos datos:</strong></p>
+              <ul>{errores.map((e) => <li>{e}</li>)}</ul>
+            </div>
+          )}
+          <form class="formulario" method="post" enctype="multipart/form-data">
+            <div class="campo"><label for="titulo">Nombre del taller</label><input id="titulo" name="titulo" maxlength="100" value={v.titulo} required /></div>
+            <div class="dos-col">
+              <div class="campo"><label for="inicio">Hora de inicio</label><input id="inicio" name="inicio" type="time" value={v.inicio} required /></div>
+              <div class="campo"><label for="fin">Hora de fin</label><input id="fin" name="fin" type="time" value={v.fin} required /></div>
+            </div>
+            <div class="dos-col">
+              <div class="campo"><label for="precio">Precio por persona (€)</label><input id="precio" name="precio" inputmode="decimal" placeholder="45" value={v.precio} required /></div>
+              <div class="campo"><label for="plazas">Plazas</label><input id="plazas" name="plazas" type="number" min="1" max="30" inputmode="numeric" value={v.plazas} required /></div>
+            </div>
+            <fieldset class="campo">
+              <legend>Materiales</legend>
+              <label class="casilla"><input type="radio" name="materiales" value="incluido" checked={v.materiales !== 'llevar'} /> Todo el material está incluido en el precio</label>
+              <label class="casilla"><input type="radio" name="materiales" value="llevar" checked={v.materiales === 'llevar'} /> Las alumnas tienen que traer algo</label>
+              <input name="que_llevar" aria-label="Qué tienen que traer" placeholder="Qué tienen que traer" maxlength="200" value={v.queLlevar} />
+            </fieldset>
+            <div class="campo">
+              <label for="texto">Texto informativo</label>
+              <small>Qué se hace en el taller, qué se lleva cada persona y si hace falta experiencia.</small>
+              <textarea id="texto" name="texto" rows="6" maxlength="3000" required>{v.texto}</textarea>
+            </div>
+            <div class="campo">
+              <label for="foto">Foto del taller</label>
+              <small>Que se vea el producto, no un cartel. JPG, PNG o WebP de {MAX_MB} MB como máximo.</small>
+              {t.foto && <img class="foto-actual" src={urlFoto(t.foto)} alt="Foto actual del taller" />}
+              <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required={!t.foto} />
+              {t.foto && <small>Sube otra solo si quieres cambiarla.</small>}
+            </div>
+            <div class="campo">
+              <label for="pago">Cómo te pagan las alumnas</label>
+              <small>Las alumnas te pagan a ti directamente. Lo verán al reservar.</small>
+              <input id="pago" name="pago" maxlength="300" placeholder="Bizum al 600 000 000 (nombre)" value={v.pago} required />
+            </div>
+            <button class="boton" type="submit">{t.titulo ? 'Guardar cambios' : 'Enviar mi taller'}</button>
+          </form>
+        </>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .resumen { padding-left: 1.2em; margin-bottom: 24px; }
+  .publicado { max-width: 640px; }
+  .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; }
+  .datos dt { font-weight: 700; color: var(--tinta-suave); }
+  .datos dd { margin: 0; }
+  .foto-actual { max-width: 240px; border-radius: 12px; }
+</style>

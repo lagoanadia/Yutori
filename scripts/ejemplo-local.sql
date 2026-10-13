@@ -9,11 +9,11 @@ INSERT INTO talleristas (nombre, marca, instagram, email, telefono, categoria_id
   ('Nora Prueba', 'Hilo y Aguja', '@hiloyaguja', 'nora@ejemplo.com', NULL, 3, 'Bordado de iniciales en servilletas, 2 h', 1, 0, 'revision', '2026-10-11T12:20:00');
 
 INSERT INTO talleres (tallerista_id, titulo, slug, fecha, franja, hora_inicio, hora_fin, precio_cent, plazas, texto, es_evento, datos_pago, estado, pago_reserva_recibido, codigo_enlace, fecha_limite) VALUES
-  (1, 'Grabado y estampación en tote bags', 'grabado-tote-bags', '2026-10-17', 'sabado_manana', '10:30', '13:00', 4500, 8, 'Diseña, graba y estampa tu propia bolsa de tela.', 0, 'Bizum 600000001', 'publicado', 1, 'ejemplo-lucia-1', '2026-10-14'),
-  (2, 'Lámparas de origami', 'lamparas-origami', '2026-10-25', 'domingo_tarde', '16:00', '18:00', 4000, 8, 'Diseña y crea tu propia lámpara de papel.', 0, 'Bizum 600000002', 'publicado', 1, 'ejemplo-marta-1', '2026-10-14'),
+  (1, 'Grabado y estampación en tote bags', 'grabado-tote-bags', '2026-10-17', 'sabado_manana', '10:30', '13:00', 4500, 8, 'Diseña, graba y estampa tu propia bolsa de tela.', 0, 'Bizum 600000001', 'publicado', 1, 'ejemplo-lucia-1-local-abc', '2026-10-14'),
+  (2, 'Lámparas de origami', 'lamparas-origami', '2026-10-25', 'domingo_tarde', '16:00', '18:00', 4000, 8, 'Diseña y crea tu propia lámpara de papel.', 0, 'Bizum 600000002', 'publicado', 1, 'ejemplo-marta-1-local-abc', '2026-10-14'),
   (NULL, 'Taller de Halloween', 'taller-halloween', '2026-10-31', 'sabado_manana', '11:00', '13:00', 3000, 8, 'Un taller especial para celebrar Halloween.', 1, 'Bizum de Yutori', 'publicado', 0, NULL, NULL),
-  (1, NULL, NULL, '2026-11-08', 'domingo_manana', NULL, NULL, NULL, 8, NULL, 0, NULL, 'hueco', 0, 'ejemplo-lucia-2', '2026-10-14'),
-  (2, 'Cuadernos cosidos a mano', 'cuadernos-cosidos', '2026-11-14', 'sabado_tarde', '17:00', '19:00', 3500, 6, 'Encuaderna tu propio cuaderno.', 0, 'Bizum 600000002', 'enviado', 0, 'ejemplo-marta-2', '2026-10-14');
+  (1, NULL, NULL, '2026-11-08', 'domingo_manana', NULL, NULL, NULL, 8, NULL, 0, NULL, 'hueco', 0, 'ejemplo-lucia-2-local-abc', '2026-10-14'),
+  (2, 'Cuadernos cosidos a mano', 'cuadernos-cosidos', '2026-11-14', 'sabado_tarde', '17:00', '19:00', 3500, 6, 'Encuaderna tu propio cuaderno.', 0, 'Bizum 600000002', 'enviado', 0, 'ejemplo-marta-2-local-abc', '2026-10-14');
 
 INSERT INTO reservas (tipo, taller_id, nombre, telefono, email, plazas, estado, caduca_en, creado_en) VALUES
   ('taller', 1, 'Ana Cliente', '611111111', 'ana@ejemplo.com', 2, 'confirmada', NULL, '2026-10-05T19:00:00'),
