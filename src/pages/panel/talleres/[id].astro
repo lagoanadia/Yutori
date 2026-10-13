@@ -1,7 +1,8 @@
 ---
 export const prerender = false;
 import Panel from '../../../layouts/Panel.astro';
-import { db, uno, fecha, euros, FRANJAS, ESTADOS_TALLER } from '../../../lib/db';
+import { db, uno, todos, fecha, euros, FRANJAS, ESTADOS_TALLER, ESTADOS_RESERVA } from '../../../lib/db';
+import { cambiarEstadoReserva, liberarCaducadas } from '../../../lib/reservas';
 import { borrarFoto, urlFoto } from '../../../lib/fotos';
 import { codigoAleatorio, slugify, telefonoWhatsApp } from '../../../lib/util';
 
@@ -25,8 +26,18 @@ const completo = (x: Taller) => Boolean(x.titulo && x.hora_inicio && x.hora_fin 
 const errores: string[] = [];
 
 if (Astro.request.method === 'POST') {
-  const accion = String((await Astro.request.formData()).get('accion') ?? '');
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
   const actualizar = (sql: string, ...p: unknown[]) => db().prepare(sql).bind(...p, id).run();
+
+  if (accion === 'pagado' || accion === 'cancelar') {
+    await cambiarEstadoReserva(Number(datos.get('reserva')), accion, id);
+    return Astro.redirect(`/panel/talleres/${id}?ok=guardado#apuntadas`, 303);
+  }
+  if (accion === 'evento') {
+    await actualizar('UPDATE talleres SET es_evento = 1 - es_evento WHERE id = ?1');
+    return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
+  }
 
   if (accion === 'pago') {
     await actualizar('UPDATE talleres SET pago_reserva_recibido = 1 - pago_reserva_recibido WHERE id = ?1');
@@ -68,6 +79,12 @@ if (Astro.request.method === 'POST') {
   }
 }
 
+await liberarCaducadas();
+const apuntadas = await todos<{ id: number; nombre: string; telefono: string; email: string; plazas: number; estado: string; caduca_en: string | null }>(
+  `SELECT id, nombre, telefono, email, plazas, estado, caduca_en FROM reservas
+   WHERE taller_id = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY creado_en`, id);
+const ocupadas = apuntadas.reduce((s, a) => s + a.plazas, 0);
+
 const enlace = t.codigo_enlace ? new URL(`/t/${t.codigo_enlace}`, Astro.url.origin).href : null;
 const [a, m, d] = t.fecha.split('-').map(Number);
 const diaTexto = new Date(Date.UTC(a, m - 1, d)).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', timeZone: 'UTC' });
@@ -89,7 +106,7 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
 
   <p class="cabecera-taller">
     <span class={`estado estado--${t.estado}`}>{ESTADOS_TALLER[t.estado]}</span>
-    <strong>{fecha(t.fecha)}</strong> · {FRANJAS[t.franja]} · {t.tallerista ?? 'Iris (Yutori)'} · {t.plazas} plazas
+    <strong>{fecha(t.fecha)}</strong> · {FRANJAS[t.franja]} · {t.tallerista ?? 'Tú (Yutori)'} · {t.plazas} plazas
     {t.reservas > 0 && <> · <a href={`/panel/reservas`}>{t.reservas} reservas</a></>}
   </p>
 
@@ -110,8 +127,29 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
             <dt>Evento especial</dt><dd>{t.es_evento ? 'Sí' : 'No'}</dd>
           </dl>
           <p class="texto">{t.texto}</p>
-          {t.estado === 'publicado' && t.slug && <p><small>Dirección en la web: /talleres/{t.slug}</small></p>}
+          {t.estado === 'publicado' && t.slug && <p><small>En la web: <a href={`/talleres/${t.slug}`} target="_blank">/talleres/{t.slug}</a></small></p>}
         </>
+      )}
+
+      <h3 id="apuntadas">Personas apuntadas ({ocupadas} de {t.plazas} plazas)</h3>
+      {apuntadas.length === 0 ? <p class="vacio">Todavía no se ha apuntado nadie.</p> : (
+        <ul class="lista-apuntadas">
+          {apuntadas.map((a) => (
+            <li class="tarjeta apuntada">
+              <div>
+                <strong>{a.nombre}</strong> · {a.plazas} {a.plazas === 1 ? 'plaza' : 'plazas'}<br />
+                <small><a href={`tel:${a.telefono}`}>{a.telefono}</a> · <a href={`mailto:${a.email}`}>{a.email}</a></small><br />
+                <span class={`estado estado--${a.estado}`}>{ESTADOS_RESERVA[a.estado]}</span>
+                {a.estado === 'pendiente' && a.caduca_en && <small> · hasta {fecha(a.caduca_en)}</small>}
+              </div>
+              <form method="post" class="apuntada__acciones">
+                <input type="hidden" name="reserva" value={a.id} />
+                {a.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
+                <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta reserva? La plaza quedará libre.')">Cancelar</button>
+              </form>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
 
@@ -125,6 +163,12 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
           <button class="boton boton--borde" type="submit">{t.pago_reserva_recibido ? 'Marcar como no recibidos' : 'Marcar como recibidos'}</button>
         </form>
       )}
+
+      <form method="post" class="accion">
+        <input type="hidden" name="accion" value="evento" />
+        <p>Evento especial (Halloween, Navidad…): <strong>{t.es_evento ? 'sí' : 'no'}</strong></p>
+        <button class="boton-texto" type="submit">{t.es_evento ? 'Quitar marca de evento' : 'Marcar como evento especial'}</button>
+      </form>
 
       {(t.estado === 'enviado' || t.estado === 'hueco') && (
         <form method="post" class="accion">

@@ -61,7 +61,7 @@ if (Astro.request.method === 'POST') {
     <div class="campo">
       <label for="quien">Quién lo imparte</label>
       <select id="quien" name="quien">
-        <option value="" selected={v.quien === ''}>Iris (Yutori)</option>
+        <option value="" selected={v.quien === ''}>Tú (Yutori)</option>
         {aceptadas.map((a) => (
           <option value={a.id} selected={String(a.id) === v.quien}>{a.marca ? `${a.marca} (${a.nombre})` : a.nombre}{a.categoria && ` · ${a.categoria}`}</option>
         ))}

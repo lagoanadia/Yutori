@@ -2,6 +2,9 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { todos, fecha, euros, ESTADOS_TALLER, FRANJAS } from '../../lib/db';
+import { liberarCaducadas } from '../../lib/reservas';
+
+await liberarCaducadas();
 
 const estado = Astro.url.searchParams.get('estado');
 const filtro = estado && estado in ESTADOS_TALLER ? estado : null;
@@ -43,7 +46,7 @@ const filas = await todos<{
               {!t.titulo && <><br /><small>Pendiente de que la tallerista lo envíe</small></>}
               {t.es_evento ? <> <span class="estado">Evento</span></> : null}
             </td>
-            <td data-label="Quién">{t.tallerista ?? 'Iris (Yutori)'}</td>
+            <td data-label="Quién">{t.tallerista ?? 'Tú (Yutori)'}</td>
             <td data-label="Plazas">
               <span class="ocupacion">
                 <span class="ocupacion__barra"><span style={`width:${Math.min(100, (t.ocupadas / t.plazas) * 100)}%`}></span></span>

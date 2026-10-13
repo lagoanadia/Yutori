@@ -153,64 +153,6 @@ export const clases: Clase[] = [
 
 export const publicosVisibles = (c: Clase) => c.publicos.filter((p) => MOSTRAR_NINOS || p.para === 'Adultos');
 
-export type Taller = {
-  id: string;
-  titulo: string;
-  imparte: string;
-  fecha: string; // AAAA-MM-DD
-  inicio: string;
-  fin: string;
-  precio: string;
-  plazas: number;
-  libres: number;
-  evento?: boolean;
-  texto: string;
-  materiales?: string;
-};
-
-// TODO: talleres de ejemplo. En el bloque 3 vendrán de la base de datos.
-export const talleres: Taller[] = [
-  {
-    id: 'grabado-tote-bags',
-    titulo: 'Grabado y estampación en tote bags',
-    imparte: 'Slowly Atelier',
-    fecha: '2026-10-17',
-    inicio: '10:30',
-    fin: '13:00',
-    precio: 'XX €',
-    plazas: 8,
-    libres: 3,
-    texto: 'Diseña, graba y estampa tu propia bolsa de tela.',
-    materiales: 'Material incluido',
-  },
-  {
-    id: 'lamparas-origami',
-    titulo: 'Lámparas de origami',
-    imparte: 'Slowly Atelier',
-    fecha: '2026-10-25',
-    inicio: '16:00',
-    fin: '18:00',
-    precio: 'XX €',
-    plazas: 8,
-    libres: 0,
-    texto: 'Diseña y crea tu propia lámpara de papel.',
-    materiales: 'Material incluido',
-  },
-  {
-    id: 'taller-halloween',
-    titulo: 'Taller de Halloween',
-    imparte: 'Yutori',
-    fecha: '2026-10-31',
-    inicio: '11:00',
-    fin: '13:00',
-    precio: 'XX €',
-    plazas: 8,
-    libres: 5,
-    evento: true,
-    texto: 'Un taller especial para celebrar Halloween creando con las manos.',
-  },
-];
-
 export const categorias = [
   'Acuarela y pintura',
   'Ganchillo y punto',

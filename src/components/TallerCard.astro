@@ -1,30 +1,33 @@
 ---
-import { fechaLarga, duracion, type Taller } from '../data/yutori';
+import { fechaLarga, duracion } from '../data/yutori';
+import { euros } from '../lib/db';
+import type { TallerPublico } from '../lib/reservas';
 
-const { taller } = Astro.props as { taller: Taller };
-const completo = taller.libres === 0;
+const { taller } = Astro.props as { taller: TallerPublico };
+const libres = Math.max(0, taller.plazas - taller.ocupadas);
 ---
 <article class="tarjeta taller">
-  <div class="foto-hueco">Foto del taller</div>
-  {taller.evento && <span class="etiqueta">Evento especial</span>}
+  {taller.foto
+    ? <img class="taller__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} loading="lazy" />
+    : <div class="foto-hueco">Foto del taller</div>}
+  {taller.es_evento ? <span class="etiqueta">Evento especial</span> : null}
   <h3>{taller.titulo}</h3>
   <p class="taller__quien">con {taller.imparte}</p>
-  <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.inicio}-{taller.fin}</p>
-  <p class="taller__extra">{duracion(taller.inicio, taller.fin)}{taller.materiales && ` · ${taller.materiales}`}</p>
-  <p>{taller.texto}</p>
+  <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.hora_inicio}-{taller.hora_fin}</p>
+  <p class="taller__extra">{duracion(taller.hora_inicio, taller.hora_fin)}{taller.materiales && ` · ${taller.materiales}`}</p>
   <div class="taller__pie">
-    <span class="taller__precio">{taller.precio}</span>
-    <span class:list={['taller__plazas', { completo }]}>
-      {completo ? 'Completo' : `Quedan ${taller.libres} plazas`}
+    <span class="taller__precio">{euros(taller.precio_cent)}</span>
+    <span class:list={['taller__plazas', { completo: libres === 0 }]}>
+      {libres === 0 ? 'Completo' : libres === 1 ? 'Queda 1 plaza' : `Quedan ${libres} plazas`}
     </span>
   </div>
-  {completo
-    ? <a class="boton boton--borde" href={`/talleres/${taller.id}`}>Apuntarme a la lista de espera</a>
-    : <a class="boton" href={`/talleres/${taller.id}`}>Reservar plaza</a>}
+  <a class:list={['boton', { 'boton--borde': libres === 0 }]} href={`/talleres/${taller.slug}`}>{libres === 0 ? 'Ver taller' : 'Reservar plaza'}</a>
 </article>
 
 <style>
   .taller { display: flex; flex-direction: column; }
+  .taller .etiqueta { align-self: flex-start; }
+  .taller__foto { aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; margin-bottom: 16px; width: 100%; }
   .taller__quien { color: var(--tinta-suave); margin-bottom: 4px; }
   .taller__cuando { font-weight: 700; margin-bottom: 0; }
   .taller__extra { color: var(--tinta-suave); font-size: 0.95rem; margin-bottom: 8px; }

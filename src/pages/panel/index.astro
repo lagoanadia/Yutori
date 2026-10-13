@@ -2,12 +2,15 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { todos, uno, fecha, ESTADOS_RESERVA, TIPOS_RESERVA } from '../../lib/db';
+import { liberarCaducadas } from '../../lib/reservas';
+
+await liberarCaducadas();
 
 const cifras = await uno<Record<string, number>>(`
   SELECT
     (SELECT count(*) FROM talleristas WHERE estado = 'nueva') AS talleristas_nuevas,
     (SELECT count(*) FROM talleres WHERE estado = 'enviado') AS talleres_por_revisar,
-    (SELECT count(*) FROM talleres WHERE estado IN ('hueco', 'enviado') AND pago_reserva_recibido = 0) AS pagos_25_pendientes,
+    (SELECT count(*) FROM talleres WHERE estado IN ('hueco', 'enviado') AND pago_reserva_recibido = 0 AND tallerista_id IS NOT NULL) AS pagos_25_pendientes,
     (SELECT count(*) FROM reservas WHERE estado = 'pendiente') AS reservas_pendientes,
     (SELECT count(*) FROM solicitudes WHERE estado = 'nueva') AS solicitudes_nuevas,
     (SELECT count(*) FROM talleres WHERE estado = 'publicado' AND fecha >= date('now')) AS talleres_proximos

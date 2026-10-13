@@ -1,19 +1,42 @@
 ---
+export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import TallerCard from '../../components/TallerCard.astro';
 import DetallesImportantes from '../../components/DetallesImportantes.astro';
-import { talleres } from '../../data/yutori';
+import { negocio } from '../../data/yutori';
+import { talleresPublicados } from '../../lib/reservas';
+
+const talleres = await talleresPublicados();
+
+// Agrupados por mes: "Calendario de noviembre", etc.
+const meses = new Map<string, typeof talleres>();
+for (const t of talleres) {
+  const clave = t.fecha.slice(0, 7);
+  meses.set(clave, [...(meses.get(clave) ?? []), t]);
+}
+const nombreMes = (clave: string) =>
+  new Date(`${clave}-01T00:00:00Z`).toLocaleDateString('es-ES', { month: 'long', timeZone: 'UTC' });
 ---
 <Base titulo="Talleres del mes" descripcion="Calendario de talleres creativos en A Coruña: cada mes, talleres distintos con artesanas y artistas.">
   <section class="seccion">
     <div class="contenedor">
-      <p class="script">Calendario de octubre</p>
+      <p class="script">Calendario de talleres</p>
       <h1>Talleres del mes</h1>
       <p class="intro">Cada mes, talleres distintos con artesanas y artistas. Plazas limitadas: reserva tu plaza y crea tu espacio.</p>
-      <p><span class="ejemplo">Talleres de ejemplo</span></p>
-      <div class="rejilla">
-        {talleres.map((t) => <TallerCard taller={t} />)}
-      </div>
+
+      {talleres.length === 0 ? (
+        <div class="tarjeta vacio-publico">
+          <h2>Estamos preparando el calendario</h2>
+          <p>Publicamos los talleres de cada mes alrededor del día 20 del mes anterior. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>
+        </div>
+      ) : (
+        [...meses].map(([clave, lista]) => (
+          <section class="mes">
+            <h2 class="mes__titulo">{nombreMes(clave)}</h2>
+            <div class="rejilla">{lista.map((t) => <TallerCard taller={t} />)}</div>
+          </section>
+        ))
+      )}
       <p class="nota">¿Os apetece un taller solo para vuestro grupo? <a href="/privados">Pide un taller privado</a>.</p>
     </div>
   </section>
@@ -21,5 +44,8 @@ import { talleres } from '../../data/yutori';
 </Base>
 
 <style>
+  .mes { margin-top: 32px; }
+  .mes__titulo { text-transform: capitalize; }
+  .vacio-publico { max-width: 640px; margin-top: 24px; }
   .nota { margin-top: 32px; }
 </style>

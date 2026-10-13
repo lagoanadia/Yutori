@@ -2,7 +2,8 @@
 // Enlace privado de cada tallerista: rellena los datos de su taller. El código largo del enlace es la llave.
 export const prerender = false;
 import Base from '../../layouts/Base.astro';
-import { db, uno, euros } from '../../lib/db';
+import { db, uno, todos, euros, fecha, ESTADOS_RESERVA } from '../../lib/db';
+import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
 import { borrarFoto, errorDeFoto, guardarFoto, MAX_MB, urlFoto } from '../../lib/fotos';
 import { esHora } from '../../lib/util';
 
@@ -18,10 +19,27 @@ const cargar = () => uno<Taller>(`
   SELECT t.*, ta.nombre FROM talleres t LEFT JOIN talleristas ta ON ta.id = t.tallerista_id
   WHERE t.codigo_enlace = ?1`, codigo);
 const t = codigo.length >= 16 ? await cargar() : null;
-if (!t) return new Response('Este enlace no existe o ya no está activo. Pide a Iris uno nuevo.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+if (!t) return new Response('Este enlace no existe o ya no está activo. Escríbenos y te enviamos uno nuevo.', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 
 const editable = t.estado === 'hueco' || t.estado === 'enviado';
 const guardado = Astro.url.searchParams.has('guardado');
+
+// Taller publicado: la tallerista marca los pagos que recibe (o cancela) de SUS reservas.
+if (t.estado === 'publicado' && Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
+  const reservaId = Number(datos.get('reserva'));
+  if ((accion === 'pagado' || accion === 'cancelar') && Number.isInteger(reservaId)) {
+    await cambiarEstadoReserva(reservaId, accion, t.id);
+  }
+  return Astro.redirect(`/t/${codigo}#apuntadas`, 303);
+}
+await liberarCaducadas();
+const apuntadas = t.estado === 'publicado'
+  ? await todos<{ id: number; nombre: string; telefono: string; plazas: number; estado: string; caduca_en: string | null }>(
+      `SELECT id, nombre, telefono, plazas, estado, caduca_en FROM reservas
+       WHERE taller_id = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY creado_en`, t.id)
+  : [];
 const errores: string[] = [];
 
 const llevar = (t.materiales ?? '').startsWith('Trae: ');
@@ -92,21 +110,22 @@ const limite = t.fecha_limite
       <h1>Tu taller del {dia}, {momento}</h1>
 
       {guardado && editable && (
-        <p class="aviso-ok" role="status">¡Recibido, gracias! Iris lo revisará antes de publicarlo. Puedes volver a este enlace para cambiar algo mientras no esté publicado.</p>
+        <p class="aviso-ok" role="status">¡Recibido, gracias! Lo revisaremos antes de publicarlo. Puedes volver a este enlace para cambiar algo mientras no esté publicado.</p>
       )}
 
       {t.tallerista_id && (
         <ul class="resumen">
           {limite && editable && <li><strong>Fecha límite para enviarlo:</strong> {limite}.</li>}
-          <li><strong>Pago de la reserva del espacio (25 €):</strong> {t.pago_reserva_recibido ? 'recibido, ¡gracias!' : 'pendiente. Iris te indicará cómo hacerlo.'}</li>
+          <li><strong>Pago de la reserva del espacio (25 €):</strong> {t.pago_reserva_recibido ? 'recibido, ¡gracias!' : 'pendiente. Te indicaremos cómo hacerlo.'}</li>
         </ul>
       )}
 
       {!editable ? (
+        <>
         <div class="tarjeta publicado">
           {t.estado === 'publicado'
-            ? <><h2>Tu taller ya está publicado</h2><p>Si necesitas cambiar algo, escríbele a Iris.</p></>
-            : <><h2>Este taller no está activo</h2><p>Si crees que es un error, escríbele a Iris.</p></>}
+            ? <><h2>Tu taller ya está publicado</h2><p>Si necesitas cambiar algo, escríbenos.</p></>
+            : <><h2>Este taller no está activo</h2><p>Si crees que es un error, escríbenos.</p></>}
           <dl class="datos">
             <dt>Taller</dt><dd>{t.titulo}</dd>
             <dt>Horario</dt><dd>{t.hora_inicio}-{t.hora_fin}</dd>
@@ -114,9 +133,36 @@ const limite = t.fecha_limite
             <dt>Plazas</dt><dd>{t.plazas}</dd>
           </dl>
         </div>
+
+        {t.estado === 'publicado' && (
+        <section id="apuntadas" class="apuntadas">
+          <h2>Personas apuntadas ({apuntadas.reduce((s, a) => s + a.plazas, 0)} de {t.plazas} plazas)</h2>
+          <p class="intro">Cuando recibas un pago, márcalo: así la plaza queda confirmada. Las reservas sin pagar se liberan solas al acabar su plazo.</p>
+          {apuntadas.length === 0 ? <p class="vacio">Todavía no se ha apuntado nadie.</p> : (
+            <ul class="lista-apuntadas">
+              {apuntadas.map((a) => (
+                <li class="tarjeta apuntada">
+                  <div>
+                    <strong>{a.nombre}</strong> · {a.plazas} {a.plazas === 1 ? 'plaza' : 'plazas'}<br />
+                    <a href={`tel:${a.telefono}`}>{a.telefono}</a><br />
+                    <span class={`estado estado--${a.estado}`}>{ESTADOS_RESERVA[a.estado]}</span>
+                    {a.estado === 'pendiente' && a.caduca_en && <small> · hasta {fecha(a.caduca_en)}</small>}
+                  </div>
+                  <form method="post" class="apuntada__acciones">
+                    <input type="hidden" name="reserva" value={a.id} />
+                    {a.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
+                    <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta reserva? La plaza quedará libre.')">Cancelar reserva</button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        )}
+        </>
       ) : (
         <>
-          <p class="intro">Rellena los datos de tu taller. Con ellos Iris preparará el calendario del mes.</p>
+          <p class="intro">Rellena los datos de tu taller. Con ellos prepararemos el calendario del mes.</p>
           {errores.length > 0 && (
             <div class="errores" role="alert">
               <p><strong>Revisa estos datos:</strong></p>
@@ -171,4 +217,5 @@ const limite = t.fecha_limite
   .datos dt { font-weight: 700; color: var(--tinta-suave); }
   .datos dd { margin: 0; }
   .foto-actual { max-width: 240px; border-radius: 12px; }
+  .apuntadas { margin-top: 32px; max-width: 760px; }
 </style>

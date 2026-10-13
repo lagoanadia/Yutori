@@ -2,6 +2,18 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { todos, fecha, DIAS, ESTADOS_RESERVA, TIPOS_RESERVA } from '../../lib/db';
+import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
+  const id = Number(datos.get('reserva'));
+  if ((accion === 'pagado' || accion === 'cancelar') && Number.isInteger(id)) await cambiarEstadoReserva(id, accion);
+  const vuelta = new URLSearchParams(Astro.url.search);
+  vuelta.set('ok', 'guardado');
+  return Astro.redirect(`/panel/reservas?${vuelta}`, 303);
+}
+await liberarCaducadas();
 
 const params = Astro.url.searchParams;
 const estado = params.get('estado');
@@ -49,7 +61,7 @@ const enlace = (cambios: Record<string, string | null>) => {
 
   {filas.length === 0 ? <p class="vacio">No hay reservas con estos filtros.</p> : (
     <table class="tabla">
-      <thead><tr><th>Quién</th><th>Qué</th><th>Plazas</th><th>Reservó</th><th>Estado</th></tr></thead>
+      <thead><tr><th>Quién</th><th>Qué</th><th>Plazas</th><th>Reservó</th><th>Estado</th><th><span class="sr">Acciones</span></th></tr></thead>
       <tbody>
         {filas.map((r) => (
           <tr>
@@ -68,6 +80,15 @@ const enlace = (cambios: Record<string, string | null>) => {
             <td>
               <span class={`estado estado--${r.estado}`}>{ESTADOS_RESERVA[r.estado]}</span>
               {r.estado === 'pendiente' && r.caduca_en && <><br /><small>caduca {fecha(r.caduca_en)}</small></>}
+            </td>
+            <td>
+              {(r.estado === 'pendiente' || r.estado === 'confirmada') && (
+                <form method="post" class="apuntada__acciones">
+                  <input type="hidden" name="reserva" value={r.id} />
+                  {r.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
+                  <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta reserva? La plaza quedará libre.')">Cancelar</button>
+                </form>
+              )}
             </td>
           </tr>
         ))}

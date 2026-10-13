@@ -1,0 +1,102 @@
+---
+// Página privada de cada reserva (el código largo es la llave). El cliente la ve justo al reservar.
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { fechaLarga, negocio, politicaTalleres, whatsappUrl } from '../../data/yutori';
+import { euros, fecha } from '../../lib/db';
+import { reservaPorCodigo } from '../../lib/reservas';
+
+const r = await reservaPorCodigo(Astro.params.codigo ?? '');
+if (!r) return new Response(null, { status: 404 });
+
+const total = euros(r.precio_cent * r.plazas);
+const concepto = `${r.nombre.split(' ')[0]} · ${r.titulo}`.slice(0, 60);
+
+// Enlace para añadirlo a Google Calendar (hora de España).
+const sinSignos = (f: string, h: string) => `${f.replaceAll('-', '')}T${h.replace(':', '')}00`;
+const calendario = 'https://calendar.google.com/calendar/render?' + new URLSearchParams({
+  action: 'TEMPLATE',
+  text: `${r.titulo} · Yutori`,
+  dates: `${sinSignos(r.fecha, r.hora_inicio)}/${sinSignos(r.fecha, r.hora_fin)}`,
+  ctz: 'Europe/Madrid',
+  location: `Yutori Espacio Creativo, ${negocio.direccion}, ${negocio.ciudad}`,
+  details: `Taller con ${r.imparte}. ${r.plazas} plaza(s).`,
+});
+---
+<Base titulo="Tu reserva" noindex>
+  <section class="seccion">
+    <div class="contenedor reserva">
+      {r.estado === 'pendiente' && (
+        <>
+          <p class="script">¡Plaza apartada!</p>
+          <h1>Ahora solo falta el pago</h1>
+          <div class="tarjeta pago">
+            <p class="pago__importe">{total}</p>
+            <p><strong>Cómo pagar:</strong> {r.datos_pago}</p>
+            <p><strong>Concepto:</strong> {concepto}</p>
+            <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>
+          </div>
+          <p>Cuando {r.imparte} reciba el pago, tu plaza quedará confirmada. Puedes volver a esta página para comprobarlo: <strong>guárdala en favoritos</strong>.</p>
+        </>
+      )}
+      {r.estado === 'confirmada' && (
+        <>
+          <p class="script">¡Nos vemos pronto!</p>
+          <h1>Tu reserva está confirmada</h1>
+        </>
+      )}
+      {r.estado === 'liberada' && (
+        <>
+          <h1>Esta plaza se ha liberado</h1>
+          <p>No recibimos el pago a tiempo y la plaza quedó libre para otra persona. Si todavía quieres venir, mira si quedan plazas.</p>
+          <a class="boton" href={`/talleres/${r.slug}`}>Ver el taller</a>
+        </>
+      )}
+      {r.estado === 'cancelada' && (
+        <>
+          <h1>Esta reserva está cancelada</h1>
+          <p>Si crees que es un error, escríbenos.</p>
+          <a class="boton boton--borde" href={whatsappUrl(`Hola, tengo una duda sobre mi reserva de "${r.titulo}"`)}>Escribir por WhatsApp</a>
+        </>
+      )}
+
+      <div class="tarjeta resumen">
+        <h2>{r.titulo}</h2>
+        <dl class="datos">
+          <dt>Cuándo</dt><dd>{fechaLarga(r.fecha)}, de {r.hora_inicio} a {r.hora_fin}</dd>
+          <dt>Dónde</dt><dd>{negocio.direccion}, {negocio.ciudad}</dd>
+          <dt>Con</dt><dd>{r.imparte}</dd>
+          <dt>Plazas</dt><dd>{r.plazas} · {total}</dd>
+          <dt>A nombre de</dt><dd>{r.nombre}</dd>
+        </dl>
+        {(r.estado === 'pendiente' || r.estado === 'confirmada') && (
+          <div class="botones">
+            <a class="boton boton--borde" href={calendario} target="_blank" rel="noopener">Añadir a Google Calendar</a>
+            <a class="boton boton--borde" href={negocio.mapsUrl} target="_blank" rel="noopener">Cómo llegar</a>
+          </div>
+        )}
+      </div>
+
+      <details class="politica">
+        <summary>¿Necesitas cancelar o ceder tu plaza?</summary>
+        <ul class="lista-politica">{politicaTalleres.map((p) => <li>{p}</li>)}</ul>
+        <p>Para cancelar o ceder tu plaza, <a href={whatsappUrl(`Hola, necesito cambiar mi reserva de "${r.titulo}"`)}>escríbenos por WhatsApp</a>.</p>
+      </details>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .reserva { max-width: 720px; }
+  .reserva > .script { font-size: 2rem; margin-bottom: 4px; }
+  .pago { border: 2px solid var(--verde); margin: 16px 0; }
+  .pago p { margin-bottom: 8px; overflow-wrap: anywhere; }
+  .pago__importe { font-family: var(--serif); font-size: 2.2rem; color: var(--verde); margin-bottom: 4px !important; }
+  .pago__plazo { color: var(--aviso); }
+  .resumen { margin: 24px 0; }
+  .resumen h2 { font-size: 1.4rem; }
+  .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin-bottom: 16px; }
+  .datos dt { font-weight: 700; color: var(--tinta-suave); }
+  .datos dd { margin: 0; }
+  .politica summary { cursor: pointer; font-weight: 700; color: var(--verde); }
+</style>

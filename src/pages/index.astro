@@ -1,11 +1,13 @@
 ---
+export const prerender = false;
 import Base from '../layouts/Base.astro';
 import Mariposa from '../components/Mariposa.astro';
 import TallerCard from '../components/TallerCard.astro';
 import Resenas from '../components/Resenas.astro';
-import { negocio, talleres } from '../data/yutori';
+import { negocio } from '../data/yutori';
+import { talleresPublicados } from '../lib/reservas';
 
-const proximos = talleres.slice(0, 3);
+const proximos = await talleresPublicados(3);
 const servicios = [
   { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y costura y bordado, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases' },
   { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario' },
@@ -50,12 +52,12 @@ const servicios = [
   <section class="seccion seccion--salvia">
     <div class="contenedor">
       <div class="titulo-con-enlace">
-        <h2>Próximos talleres <span class="ejemplo">Ejemplo</span></h2>
+        <h2>Próximos talleres</h2>
         <a href="/talleres">Ver todo el calendario →</a>
       </div>
-      <div class="rejilla">
-        {proximos.map((t) => <TallerCard taller={t} />)}
-      </div>
+      {proximos.length > 0
+        ? <div class="rejilla">{proximos.map((t) => <TallerCard taller={t} />)}</div>
+        : <p class="intro">Estamos preparando el calendario de talleres. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>}
     </div>
   </section>
 

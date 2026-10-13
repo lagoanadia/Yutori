@@ -1,0 +1,125 @@
+---
+export const prerender = false;
+import { env } from 'cloudflare:workers';
+import Base from '../../layouts/Base.astro';
+import { fechaLarga, duracion, politicaTalleres, whatsappUrl } from '../../data/yutori';
+import { euros } from '../../lib/db';
+import { MAX_PLAZAS_RESERVA, PLAZO_PAGO_HORAS, reservarTaller, tallerPublicado } from '../../lib/reservas';
+import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
+import { esEmail } from '../../lib/util';
+
+const taller = await tallerPublicado(Astro.params.slug ?? '');
+if (!taller) return new Response(null, { status: 404 });
+
+const libres = Math.max(0, taller.plazas - taller.ocupadas);
+const errores: string[] = [];
+let v = { nombre: '', telefono: '', email: '', plazas: '1' };
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = { nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), plazas: campo('plazas', 2) };
+
+  if (campo('web')) return Astro.redirect(`/talleres/${taller.slug}`, 303);
+
+  const plazas = Number(v.plazas);
+  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
+  if (!esEmail(v.email)) errores.push('Escribe un email válido.');
+  if (!Number.isInteger(plazas) || plazas < 1 || plazas > MAX_PLAZAS_RESERVA) errores.push('Elige cuántas plazas quieres.');
+  if (datos.get('condiciones') !== 'on' || datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar las condiciones y la política de privacidad.');
+
+  if (errores.length === 0 && !(await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP')))) {
+    errores.push('No hemos podido comprobar que no eres un robot. Vuelve a intentarlo.');
+  }
+
+  if (errores.length === 0) {
+    const codigo = await reservarTaller(taller.id, { nombre: v.nombre, telefono: v.telefono, email: v.email, plazas });
+    if (codigo) return Astro.redirect(`/reserva/${codigo}`, 303);
+    errores.push(plazas > 1
+      ? 'Ya no quedan tantas plazas libres. Prueba con menos.'
+      : 'Lo sentimos, se acaba de ocupar la última plaza.');
+  }
+}
+
+const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
+---
+<Base titulo={taller.titulo} descripcion={`${taller.titulo} con ${taller.imparte} en Yutori Espacio Creativo, A Coruña. ${fechaLarga(taller.fecha)}.`}>
+  <Fragment slot="head">
+    {turnstileActivo() && libres > 0 && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+  </Fragment>
+  <section class="seccion">
+    <div class="contenedor ficha">
+      <div>
+        {taller.foto
+          ? <img class="ficha__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} />
+          : <div class="foto-hueco ficha__foto">Foto del taller</div>}
+      </div>
+      <div>
+        <a href="/talleres">← Todos los talleres</a>
+        {taller.es_evento ? <p><span class="etiqueta">Evento especial</span></p> : null}
+        <h1>{taller.titulo}</h1>
+        <p class="ficha__quien">con {taller.imparte}</p>
+        <ul class="ficha__datos">
+          <li><strong>Cuándo:</strong> {fechaLarga(taller.fecha)}, de {taller.hora_inicio} a {taller.hora_fin}</li>
+          <li><strong>Duración:</strong> {duracion(taller.hora_inicio, taller.hora_fin)}</li>
+          {taller.materiales && <li><strong>Materiales:</strong> {taller.materiales}</li>}
+          <li><strong>Precio:</strong> {euros(taller.precio_cent)} por persona</li>
+          <li><strong>Plazas:</strong> {libres === 0 ? 'Completo' : `quedan ${libres} de ${taller.plazas}`}</li>
+        </ul>
+        <p class="ficha__texto">{taller.texto}</p>
+
+        {libres === 0 ? (
+          <div class="tarjeta">
+            <h2>Taller completo</h2>
+            <p>Si quieres que te avisemos si se libera una plaza, escríbenos.</p>
+            <a class="boton boton--borde" href={whatsappUrl(`Hola, me gustaría estar en lista de espera para "${taller.titulo}"`)}>Escribir por WhatsApp</a>
+          </div>
+        ) : (
+          <>
+            <h2>Reserva tu plaza</h2>
+            <p class="intro">Tu plaza queda apartada {PLAZO_PAGO_HORAS} horas. Para confirmarla, paga a {taller.imparte} con los datos que verás al reservar.</p>
+            {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+            <form class="formulario" method="post">
+              <div class="dos-col">
+                <div class="campo"><label for="nombre">Nombre y apellido</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+                <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+              </div>
+              <div class="dos-col">
+                <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+                <div class="campo">
+                  <label for="plazas">Plazas</label>
+                  <select id="plazas" name="plazas">
+                    {Array.from({ length: maxPlazas }, (_, i) => <option value={i + 1} selected={String(i + 1) === v.plazas}>{i + 1}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+              <label class="casilla"><input type="checkbox" name="condiciones" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
+              <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que mi nombre y teléfono se compartan con quien imparte el taller.</label>
+              {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
+              <button class="boton" type="submit">Reservar plaza</button>
+            </form>
+          </>
+        )}
+
+        <details class="politica">
+          <summary>Condiciones de reserva y cancelación</summary>
+          <ul class="lista-politica">{politicaTalleres.map((p) => <li>{p}</li>)}</ul>
+        </details>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ficha { display: grid; gap: 32px; }
+  @media (min-width: 860px) { .ficha { grid-template-columns: 1fr 1.2fr; align-items: start; } .ficha__foto { position: sticky; top: 96px; } }
+  .ficha__foto { aspect-ratio: 1; object-fit: cover; border-radius: var(--radio); width: 100%; }
+  .ficha__quien { color: var(--tinta-suave); }
+  .ficha__datos { list-style: none; padding: 0; }
+  .ficha__datos li { padding: 6px 0; border-bottom: 1px dashed var(--borde); }
+  .ficha__texto { white-space: pre-line; }
+  .politica { margin-top: 24px; }
+  .politica summary { cursor: pointer; font-weight: 700; color: var(--verde); }
+</style>
