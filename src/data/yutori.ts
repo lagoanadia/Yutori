@@ -15,7 +15,30 @@ export const negocio = {
   indexar: false,
 };
 
-export const whatsappUrl = (texto = 'Hola Yutori, tengo una pregunta') =>
+// Nota de Google Maps a 13/10/2026. Actualizar de vez en cuando.
+export const resenasGoogle = { nota: '5,0', total: 32 };
+
+// TODO: 3 reseñas reales que elija Iris (texto tal cual y nombre con la inicial del apellido).
+export const resenas: { texto: string; autora: string }[] = [];
+
+export const detallesTalleres: { titulo: string; texto: string; pendiente?: boolean }[] = [
+  { titulo: 'Plazas limitadas', texto: 'Grupos pequeños: las clases tienen un máximo de 8 personas y cada taller indica sus plazas.' },
+  { titulo: 'Duración', texto: 'La mayoría de talleres duran entre 2 y 3 horas. Cada ficha indica el horario exacto.' },
+  { titulo: 'Reserva y pago', texto: 'Tu plaza queda confirmada con el pago. Los talleres de otras artesanas se pagan directamente a ellas.' },
+  { titulo: 'Materiales', texto: 'Cada taller indica si los materiales están incluidos.', pendiente: true }, // TODO: confirmar con Iris
+  { titulo: 'Edad', texto: 'Talleres pensados para personas adultas.', pendiente: true }, // TODO: confirmar edad mínima con Iris
+  { titulo: 'Cancelaciones', texto: 'Más de 7 días antes: reembolso o cambio al próximo taller. Menos de 7 días: puedes ceder tu plaza.' },
+];
+
+export function duracion(inicio: string, fin: string) {
+  const min = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+  const total = min(fin) - min(inicio);
+  const horas = Math.floor(total / 60);
+  const resto = total % 60;
+  return `${horas} h${resto ? ` ${resto} min` : ''}`;
+}
+
+export const whatsappUrl =(texto = 'Hola Yutori, tengo una pregunta') =>
   negocio.whatsapp ? `https://wa.me/${negocio.whatsapp}?text=${encodeURIComponent(texto)}` : '#';
 
 export type Grupo = { dia: string; inicio: string; fin: string };
@@ -87,6 +110,7 @@ export type Taller = {
   libres: number;
   evento?: boolean;
   texto: string;
+  materiales?: string;
 };
 
 // TODO: talleres de ejemplo. En el bloque 3 vendrán de la base de datos.
@@ -102,6 +126,7 @@ export const talleres: Taller[] = [
     plazas: 8,
     libres: 3,
     texto: 'Diseña, graba y estampa tu propia bolsa de tela.',
+    materiales: 'Todos los materiales incluidos',
   },
   {
     id: 'lamparas-origami',
@@ -114,6 +139,7 @@ export const talleres: Taller[] = [
     plazas: 8,
     libres: 0,
     texto: 'Diseña y crea tu propia lámpara de papel.',
+    materiales: 'Todos los materiales incluidos',
   },
   {
     id: 'taller-halloween',

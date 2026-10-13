@@ -1,0 +1,45 @@
+---
+import { negocio, resenas, resenasGoogle } from '../data/yutori';
+---
+<section class="seccion resenas">
+  <div class="contenedor">
+    <h2 class="script">Lo que dicen de Yutori</h2>
+    <div class="resenas__nota">
+      <span class="resenas__estrellas" aria-hidden="true">★★★★★</span>
+      <p><strong>{resenasGoogle.nota}</strong> de 5 · {resenasGoogle.total} reseñas en Google</p>
+    </div>
+
+    <div class="rejilla resenas__lista">
+      {resenas.length > 0
+        ? resenas.map((r) => (
+            <figure class="tarjeta resena">
+              <span class="resenas__estrellas" aria-label="5 estrellas">★★★★★</span>
+              <blockquote>{r.texto}</blockquote>
+              <figcaption>{r.autora}</figcaption>
+            </figure>
+          ))
+        : [1, 2, 3].map(() => (
+            <figure class="tarjeta resena resena--hueco">
+              <span class="ejemplo">Pendiente</span>
+              <blockquote>Aquí irá una reseña real de Google que elija Iris.</blockquote>
+            </figure>
+          ))}
+    </div>
+
+    <a class="boton boton--borde" href={negocio.mapsUrl} rel="noopener" target="_blank">Leer todas las reseñas en Google</a>
+  </div>
+</section>
+
+<style>
+  .resenas { text-align: center; }
+  .resenas .script { font-size: 2.4rem; font-weight: 400; margin-bottom: 8px; }
+  .resenas__nota { display: grid; justify-items: center; gap: 4px; margin-bottom: 24px; }
+  .resenas__nota p { margin: 0; color: var(--tinta-suave); }
+  .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; color: var(--verde); }
+  .resenas__estrellas { color: #c8963e; letter-spacing: 4px; font-size: 1.3rem; }
+  .resenas__lista { margin-bottom: 24px; text-align: left; }
+  .resena { margin: 0; }
+  .resena blockquote { margin: 8px 0 12px; font-size: 1.05rem; }
+  .resena figcaption { font-weight: 700; color: var(--verde); }
+  .resena--hueco { border-style: dashed; box-shadow: none; color: var(--tinta-suave); }
+</style>

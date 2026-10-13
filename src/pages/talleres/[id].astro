@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { talleres, fechaLarga, politicaTalleres } from '../../data/yutori';
+import { talleres, fechaLarga, duracion, politicaTalleres } from '../../data/yutori';
 
 export function getStaticPaths() {
   return talleres.map((t) => ({ params: { id: t.id }, props: { taller: t } }));
@@ -22,6 +22,8 @@ const completo = taller.libres === 0;
         <p class="ficha__quien">con {taller.imparte} <span class="ejemplo">Ejemplo</span></p>
         <ul class="ficha__datos">
           <li><strong>Cuándo:</strong> {fechaLarga(taller.fecha)}, de {taller.inicio} a {taller.fin}</li>
+          <li><strong>Duración:</strong> {duracion(taller.inicio, taller.fin)}</li>
+          {taller.materiales && <li><strong>Materiales:</strong> {taller.materiales}</li>}
           <li><strong>Precio:</strong> {taller.precio}</li>
           <li><strong>Plazas:</strong> {completo ? 'Completo' : `quedan ${taller.libres} de ${taller.plazas}`}</li>
         </ul>

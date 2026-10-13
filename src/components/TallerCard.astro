@@ -1,5 +1,5 @@
 ---
-import { fechaLarga, type Taller } from '../data/yutori';
+import { fechaLarga, duracion, type Taller } from '../data/yutori';
 
 const { taller } = Astro.props as { taller: Taller };
 const completo = taller.libres === 0;
@@ -10,6 +10,7 @@ const completo = taller.libres === 0;
   <h3>{taller.titulo}</h3>
   <p class="taller__quien">con {taller.imparte}</p>
   <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.inicio}-{taller.fin}</p>
+  <p class="taller__extra">{duracion(taller.inicio, taller.fin)}{taller.materiales && ` · ${taller.materiales}`}</p>
   <p>{taller.texto}</p>
   <div class="taller__pie">
     <span class="taller__precio">{taller.precio}</span>
@@ -25,7 +26,8 @@ const completo = taller.libres === 0;
 <style>
   .taller { display: flex; flex-direction: column; }
   .taller__quien { color: var(--tinta-suave); margin-bottom: 4px; }
-  .taller__cuando { font-weight: 700; margin-bottom: 8px; }
+  .taller__cuando { font-weight: 700; margin-bottom: 0; }
+  .taller__extra { color: var(--tinta-suave); font-size: 0.95rem; margin-bottom: 8px; }
   .taller__pie { display: flex; justify-content: space-between; align-items: center; margin: auto 0 16px; padding-top: 8px; }
   .taller__precio { font-family: var(--serif); font-size: 1.3rem; color: var(--verde); }
   .taller__plazas { font-weight: 700; font-size: 0.95rem; color: var(--verde); }

@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import TallerCard from '../../components/TallerCard.astro';
+import DetallesImportantes from '../../components/DetallesImportantes.astro';
 import { talleres } from '../../data/yutori';
 ---
 <Base titulo="Talleres del mes" descripcion="Calendario de talleres creativos en A Coruña: cada mes, talleres distintos con artesanas y artistas.">
@@ -16,6 +17,7 @@ import { talleres } from '../../data/yutori';
       <p class="nota">¿Os apetece un taller solo para vuestro grupo? <a href="/privados">Pide un taller privado</a>.</p>
     </div>
   </section>
+  <DetallesImportantes />
 </Base>
 
 <style>
