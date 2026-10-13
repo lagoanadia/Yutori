@@ -1,48 +1,58 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
-import { importar, MAX_BYTES, MAX_FILAS, preparar, TIPOS_IMPORTAR, type Preparado, type Tipo } from '../../lib/importar';
+import { z } from 'zod';
+import { importar, leerEntrada, MAX_BYTES, MAX_FILAS, preparar, type Entrada, type Preparado } from '../../lib/importar';
 
 const errores: string[] = [];
 const okN = Astro.url.searchParams.get('ok');
-let tipo: Tipo | null = null;
 let texto = '';
 let prep: Preparado | null = null;
+let entrada: Entrada | null = null;
+
+// Lo que llega al confirmar: las filas ya separadas, tal como se enseñaron en la vista previa.
+const entradaGuardada = z.object({
+  tipo: z.enum(['talleristas', 'solicitudes', 'clases']),
+  filas: z.array(z.record(z.string(), z.string())).max(MAX_FILAS),
+});
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
-  const elegido = String(datos.get('tipo') ?? '');
   const confirmar = datos.get('confirmar') === '1';
   const archivo = datos.get('archivo');
 
-  if (elegido in TIPOS_IMPORTAR) tipo = elegido as Tipo;
-  else errores.push('Elige qué quieres importar.');
-
-  // Al confirmar llega el texto que ya revisaste (en un campo oculto); si no, viene de lo pegado o del archivo.
   if (confirmar) {
-    texto = String(datos.get('texto') ?? '');
-  } else if (archivo instanceof File && archivo.size > 0) {
-    if (archivo.size > MAX_BYTES) errores.push('El archivo pesa más de 1 MB.');
-    else texto = await archivo.text();
+    const leida = entradaGuardada.safeParse(JSON.parse(String(datos.get('entrada') ?? '{}')));
+    if (leida.success) entrada = leida.data;
+    else errores.push('No se han podido leer las filas. Vuelve a revisar el texto.');
   } else {
-    texto = String(datos.get('texto') ?? '');
-  }
-
-  if (tipo && !errores.length) {
-    if (!texto.trim()) {
-      errores.push('No hay datos: pega las filas o sube un archivo.');
+    if (archivo instanceof File && archivo.size > 0) {
+      if (archivo.size > MAX_BYTES) errores.push('El archivo pesa más de 1 MB.');
+      else texto = await archivo.text();
     } else {
-      prep = await preparar(tipo, texto);
-      if (prep.validas.length > MAX_FILAS) errores.push(`Son ${prep.validas.length} filas: como máximo se importan ${MAX_FILAS} de una vez.`);
-      else if (prep.validas.length === 0 && prep.errores.length === 0) {
-        errores.push('No hay filas nuevas: todas ya existían o el texto está vacío.');
+      texto = String(datos.get('texto') ?? '');
+    }
+    if (!errores.length && !texto.trim()) errores.push('No hay datos: pega el texto o sube un archivo.');
+    if (!errores.length) {
+      try {
+        entrada = await leerEntrada(texto);
+      } catch (e) {
+        errores.push(e instanceof Error ? e.message : 'No se ha podido leer el texto.');
       }
     }
   }
 
-  // Solo se guarda cuando confirmas y no hay ningún error: si algo falla, no entra nada.
-  if (confirmar && prep && tipo && !errores.length && !prep.errores.length) {
-    const n = await importar(tipo, prep.validas);
+  if (entrada && !errores.length) {
+    prep = await preparar(entrada);
+    if (prep.validas.length > MAX_FILAS) errores.push(`Son ${prep.validas.length} filas: como máximo se importan ${MAX_FILAS} de una vez.`);
+    else if (prep.validas.length === 0 && prep.errores.length === 0) {
+      errores.push('No hay filas nuevas: todas ya existían o no se ha encontrado ninguna persona en el texto.');
+    }
+  }
+
+  // Solo se guarda al confirmar y sin ningún error: si algo falla, no entra nada.
+  if (confirmar && entrada && prep && !errores.length && !prep.errores.length) {
+    const n = await importar(entrada.tipo, prep.validas);
     return Astro.redirect(`/panel/importar?ok=${n}`, 303);
   }
 }
@@ -50,8 +60,9 @@ if (Astro.request.method === 'POST') {
 <Panel titulo="Importar datos">
   <p><a href="/panel">← Resumen</a></p>
   <p class="intro">
-    Pega aquí lo que tengas en tu hoja de cálculo (copia las filas con la primera fila de nombres de columna) o sube un CSV.
-    Nada se guarda hasta que confirmes la vista previa. Las filas que ya existan (mismo nombre y email) se saltan.
+    Pega lo que tengas, tal cual: una tabla copiada de la hoja de cálculo, una lista o mensajes con los datos.
+    Si las columnas tienen nombre (nombre, email…) se leen directamente; si no, la IA separa las personas por ti.
+    Nada se guarda hasta que confirmes la vista previa. Las personas que ya existan (mismo nombre y email) se saltan.
   </p>
 
   {okN && <div class="aviso-ok" role="status">Importadas {okN} filas.</div>}
@@ -65,10 +76,13 @@ if (Astro.request.method === 'POST') {
     </div>
   )}
 
-  {prep && prep.validas.length > 0 && prep.errores.length === 0 && (
+  {prep && entrada && prep.validas.length > 0 && prep.errores.length === 0 && (
     <section>
       <h2>Vista previa</h2>
-      <p>Se importarán <strong>{prep.validas.length}</strong> filas{prep.repetidas > 0 && <> · {prep.repetidas} repetidas, se saltan</>}.</p>
+      <p>
+        Se importarán <strong>{prep.validas.length}</strong> {entrada.tipo === 'talleristas' ? 'talleristas' : entrada.tipo === 'clases' ? 'horarios' : 'privados o bonos'}
+        {prep.repetidas > 0 && <> · {prep.repetidas} repetidas, se saltan</>}.
+      </p>
       <table class="tabla">
         <thead><tr>{prep.cabecera.map((c) => <th>{c}</th>)}</tr></thead>
         <tbody>
@@ -80,9 +94,8 @@ if (Astro.request.method === 'POST') {
       {prep.validas.length > 50 && <p><small>Se muestran las 50 primeras.</small></p>}
 
       <form method="post" class="botones">
-        <input type="hidden" name="tipo" value={tipo!} />
         <input type="hidden" name="confirmar" value="1" />
-        <textarea name="texto" hidden>{texto}</textarea>
+        <textarea name="entrada" hidden>{JSON.stringify(entrada)}</textarea>
         <button class="boton" type="submit">Importar {prep.validas.length} filas</button>
       </form>
     </section>
@@ -90,18 +103,12 @@ if (Astro.request.method === 'POST') {
 
   <form method="post" enctype="multipart/form-data" class="formulario tarjeta">
     <div class="campo">
-      <label for="tipo">Qué quieres importar</label>
-      <select id="tipo" name="tipo" required>
-        {Object.entries(TIPOS_IMPORTAR).map(([k, v]) => <option value={k} selected={tipo === k}>{v}</option>)}
-      </select>
+      <label for="texto">Pega aquí los datos</label>
+      <textarea id="texto" name="texto" rows="10">{texto}</textarea>
+      <small>Puedes pegar una tabla de la hoja de cálculo, una lista o mensajes con los datos.</small>
     </div>
     <div class="campo">
-      <label for="texto">Pega las filas</label>
-      <textarea id="texto" name="texto" rows="10" placeholder="nombre	email	propuesta&#10;Lucía	lucia@ejemplo.com	Grabado en tote bags">{texto}</textarea>
-      <small>Copia desde la hoja de cálculo (con tabuladores) o escribe un CSV con ; o , como separador.</small>
-    </div>
-    <div class="campo">
-      <label for="archivo">…o sube un CSV</label>
+      <label for="archivo">…o sube un archivo CSV</label>
       <input id="archivo" name="archivo" type="file" accept=".csv,text/csv" />
     </div>
     <button class="boton" type="submit">Revisar</button>
