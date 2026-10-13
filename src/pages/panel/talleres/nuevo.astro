@@ -1,9 +1,8 @@
 ---
 export const prerender = false;
 import Panel from '../../../layouts/Panel.astro';
-import { db, todos, uno, FRANJAS } from '../../../lib/db';
-import { codigoAleatorio, esFecha, fechaLimite, franjasDeFecha } from '../../../lib/util';
-import { avisoHuecoCreado } from '../../../lib/avisos';
+import { todos } from '../../../lib/db';
+import { crearHueco } from '../../../lib/talleres';
 
 const aceptadas = await todos<{ id: number; nombre: string; marca: string | null; categoria: string | null }>(`
   SELECT ta.id, ta.nombre, ta.marca, c.nombre AS categoria
@@ -19,38 +18,11 @@ if (Astro.request.method === 'POST') {
   v = { quien: campo('quien'), fecha: campo('fecha'), momento: campo('momento'), plazas: campo('plazas'), limite: campo('limite') };
 
   const talleristaId = v.quien ? Number(v.quien) : null;
-  if (talleristaId !== null && !aceptadas.some((a) => a.id === talleristaId)) errores.push('Elige una tallerista aceptada.');
-
-  let franja = '';
-  if (!esFecha(v.fecha)) {
-    errores.push('Elige la fecha del taller.');
-  } else {
-    const posibles = franjasDeFecha(v.fecha);
-    franja = posibles.find((f) => f.endsWith(v.momento === 'manana' ? 'manana' : 'tarde')) ?? '';
-    if (posibles.length === 0) errores.push('Los talleres son los viernes por la tarde, sábados y domingos.');
-    else if (!franja) errores.push('Los viernes solo hay talleres por la tarde.');
-    if (v.fecha < new Date().toISOString().slice(0, 10)) errores.push('La fecha ya ha pasado.');
-  }
-
-  const plazas = Number(v.plazas);
-  if (!Number.isInteger(plazas) || plazas < 1 || plazas > 30) errores.push('Las plazas tienen que ser un número entre 1 y 30.');
-  if (v.limite && !esFecha(v.limite)) errores.push('La fecha límite no es válida.');
-
-  if (errores.length === 0) {
-    const ocupada = await uno<{ id: number }>(
-      `SELECT id FROM talleres WHERE fecha = ?1 AND franja = ?2 AND estado <> 'desactivado'`, v.fecha, franja);
-    if (ocupada) errores.push(`Esa franja (${FRANJAS[franja]}) ya tiene un taller. Elige otra o desactiva el otro.`);
-  }
-
-  if (errores.length === 0) {
-    const nuevo = await db()
-      .prepare(`INSERT INTO talleres (tallerista_id, fecha, franja, plazas, estado, codigo_enlace, fecha_limite)
-                VALUES (?1, ?2, ?3, ?4, 'hueco', ?5, ?6) RETURNING id`)
-      .bind(talleristaId, v.fecha, franja, plazas, codigoAleatorio(), v.limite || fechaLimite(v.fecha))
-      .first<{ id: number }>();
-    await avisoHuecoCreado(nuevo!.id);
-    return Astro.redirect(`/panel/talleres/${nuevo!.id}?ok=creado`, 303);
-  }
+  const resultado = await crearHueco({
+    talleristaId, fecha: v.fecha, momento: v.momento === 'manana' ? 'manana' : 'tarde', plazas: Number(v.plazas), limite: v.limite || null,
+  });
+  if (resultado.ok) return Astro.redirect(`/panel/talleres/${resultado.valor}?ok=creado`, 303);
+  errores.push(...resultado.errores);
 }
 ---
 <Panel titulo="Nuevo hueco de taller">

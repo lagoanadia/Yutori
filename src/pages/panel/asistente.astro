@@ -1,0 +1,167 @@
+---
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { aplicar, asistenteActivo, describir, planear, planSchema, type Plan, type Resultado } from '../../lib/asistente';
+
+const MAX_TEXTO = 2000;
+let texto = '';
+let plan: Plan | null = null;
+let resultados: Resultado[] | null = null;
+let error = '';
+
+if (asistenteActivo() && Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
+
+  if (accion === 'planear') {
+    texto = String(datos.get('texto') ?? '').trim().slice(0, MAX_TEXTO);
+    if (!texto) error = 'Cuéntame primero qué quieres cambiar.';
+    else {
+      try {
+        plan = await planear(texto);
+      } catch (e) {
+        console.error('[asistente]', e);
+        error = 'No he podido entenderlo ahora mismo. Vuelve a intentarlo en un momento.';
+      }
+    }
+  }
+
+  if (accion === 'aplicar') {
+    // El plan vuelve del navegador: se valida OTRA VEZ antes de tocar nada.
+    const recibido = planSchema.safeParse((() => { try { return JSON.parse(String(datos.get('plan') ?? '')); } catch { return null; } })());
+    if (!recibido.success) error = 'La propuesta no es válida. Vuelve a escribir lo que quieres hacer.';
+    else {
+      const elegidas = new Set(datos.getAll('sel').map(Number));
+      resultados = [];
+      for (const [i, a] of recibido.data.acciones.entries()) {
+        if (!elegidas.has(i)) continue;
+        try {
+          resultados.push(await aplicar(a));
+        } catch (e) {
+          console.error('[asistente]', e);
+          resultados.push({ texto: `${describir(a)} — algo ha fallado al guardarlo.`, ok: false });
+        }
+      }
+    }
+  }
+}
+---
+<Panel titulo="Asistente">
+  {!asistenteActivo() ? (
+    <div class="tarjeta">
+      <p>El asistente todavía no está activado: falta la clave de Groq (<code>GROQ_API_KEY</code>) en Cloudflare.</p>
+    </div>
+  ) : (
+    <>
+      <p class="intro">Dime o escribe qué quieres hacer y yo lo preparo. Antes de guardar nada, lo revisas tú.</p>
+
+      {resultados ? (
+        <section class="tarjeta">
+          <h2>Hecho</h2>
+          {resultados.length === 0 ? <p class="vacio">No has marcado ningún cambio.</p> : (
+            <ul class="resultados">
+              {resultados.map((r) => (
+                <li class:list={{ fallo: !r.ok }}>
+                  <span aria-hidden="true">{r.ok ? '✓' : '✗'}</span>
+                  <span>{r.texto}{r.enlace && <> · <a href={r.enlace}>Ver</a></>}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <a class="boton boton--borde" href="/panel/asistente">Hacer otra cosa</a>
+        </section>
+      ) : plan ? (
+        <section class="tarjeta">
+          <p class="respuesta">{plan.respuesta}</p>
+          {plan.acciones.length === 0 ? (
+            <a class="boton boton--borde" href="/panel/asistente">Probar otra vez</a>
+          ) : (
+            <form method="post">
+              <input type="hidden" name="accion" value="aplicar" />
+              <input type="hidden" name="plan" value={JSON.stringify(plan)} />
+              <p><strong>Revisa y desmarca lo que no quieras:</strong></p>
+              <ul class="propuestas">
+                {plan.acciones.map((a, i) => (
+                  <li><label class="casilla"><input type="checkbox" name="sel" value={i} checked /> {describir(a)}</label></li>
+                ))}
+              </ul>
+              <div class="botones">
+                <button class="boton" type="submit">Aplicar</button>
+                <a class="boton boton--borde" href="/panel/asistente">Cancelar</a>
+              </div>
+            </form>
+          )}
+          <p class="original"><small>Lo que pediste: “{texto}”</small></p>
+        </section>
+      ) : (
+        <form method="post" class="tarjeta formulario" id="form-asistente">
+          <input type="hidden" name="accion" value="planear" />
+          {error && <p class="errores" role="alert">{error}</p>}
+          <div class="campo">
+            <label for="texto">¿Qué quieres hacer?</label>
+            <textarea id="texto" name="texto" rows="5" maxlength={MAX_TEXTO} required
+              placeholder="Ej.: El sábado 14 por la mañana doy un taller de velas de soja de 11 a 13, 35 euros, 8 plazas, material incluido. Y acepta a Clara Cerámica.">{texto}</textarea>
+          </div>
+          <div class="botones">
+            <button class="boton boton--borde" type="button" id="microfono" hidden>🎤 Dictar</button>
+            <button class="boton" type="submit">Preparar</button>
+          </div>
+          <small class="nota">Puedo crear talleres o huecos, cambiar sus datos, publicarlos o desactivarlos, y cambiar el estado de talleristas, privados y bonos. Los pagos se marcan siempre a mano.</small>
+        </form>
+      )}
+    </>
+  )}
+</Panel>
+
+<script>
+  // Dictado con el reconocimiento de voz del navegador (Chrome, Edge, Safari). Rellena la caja de texto.
+  type Resultado = { isFinal: boolean; 0: { transcript: string } };
+  type Reconocimiento = {
+    lang: string; continuous: boolean; interimResults: boolean;
+    onresult: ((e: { resultIndex: number; results: ArrayLike<Resultado> }) => void) | null;
+    onend: (() => void) | null; start(): void; stop(): void;
+  };
+  const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
+  const Clase = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  const boton = document.getElementById('microfono') as HTMLButtonElement | null;
+  const caja = document.getElementById('texto') as HTMLTextAreaElement | null;
+
+  if (Clase && boton && caja) {
+    boton.hidden = false;
+    let rec: Reconocimiento | null = null;
+    let base = '';
+    const parar = () => { rec?.stop(); rec = null; boton.textContent = '🎤 Dictar'; };
+    boton.addEventListener('click', () => {
+      if (rec) return parar();
+      rec = new Clase();
+      rec.lang = 'es-ES';
+      rec.continuous = true;
+      rec.interimResults = true; // se ven las palabras mientras hablas
+      base = caja.value.trim();
+      rec.onresult = (e) => {
+        let final = '';
+        let provisional = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript;
+          else provisional += e.results[i][0].transcript;
+        }
+        caja.value = [base, final, provisional].filter(Boolean).join(' ').trim();
+      };
+      rec.onend = () => { rec = null; boton.textContent = '🎤 Dictar'; };
+      rec.start();
+      boton.textContent = '■ Parar';
+    });
+  }
+</script>
+
+<style>
+  .respuesta { font-size: 1.1rem; }
+  .propuestas, .resultados { list-style: none; padding: 0; display: grid; gap: 10px; margin: 12px 0 16px; }
+  .propuestas li { background: var(--crema); border-radius: 12px; padding: 10px 12px; }
+  .resultados li { display: flex; gap: 10px; }
+  .resultados li > span:first-child { color: #23613a; font-weight: 700; }
+  .resultados li.fallo > span:first-child { color: var(--aviso); }
+  .original { margin-top: 12px; color: var(--tinta-suave); }
+  .nota { color: var(--tinta-suave); }
+  .errores { margin: 0; }
+</style>

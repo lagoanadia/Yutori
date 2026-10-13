@@ -3,9 +3,10 @@ export const prerender = false;
 import Panel from '../../../layouts/Panel.astro';
 import { db, uno, todos, fecha, euros, FRANJAS, ESTADOS_TALLER, ESTADOS_RESERVA } from '../../../lib/db';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../../lib/reservas';
-import { actualizarCalendario, calendarioActivo } from '../../../lib/calendario';
+import { calendarioActivo } from '../../../lib/calendario';
+import { desactivarTaller, publicarTaller } from '../../../lib/talleres';
 import { borrarFoto, urlFoto } from '../../../lib/fotos';
-import { codigoAleatorio, slugify, telefonoWhatsApp } from '../../../lib/util';
+import { codigoAleatorio, telefonoWhatsApp } from '../../../lib/util';
 
 type Taller = {
   id: number; tallerista_id: number | null; titulo: string | null; slug: string | null; fecha: string; franja: string;
@@ -45,23 +46,12 @@ if (Astro.request.method === 'POST') {
     return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
   }
   if (accion === 'publicar') {
-    if (!completo(t)) errores.push('Faltan datos del taller: la tallerista tiene que rellenarlos desde su enlace.');
-    if (t.tallerista_id && !t.pago_reserva_recibido) errores.push('Marca primero los 25 € de la reserva como recibidos.');
-    if (errores.length === 0) {
-      let slug = t.slug;
-      if (!slug) {
-        const base = `${slugify(t.titulo!)}-${t.fecha.slice(5)}`;
-        slug = base;
-        for (let n = 2; await uno('SELECT id FROM talleres WHERE slug = ?1', slug); n++) slug = `${base}-${n}`;
-      }
-      await actualizar(`UPDATE talleres SET estado = 'publicado', slug = ?1 WHERE id = ?2`, slug);
-      actualizarCalendario(id);
-      return Astro.redirect(`/panel/talleres/${id}?ok=publicado`, 303);
-    }
+    const resultado = await publicarTaller(id);
+    if (resultado.ok) return Astro.redirect(`/panel/talleres/${id}?ok=publicado`, 303);
+    errores.push(...resultado.errores);
   }
   if (accion === 'desactivar') {
-    await actualizar(`UPDATE talleres SET estado = 'desactivado' WHERE id = ?1`);
-    actualizarCalendario(id);
+    await desactivarTaller(id);
     return Astro.redirect(`/panel/talleres/${id}?ok=desactivado`, 303);
   }
   if (accion === 'reactivar') {
