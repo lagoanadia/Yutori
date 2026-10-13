@@ -1,0 +1,69 @@
+---
+import Base from '../../layouts/Base.astro';
+import { talleres, fechaLarga, politicaTalleres } from '../../data/yutori';
+
+export function getStaticPaths() {
+  return talleres.map((t) => ({ params: { id: t.id }, props: { taller: t } }));
+}
+
+const { taller } = Astro.props;
+const completo = taller.libres === 0;
+---
+<Base titulo={taller.titulo} descripcion={`${taller.titulo} con ${taller.imparte} en Yutori Espacio Creativo, A Coruña.`}>
+  <section class="seccion">
+    <div class="contenedor ficha">
+      <div>
+        <div class="foto-hueco ficha__foto">Foto del taller</div>
+      </div>
+      <div>
+        <a href="/talleres">← Todos los talleres</a>
+        {taller.evento && <p><span class="etiqueta">Evento especial</span></p>}
+        <h1>{taller.titulo}</h1>
+        <p class="ficha__quien">con {taller.imparte} <span class="ejemplo">Ejemplo</span></p>
+        <ul class="ficha__datos">
+          <li><strong>Cuándo:</strong> {fechaLarga(taller.fecha)}, de {taller.inicio} a {taller.fin}</li>
+          <li><strong>Precio:</strong> {taller.precio}</li>
+          <li><strong>Plazas:</strong> {completo ? 'Completo' : `quedan ${taller.libres} de ${taller.plazas}`}</li>
+        </ul>
+        <p>{taller.texto}</p>
+
+        <h2>{completo ? 'Lista de espera' : 'Reserva tu plaza'}</h2>
+        <form class="formulario" data-prototipo>
+          <div class="dos-col">
+            <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
+            <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required /></div>
+          </div>
+          <div class="dos-col">
+            <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
+            <div class="campo">
+              <label for="plazas">Plazas</label>
+              <select id="plazas" name="plazas">
+                {Array.from({ length: Math.max(1, Math.min(4, taller.libres)) }, (_, i) => <option>{i + 1}</option>)}
+              </select>
+            </div>
+          </div>
+          <label class="casilla"><input type="checkbox" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
+          <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que mi nombre y teléfono se compartan con quien imparte el taller.</label>
+          <button class="boton" type="submit">{completo ? 'Apuntarme a la lista de espera' : 'Reservar plaza'}</button>
+          <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se reserva nada. En el bloque 4, la plaza quedará apartada y recibirás un email con los datos de pago por Bizum.</p>
+        </form>
+
+        <details class="politica">
+          <summary>Condiciones de reserva y cancelación</summary>
+          <ul class="lista-politica">{politicaTalleres.map((p) => <li>{p}</li>)}</ul>
+        </details>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ficha { display: grid; gap: 32px; }
+  @media (min-width: 860px) { .ficha { grid-template-columns: 1fr 1.2fr; align-items: start; } .ficha__foto { position: sticky; top: 96px; } }
+  .ficha__foto { aspect-ratio: 1; }
+  .ficha__quien { color: var(--tinta-suave); }
+  .ficha__datos { list-style: none; padding: 0; }
+  .ficha__datos li { padding: 6px 0; border-bottom: 1px dashed var(--borde); }
+  .politica { margin-top: 24px; }
+  .politica summary { cursor: pointer; font-weight: 700; color: var(--verde); }
+</style>

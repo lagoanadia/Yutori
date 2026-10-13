@@ -1,0 +1,23 @@
+---
+import Base from '../../layouts/Base.astro';
+import TallerCard from '../../components/TallerCard.astro';
+import { talleres } from '../../data/yutori';
+---
+<Base titulo="Talleres del mes" descripcion="Calendario de talleres creativos en A Coruña: cada mes, talleres distintos con artesanas y artistas.">
+  <section class="seccion">
+    <div class="contenedor">
+      <p class="script">Calendario de octubre</p>
+      <h1>Talleres del mes</h1>
+      <p class="intro">Cada mes, talleres distintos con artesanas y artistas. Plazas limitadas: reserva tu plaza y crea tu espacio.</p>
+      <p><span class="ejemplo">Talleres de ejemplo</span></p>
+      <div class="rejilla">
+        {talleres.map((t) => <TallerCard taller={t} />)}
+      </div>
+      <p class="nota">¿Os apetece un taller solo para vuestro grupo? <a href="/privados">Pide un taller privado</a>.</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .nota { margin-top: 32px; }
+</style>

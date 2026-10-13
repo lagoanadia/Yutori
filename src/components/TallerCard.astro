@@ -1,0 +1,33 @@
+---
+import { fechaLarga, type Taller } from '../data/yutori';
+
+const { taller } = Astro.props as { taller: Taller };
+const completo = taller.libres === 0;
+---
+<article class="tarjeta taller">
+  <div class="foto-hueco">Foto del taller</div>
+  {taller.evento && <span class="etiqueta">Evento especial</span>}
+  <h3>{taller.titulo}</h3>
+  <p class="taller__quien">con {taller.imparte}</p>
+  <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.inicio}-{taller.fin}</p>
+  <p>{taller.texto}</p>
+  <div class="taller__pie">
+    <span class="taller__precio">{taller.precio}</span>
+    <span class:list={['taller__plazas', { completo }]}>
+      {completo ? 'Completo' : `Quedan ${taller.libres} plazas`}
+    </span>
+  </div>
+  {completo
+    ? <a class="boton boton--borde" href={`/talleres/${taller.id}`}>Apuntarme a la lista de espera</a>
+    : <a class="boton" href={`/talleres/${taller.id}`}>Reservar plaza</a>}
+</article>
+
+<style>
+  .taller { display: flex; flex-direction: column; }
+  .taller__quien { color: var(--tinta-suave); margin-bottom: 4px; }
+  .taller__cuando { font-weight: 700; margin-bottom: 8px; }
+  .taller__pie { display: flex; justify-content: space-between; align-items: center; margin: auto 0 16px; padding-top: 8px; }
+  .taller__precio { font-family: var(--serif); font-size: 1.3rem; color: var(--verde); }
+  .taller__plazas { font-weight: 700; font-size: 0.95rem; color: var(--verde); }
+  .taller__plazas.completo { color: var(--aviso); }
+</style>

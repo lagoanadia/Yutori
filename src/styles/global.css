@@ -1,0 +1,177 @@
+:root {
+  --verde: #4a6f66;        /* botones, títulos */
+  --verde-oscuro: #3b5952; /* hover */
+  --salvia: #8bb9ad;       /* fondos y detalles (nunca texto blanco encima) */
+  --salvia-suave: #dce9e4;
+  --crema: #f3ecda;        /* fondo principal */
+  --crema-claro: #fbf7ee;  /* tarjetas */
+  --tinta: #24332f;        /* texto */
+  --tinta-suave: #52625d;
+  --borde: #d9cfb8;
+  --aviso: #a8553f;
+
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: 'Nunito Sans', system-ui, sans-serif;
+  --script: 'Parisienne', cursive; /* TODO: cambiar por Handsome si Iris tiene licencia web */
+
+  --radio: 16px;
+  --sombra: 0 6px 24px rgba(36, 51, 47, 0.08);
+  --ancho: 1080px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--crema);
+  color: var(--tinta);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+img { max-width: 100%; display: block; }
+
+a { color: var(--verde); }
+
+h1, h2, h3 {
+  font-family: var(--serif);
+  color: var(--verde);
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+}
+h1 { font-size: clamp(2.1rem, 6vw, 3.4rem); }
+h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); }
+h3 { font-size: 1.3rem; }
+
+p { margin: 0 0 1em; }
+
+.contenedor {
+  width: min(var(--ancho), 100% - 32px);
+  margin-inline: auto;
+}
+
+.seccion { padding: 56px 0; }
+.seccion--salvia { background: var(--salvia-suave); }
+
+.script {
+  font-family: var(--script);
+  color: var(--verde);
+  font-size: 1.6em;
+  line-height: 1;
+}
+
+.intro { color: var(--tinta-suave); max-width: 60ch; }
+
+/* Botones */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: 2px solid var(--verde);
+  background: var(--verde);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+.boton:hover { background: var(--verde-oscuro); border-color: var(--verde-oscuro); }
+.boton--borde { background: transparent; color: var(--verde); }
+.boton--borde:hover { background: var(--verde); color: #fff; }
+.boton[disabled], .boton[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+
+.botones { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* Tarjetas */
+.rejilla {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.tarjeta {
+  background: var(--crema-claro);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 24px;
+  box-shadow: var(--sombra);
+}
+.tarjeta h3 { margin-bottom: 0.25em; }
+
+.etiqueta {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--verde);
+  background: var(--salvia-suave);
+  border-radius: 999px;
+  padding: 2px 12px;
+  margin-bottom: 8px;
+}
+
+.ejemplo {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--aviso);
+  border: 1px dashed var(--aviso);
+  border-radius: 6px;
+  padding: 1px 8px;
+}
+
+.foto-hueco {
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  background: var(--salvia-suave);
+  display: grid;
+  place-items: center;
+  color: var(--verde);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 8px;
+  margin-bottom: 16px;
+}
+
+/* Formularios */
+.formulario { display: grid; gap: 16px; max-width: 640px; }
+.campo { display: grid; gap: 6px; }
+.campo label, .campo legend { font-weight: 700; }
+.campo small { color: var(--tinta-suave); }
+input, select, textarea {
+  font: inherit;
+  color: var(--tinta);
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 12px 14px;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus, .boton:focus-visible, a:focus-visible {
+  outline: 3px solid var(--salvia);
+  outline-offset: 2px;
+}
+.casilla { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+.casilla input { width: 20px; height: 20px; margin-top: 3px; flex: none; }
+fieldset { border: 0; padding: 0; margin: 0; }
+.dos-col { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.aviso-prototipo {
+  background: #fff4e5;
+  border: 1px dashed var(--aviso);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+}
+
+.lista-politica { padding-left: 1.2em; color: var(--tinta-suave); }
+.lista-politica li { margin-bottom: 6px; }

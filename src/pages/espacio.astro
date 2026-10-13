@@ -1,0 +1,41 @@
+---
+import Base from '../layouts/Base.astro';
+import { negocio, whatsappUrl } from '../data/yutori';
+---
+<Base titulo="El espacio" descripcion="Yutori Espacio Creativo, en Plaza Pontevedra 14, en el centro de A Coruña.">
+  <section class="seccion">
+    <div class="contenedor">
+      <p class="script">Nuestro espacio</p>
+      <h1>Un rincón tranquilo en el centro de Coruña</h1>
+      <div class="galeria">
+        <div class="foto-hueco">Foto del espacio</div>
+        <div class="foto-hueco">Foto de un taller</div>
+        <div class="foto-hueco">Foto de trabajos de alumnas</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion seccion--salvia">
+    <div class="contenedor dos-bloques">
+      <div>
+        <h2>Dónde estamos</h2>
+        <p>{negocio.direccion}<br />{negocio.ciudad}</p>
+        <a class="boton" href={negocio.mapsUrl} rel="noopener" target="_blank">Abrir en Google Maps</a>
+      </div>
+      <div>
+        <h2>Cuándo</h2>
+        <p><strong>Clases semanales:</strong> de lunes a viernes, mañanas y tardes según la clase.</p>
+        <p><strong>Talleres:</strong> viernes por la tarde y fines de semana.</p>
+        <div class="botones">
+          <a class="boton boton--borde" href={whatsappUrl()}>WhatsApp</a>
+          <a class="boton boton--borde" href={`mailto:${negocio.email}`}>Email</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .galeria { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 24px; }
+  .dos-bloques { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+</style>

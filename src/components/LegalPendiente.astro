@@ -1,0 +1,10 @@
+---
+const { titulo, contenido } = Astro.props as { titulo: string; contenido: string[] };
+---
+<section class="seccion">
+  <div class="contenedor" style="max-width: 760px">
+    <h1>{titulo}</h1>
+    <p class="aviso-prototipo">Borrador: este texto se completa con los datos de Iris antes de publicar la web.</p>
+    <ul class="lista-politica">{contenido.map((c) => <li>{c}</li>)}</ul>
+  </div>
+</section>

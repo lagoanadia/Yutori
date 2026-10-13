@@ -1,16 +1,90 @@
 ---
----
+import Base from '../layouts/Base.astro';
+import Mariposa from '../components/Mariposa.astro';
+import TallerCard from '../components/TallerCard.astro';
+import { negocio, talleres } from '../data/yutori';
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+const proximos = talleres.slice(0, 3);
+const servicios = [
+  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y costura y bordado en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases' },
+  { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario' },
+  { titulo: 'Talleres privados', texto: 'Despedidas, cumpleaños, grupos de amigas o empresas: un taller solo para vosotras.', href: '/privados', boton: 'Pedir información' },
+  { titulo: 'Bonos regalo', texto: 'No hay nada como regalar experiencias y momentos de desconexión.', href: '/bonos', boton: 'Regalar un bono' },
+];
+---
+<Base titulo="Inicio">
+  <section class="portada">
+    <div class="contenedor portada__fila">
+      <div>
+        <p class="script">{negocio.subtitulo}</p>
+        <h1>Talleres creativos en el centro de A Coruña</h1>
+        <p class="intro">{negocio.lema}. Clases semanales, talleres cada mes y un espacio tranquilo para desconectar creando con las manos.</p>
+        <div class="botones">
+          <a class="boton" href="/talleres">Ver talleres de este mes</a>
+          <a class="boton boton--borde" href="/clases">Clases semanales</a>
+        </div>
+      </div>
+      <div class="portada__imagen">
+        <div class="foto-hueco portada__foto">Foto del espacio</div>
+        <Mariposa size={96} class="portada__mariposa" />
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="contenedor">
+      <h2>Qué puedes hacer en Yutori</h2>
+      <div class="rejilla">
+        {servicios.map((s) => (
+          <article class="tarjeta">
+            <h3>{s.titulo}</h3>
+            <p>{s.texto}</p>
+            <a class="boton boton--borde" href={s.href}>{s.boton}</a>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion seccion--salvia">
+    <div class="contenedor">
+      <div class="titulo-con-enlace">
+        <h2>Próximos talleres <span class="ejemplo">Ejemplo</span></h2>
+        <a href="/talleres">Ver todo el calendario →</a>
+      </div>
+      <div class="rejilla">
+        {proximos.map((t) => <TallerCard taller={t} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="contenedor dos-bloques">
+      <div>
+        <h2>¿Quieres dar un taller en Yutori?</h2>
+        <p class="intro">Si eres artesana o artista y tienes una idea de taller, cuéntanosla. Estamos preparando la programación de talleres y clases y queremos contar con nuevas ideas.</p>
+        <a class="boton" href="/colabora">Proponer un taller</a>
+      </div>
+      <div>
+        <h2>Ven a conocernos</h2>
+        <p class="intro">{negocio.direccion}, {negocio.ciudad}.</p>
+        <a class="boton boton--borde" href="/espacio">Cómo llegar</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .portada { padding: 48px 0 32px; }
+  .portada__fila { display: grid; gap: 32px; align-items: center; }
+  .portada .script { font-size: 2rem; margin-bottom: 8px; }
+  .portada__imagen { position: relative; }
+  .portada__foto { aspect-ratio: 4 / 5; border-radius: 200px 200px var(--radio) var(--radio); margin: 0; }
+  .portada__imagen :global(.portada__mariposa) { position: absolute; right: -8px; bottom: -16px; color: var(--verde); background: var(--crema); border-radius: 50%; padding: 8px; }
+  @media (min-width: 860px) {
+    .portada { padding: 72px 0 56px; }
+    .portada__fila { grid-template-columns: 1.2fr 1fr; }
+  }
+  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .dos-bloques { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+</style>

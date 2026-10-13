@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import LegalPendiente from '../components/LegalPendiente.astro';
+---
+<Base titulo="Cookies">
+  <LegalPendiente titulo="Cookies" contenido={[
+    'Esta web no usa cookies de publicidad ni de análisis.',
+    'La analítica (Cloudflare Web Analytics) no usa cookies.',
+    'Las fuentes se cargan desde la propia web, no desde Google.',
+    'El mapa se abre en Google Maps solo si pulsas el botón.',
+  ]} />
+</Base>

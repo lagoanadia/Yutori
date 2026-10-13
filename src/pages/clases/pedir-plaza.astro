@@ -1,0 +1,47 @@
+---
+import Base from '../../layouts/Base.astro';
+import { clases } from '../../data/yutori';
+---
+<Base titulo="Pedir plaza en una clase">
+  <section class="seccion">
+    <div class="contenedor">
+      <h1>Pedir plaza en una clase</h1>
+      <p class="intro">Cuéntanos qué clase te interesa y te confirmamos la plaza.</p>
+
+      <form class="formulario" data-prototipo>
+        <div class="campo">
+          <label for="grupo">Clase y horario</label>
+          <select id="grupo" name="grupo" required>
+            {clases.map((c) => (
+              <optgroup label={`${c.nombre} · ${c.tipo}`}>
+                {c.grupos.map((g) => <option value={`${c.id}-${g.dia}-${g.inicio}`}>{g.dia} {g.inicio}-{g.fin}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        <fieldset class="campo">
+          <legend>¿Cómo quieres venir?</legend>
+          <label class="casilla"><input type="radio" name="tipo" value="mensual" checked /> Cada semana (pago mensual)</label>
+          <label class="casilla"><input type="radio" name="tipo" value="suelta" /> Una clase suelta</label>
+        </fieldset>
+        <div class="campo">
+          <label for="modalidad">Modalidad (solo costura)</label>
+          <select id="modalidad" name="modalidad">
+            <option value="">No aplica</option>
+            <option>Con máquina</option>
+            <option>Sin máquina</option>
+          </select>
+        </div>
+        <div class="dos-col">
+          <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
+          <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required /></div>
+        </div>
+        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
+        <label class="casilla"><input type="checkbox" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
+        <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+        <button class="boton" type="submit">Pedir plaza</button>
+        <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se envía nada. En el bloque 4 esta petición llegará al panel de Iris.</p>
+      </form>
+    </div>
+  </section>
+</Base>

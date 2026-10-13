@@ -1,0 +1,54 @@
+---
+import Base from '../layouts/Base.astro';
+import { clases, PLAZAS_CLASE, politicaClases } from '../data/yutori';
+---
+<Base titulo="Clases semanales" descripcion="Clases semanales de ganchillo, acuarela y costura y bordado en A Coruña. Grupos de 8 personas como máximo.">
+  <section class="seccion">
+    <div class="contenedor">
+      <p class="script">Curso 26/27</p>
+      <h1>Clases semanales</h1>
+      <p class="intro">Grupos pequeños de {PLAZAS_CLASE} personas como máximo. Puedes apuntarte cada mes o venir a una clase suelta si quedan plazas libres.</p>
+
+      <div class="rejilla clases">
+        {clases.map((c) => (
+          <article class="tarjeta" id={c.id}>
+            <div class="foto-hueco">Foto de la clase</div>
+            <span class="etiqueta">{c.tipo}</span>
+            <h2>{c.nombre}</h2>
+            <p>{c.descripcion}</p>
+            <h3>Horarios</h3>
+            <ul class="horarios">
+              {c.grupos.map((g) => <li><strong>{g.dia}</strong> {g.inicio}-{g.fin}</li>)}
+            </ul>
+            {c.modalidades && <p><strong>Modalidades:</strong> {c.modalidades.join(' · ')}</p>}
+            <p class="precios"><span>{c.precioMes}</span> · Clase suelta {c.precioSuelta} <span class="ejemplo">Ejemplo</span></p>
+            <div class="botones">
+              <a class="boton" href={`/clases/pedir-plaza?clase=${c.id}`}>Pedir plaza mensual</a>
+              <a class="boton boton--borde" href={`/clases/pedir-plaza?clase=${c.id}&suelta=1`}>Clase suelta</a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion seccion--salvia">
+    <div class="contenedor">
+      <h2>Cómo funcionan</h2>
+      <ul class="lista-politica">
+        <li>Las alumnas mensuales tienen prioridad para seguir el mes siguiente.</li>
+        <li>Si quedan plazas libres, se ofrecen como clases sueltas.</li>
+        <li>Las clases se mantienen aunque haya una sola persona apuntada.</li>
+        {politicaClases.map((p) => <li>{p}</li>)}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .clases { margin-top: 32px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .clases h2 { font-size: 1.7rem; }
+  .horarios { list-style: none; padding: 0; margin: 0 0 16px; }
+  .horarios li { padding: 6px 0; border-bottom: 1px dashed var(--borde); }
+  .precios { font-family: var(--serif); color: var(--verde); font-size: 1.15rem; }
+</style>

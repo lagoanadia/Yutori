@@ -1,0 +1,58 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base titulo="Bonos regalo" descripcion="Bonos regalo de talleres creativos en A Coruña: regala un taller o un importe para gastar en el que quieras.">
+  <section class="seccion">
+    <div class="contenedor">
+      <p class="script">Elige el tuyo</p>
+      <h1>Bonos regalo</h1>
+      <p class="intro">No hay nada como regalar experiencias y momentos de desconexión.</p>
+
+      <div class="rejilla bonos">
+        <article class="tarjeta">
+          <h2>Bono taller</h2>
+          <p>Regala un taller concreto. El bono cuesta lo mismo que el taller.</p>
+        </article>
+        <article class="tarjeta">
+          <h2>Bono importe</h2>
+          <p>Tú eliges la cantidad y la persona que lo recibe la gasta en el taller que quiera.</p>
+        </article>
+      </div>
+      <p class="intro">Los bonos son válidos durante 3 meses.</p>
+
+      <h2>Cómo funciona</h2>
+      <ol class="pasos">
+        <li>Rellena el formulario con el tipo de bono y para quién es.</li>
+        <li>Te escribimos para el pago y te enviamos el bono.</li>
+        <li>La persona que lo recibe elige su taller y reserva.</li>
+      </ol>
+
+      <form class="formulario" data-prototipo>
+        <fieldset class="campo">
+          <legend>Tipo de bono</legend>
+          <label class="casilla"><input type="radio" name="tipo" value="taller" checked /> Bono taller</label>
+          <label class="casilla"><input type="radio" name="tipo" value="importe" /> Bono importe</label>
+        </fieldset>
+        <div class="dos-col">
+          <div class="campo"><label for="taller">Taller o importe</label><input id="taller" name="detalle" placeholder="Ej.: Lámparas de origami, o 50 €" /></div>
+          <div class="campo"><label for="para">Para quién es</label><input id="para" name="para" /></div>
+        </div>
+        <div class="dos-col">
+          <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
+          <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required /></div>
+        </div>
+        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
+        <div class="campo"><label for="mensaje">Mensaje para el bono (opcional)</label><textarea id="mensaje" name="mensaje" rows="3"></textarea></div>
+        <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+        <button class="boton" type="submit">Pedir mi bono</button>
+        <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se envía nada. En el bloque 6 esta petición llegará a Iris; en la fase 2 el bono se podrá comprar online.</p>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .bonos { margin: 24px 0 16px; }
+  .pasos { padding-left: 1.2em; margin-bottom: 32px; }
+  .pasos li { margin-bottom: 6px; }
+</style>
