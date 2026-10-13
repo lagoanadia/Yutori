@@ -1,0 +1,11 @@
+---
+// Widget anti-bots de Cloudflare. No pinta nada si Turnstile no está configurado.
+import { env } from 'cloudflare:workers';
+import { turnstileActivo } from '../lib/turnstile';
+---
+{turnstileActivo() && (
+  <>
+    <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>
+  </>
+)}

@@ -155,16 +155,6 @@ export const clases: Clase[] = [
 
 export const publicosVisibles = (c: Clase) => c.publicos.filter((p) => MOSTRAR_NINOS || p.para === 'Adultos');
 
-export const categorias = [
-  'Acuarela y pintura',
-  'Ganchillo y punto',
-  'Costura y bordado',
-  'Velas y aromas',
-  'Grabado y estampación',
-  'Papel y origami',
-  'Otra',
-];
-
 export const politicaTalleres = [
   'Para reservar plaza en cualquiera de los talleres es necesario el pago del mismo.',
   'Si cancelas por causa de fuerza mayor con más de 7 días de antelación, podrás elegir entre el reembolso o guardar la reserva para el próximo taller.',

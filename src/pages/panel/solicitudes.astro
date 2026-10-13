@@ -1,49 +1,129 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
-import { todos, fecha, ESTADOS_SOLICITUD } from '../../lib/db';
+import { db, todos, fecha, ESTADOS_SOLICITUD } from '../../lib/db';
+import { telefonoWhatsApp } from '../../lib/util';
 
-const estado = Astro.url.searchParams.get('estado');
-const filtro = estado && estado in ESTADOS_SOLICITUD ? estado : null;
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const id = Number(datos.get('id'));
+  const estado = String(datos.get('estado') ?? '');
+  const notas = String(datos.get('notas') ?? '').trim().slice(0, 3000);
+  if (Number.isInteger(id) && estado in ESTADOS_SOLICITUD) {
+    await db().prepare('UPDATE solicitudes SET estado = ?1, notas = ?2 WHERE id = ?3').bind(estado, notas || null, id).run();
+  }
+  const vuelta = new URLSearchParams(Astro.url.search);
+  vuelta.set('ok', 'guardado');
+  return Astro.redirect(`/panel/solicitudes?${vuelta}#s${id}`, 303);
+}
+
+const TIPOS: Record<string, string> = { privado: 'Talleres privados', bono: 'Bonos regalo' };
+const params = Astro.url.searchParams;
+const filtroEstado = params.get('estado') in ESTADOS_SOLICITUD ? params.get('estado') : null;
+const filtroTipo = params.get('tipo') in TIPOS ? params.get('tipo') : null;
+const condiciones: string[] = [];
+const valores: string[] = [];
+if (filtroEstado) { valores.push(filtroEstado); condiciones.push(`s.estado = ?${valores.length}`); }
+if (filtroTipo) { valores.push(filtroTipo); condiciones.push(`s.tipo = ?${valores.length}`); }
 
 const filas = await todos<{
   id: number; tipo: string; nombre: string; email: string; telefono: string | null; motivo: string | null;
   categoria: string | null; fecha_aprox: string | null; personas: number | null; tipo_bono: string | null;
-  detalle: string | null; para_quien: string | null; mensaje: string | null; estado: string; creado_en: string;
+  detalle: string | null; para_quien: string | null; mensaje: string | null; estado: string; notas: string | null; creado_en: string;
 }>(`
   SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id
-  ${filtro ? 'WHERE s.estado = ?1' : ''}
-  ORDER BY s.creado_en DESC
-`, ...(filtro ? [filtro] : []));
+  ${condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : ''}
+  ORDER BY CASE s.estado WHEN 'nueva' THEN 0 WHEN 'en_curso' THEN 1 ELSE 2 END, s.creado_en DESC
+`, ...valores);
+
+const enlace = (cambios: Record<string, string | null>) => {
+  const p = new URLSearchParams();
+  const e = 'estado' in cambios ? cambios.estado : filtroEstado;
+  const t = 'tipo' in cambios ? cambios.tipo : filtroTipo;
+  if (e) p.set('estado', e);
+  if (t) p.set('tipo', t);
+  return `/panel/solicitudes${p.size ? '?' + p : ''}`;
+};
+const whatsapp = (s: (typeof filas)[number]) => {
+  const tel = telefonoWhatsApp(s.telefono);
+  const texto = s.tipo === 'privado'
+    ? `¡Hola, ${s.nombre.split(' ')[0]}! Te escribo desde Yutori por vuestro taller privado (${(s.motivo ?? '').toLowerCase()}).`
+    : `¡Hola, ${s.nombre.split(' ')[0]}! Te escribo desde Yutori por tu bono regalo (${s.detalle}).`;
+  return tel ? `https://wa.me/${tel}?text=${encodeURIComponent(texto)}` : null;
+};
 ---
 <Panel titulo="Privados y bonos">
+  <nav class="filtros" aria-label="Filtrar por tipo">
+    <a href={enlace({ tipo: null })} aria-current={!filtroTipo ? 'true' : undefined}>Todo</a>
+    {Object.entries(TIPOS).map(([k, v]) => <a href={enlace({ tipo: k })} aria-current={filtroTipo === k ? 'true' : undefined}>{v}</a>)}
+  </nav>
   <nav class="filtros" aria-label="Filtrar por estado">
-    <a href="/panel/solicitudes" aria-current={!filtro ? 'true' : undefined}>Todas</a>
-    {Object.entries(ESTADOS_SOLICITUD).map(([k, v]) => <a href={`?estado=${k}`} aria-current={filtro === k ? 'true' : undefined}>{v}</a>)}
+    <a href={enlace({ estado: null })} aria-current={!filtroEstado ? 'true' : undefined}>Todos los estados</a>
+    {Object.entries(ESTADOS_SOLICITUD).map(([k, v]) => <a href={enlace({ estado: k })} aria-current={filtroEstado === k ? 'true' : undefined}>{v}</a>)}
   </nav>
 
-  {filas.length === 0 ? <p class="vacio">No hay solicitudes{filtro ? ' con este estado' : ''}.</p> : (
-    <table class="tabla">
-      <thead><tr><th>Tipo</th><th>Quién</th><th>Detalles</th><th>Llegó</th><th>Estado</th></tr></thead>
-      <tbody>
-        {filas.map((s) => (
-          <tr>
-            <td data-label="Tipo"><strong>{s.tipo === 'privado' ? 'Taller privado' : 'Bono regalo'}</strong></td>
-            <td data-label="Quién">
-              {s.nombre}<br />
-              <small>{s.telefono && <><a href={`tel:${s.telefono}`}>{s.telefono}</a> · </>}<a href={`mailto:${s.email}`}>{s.email}</a></small>
-            </td>
-            <td data-label="Detalles">
-              {s.tipo === 'privado'
-                ? <>{s.motivo}{s.categoria && ` · ${s.categoria}`}{s.personas && ` · ${s.personas} personas`}{s.fecha_aprox && ` · ${fecha(s.fecha_aprox)}`}</>
-                : <>Bono {s.tipo_bono === 'importe' ? 'por importe' : 'taller'}: {s.detalle}{s.para_quien && ` · para ${s.para_quien}`}</>}
-              {s.mensaje && <><br /><small>“{s.mensaje}”</small></>}
-            </td>
-            <td data-label="Llegó">{fecha(s.creado_en)}</td>
-            <td><span class={`estado estado--${s.estado}`}>{ESTADOS_SOLICITUD[s.estado]}</span></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+  {filas.length === 0 ? <p class="vacio">No hay peticiones con estos filtros.</p> : (
+    <div class="solicitudes">
+      {filas.map((s) => (
+        <article class="tarjeta solicitud" id={`s${s.id}`}>
+          <header class="solicitud__cabecera">
+            <span class={`estado estado--${s.estado}`}>{ESTADOS_SOLICITUD[s.estado]}</span>
+            <strong>{s.tipo === 'privado' ? 'Taller privado' : 'Bono regalo'}</strong>
+            <small>{fecha(s.creado_en)}</small>
+          </header>
+          <h2>{s.nombre}</h2>
+          <p class="solicitud__contacto">
+            {s.telefono && <><a href={`tel:${s.telefono}`}>{s.telefono}</a> · </>}<a href={`mailto:${s.email}`}>{s.email}</a>
+          </p>
+          <dl class="datos">
+            {s.tipo === 'privado' ? (
+              <>
+                <dt>Qué celebran</dt><dd>{s.motivo ?? '—'}</dd>
+                <dt>Tipo de taller</dt><dd>{s.categoria ?? 'Aún no lo saben'}</dd>
+                <dt>Fecha</dt><dd>{s.fecha_aprox ? fecha(s.fecha_aprox) : '—'}</dd>
+                <dt>Personas</dt><dd>{s.personas ?? '—'}</dd>
+              </>
+            ) : (
+              <>
+                <dt>Bono</dt><dd>{s.tipo_bono === 'importe' ? 'Por importe' : 'Taller'}: {s.detalle}</dd>
+                <dt>Para</dt><dd>{s.para_quien ?? '—'}</dd>
+              </>
+            )}
+          </dl>
+          {s.mensaje && <p class="solicitud__mensaje">“{s.mensaje}”</p>}
+
+          <form method="post" class="solicitud__form">
+            <input type="hidden" name="id" value={s.id} />
+            <div class="campo">
+              <label for={`estado-${s.id}`}>Estado</label>
+              <select id={`estado-${s.id}`} name="estado">
+                {Object.entries(ESTADOS_SOLICITUD).map(([k, v]) => <option value={k} selected={k === s.estado}>{v}</option>)}
+              </select>
+            </div>
+            <div class="campo">
+              <label for={`notas-${s.id}`}>Notas privadas</label>
+              <textarea id={`notas-${s.id}`} name="notas" rows="2" maxlength="3000" placeholder="Propuesta enviada, pagado el bono…">{s.notas}</textarea>
+            </div>
+            <div class="botones">
+              <button class="boton" type="submit">Guardar</button>
+              {whatsapp(s) && <a class="boton boton--borde" href={whatsapp(s)} target="_blank" rel="noopener">Responder por WhatsApp</a>}
+            </div>
+          </form>
+        </article>
+      ))}
+    </div>
   )}
 </Panel>
+
+<style>
+  .solicitudes { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .solicitud__cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .solicitud__cabecera small { color: var(--tinta-suave); margin-left: auto; }
+  .solicitud h2 { font-size: 1.3rem; margin: 0; }
+  .solicitud__contacto { overflow-wrap: anywhere; }
+  .datos { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 8px 0; }
+  .datos dt { font-weight: 700; color: var(--tinta-suave); }
+  .datos dd { margin: 0; }
+  .solicitud__mensaje { font-style: italic; white-space: pre-line; }
+  .solicitud__form { display: grid; gap: 10px; border-top: 1px solid var(--borde); padding-top: 12px; margin-top: 12px; }
+</style>

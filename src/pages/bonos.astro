@@ -1,58 +1,140 @@
 ---
+export const prerender = false;
 import Base from '../layouts/Base.astro';
+import Turnstile from '../components/Turnstile.astro';
+import { db } from '../lib/db';
+import { talleresPublicados } from '../lib/reservas';
+import { verificarTurnstile } from '../lib/turnstile';
+import { esEmail } from '../lib/util';
+
+const talleres = await talleresPublicados();
+const enviado = Astro.url.searchParams.has('enviado');
+const errores: string[] = [];
+let v = { tipo: 'taller', taller: '', importe: '', para: '', nombre: '', telefono: '', email: '', mensaje: '' };
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = {
+    tipo: campo('tipo', 10), taller: campo('taller', 120), importe: campo('importe', 6), para: campo('para', 120),
+    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), mensaje: campo('mensaje', 600),
+  };
+  if (campo('web')) return Astro.redirect('/bonos?enviado', 303);
+
+  const importe = Number(v.importe.replace(',', '.'));
+  if (!['taller', 'importe'].includes(v.tipo)) errores.push('Elige el tipo de bono.');
+  if (v.tipo === 'importe' && (!Number.isFinite(importe) || importe < 10 || importe > 500)) errores.push('Indica un importe entre 10 y 500 €.');
+  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
+  if (!esEmail(v.email)) errores.push('Escribe un email válido.');
+  if (datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar la política de privacidad.');
+
+  if (errores.length === 0 && !(await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP')))) {
+    errores.push('No hemos podido comprobar que no eres un robot. Vuelve a intentarlo.');
+  }
+
+  if (errores.length === 0) {
+    const detalle = v.tipo === 'importe'
+      ? `${importe.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €`
+      : v.taller || 'Aún no sabe qué taller';
+    await db()
+      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, mensaje, acepta_privacidad_en)
+                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%S', 'now'))`)
+      .bind(v.nombre, v.email, v.telefono, v.tipo, detalle, v.para || null, v.mensaje || null)
+      .run();
+    return Astro.redirect('/bonos?enviado', 303);
+  }
+}
 ---
 <Base titulo="Bonos regalo" descripcion="Bonos regalo de talleres creativos en A Coruña: regala un taller o un importe para gastar en el que quieras.">
   <section class="seccion">
     <div class="contenedor">
       <p class="script">Elige el tuyo</p>
       <h1>Bonos regalo</h1>
-      <p class="intro">No hay nada como regalar experiencias y momentos de desconexión.</p>
 
-      <div class="rejilla bonos">
-        <article class="tarjeta">
-          <h2>Bono taller</h2>
-          <p>Regala un taller concreto. El bono cuesta lo mismo que el taller.</p>
-        </article>
-        <article class="tarjeta">
-          <h2>Bono importe</h2>
-          <p>Tú eliges la cantidad y la persona que lo recibe la gasta en el taller que quiera.</p>
-        </article>
-      </div>
-      <p class="intro">Los bonos son válidos durante 3 meses.</p>
-
-      <h2>Cómo funciona</h2>
-      <ol class="pasos">
-        <li>Rellena el formulario con el tipo de bono y para quién es.</li>
-        <li>Te escribimos para el pago y te enviamos el bono.</li>
-        <li>La persona que lo recibe elige su taller y reserva.</li>
-      </ol>
-
-      <form class="formulario" data-prototipo>
-        <fieldset class="campo">
-          <legend>Tipo de bono</legend>
-          <label class="casilla"><input type="radio" name="tipo" value="taller" checked /> Bono taller</label>
-          <label class="casilla"><input type="radio" name="tipo" value="importe" /> Bono importe</label>
-        </fieldset>
-        <div class="dos-col">
-          <div class="campo"><label for="taller">Taller o importe</label><input id="taller" name="detalle" placeholder="Ej.: Lámparas de origami, o 50 €" /></div>
-          <div class="campo"><label for="para">Para quién es</label><input id="para" name="para" /></div>
+      {enviado ? (
+        <div class="tarjeta gracias" role="status">
+          <h2>¡Gracias! Hemos recibido tu petición</h2>
+          <p>Te escribimos en breve para el pago y te enviamos el bono para que puedas regalarlo. Recuerda que es válido durante 3 meses.</p>
+          <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
         </div>
-        <div class="dos-col">
-          <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
-          <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required /></div>
-        </div>
-        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
-        <div class="campo"><label for="mensaje">Mensaje para el bono (opcional)</label><textarea id="mensaje" name="mensaje" rows="3"></textarea></div>
-        <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
-        <button class="boton" type="submit">Pedir mi bono</button>
-        <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se envía nada.</p>
-      </form>
+      ) : (
+        <>
+          <p class="intro">No hay nada como regalar experiencias y momentos de desconexión.</p>
+
+          <div class="rejilla bonos">
+            <article class="tarjeta">
+              <h2>Bono taller</h2>
+              <p>Regala un taller concreto. El bono cuesta lo mismo que el taller.</p>
+            </article>
+            <article class="tarjeta">
+              <h2>Bono importe</h2>
+              <p>Tú eliges la cantidad y la persona que lo recibe la gasta en el taller que quiera.</p>
+            </article>
+          </div>
+          <p class="intro">Los bonos son válidos durante 3 meses.</p>
+
+          <h2>Cómo funciona</h2>
+          <ol class="pasos">
+            <li>Rellena el formulario con el tipo de bono y para quién es.</li>
+            <li>Te escribimos para el pago y te enviamos el bono.</li>
+            <li>La persona que lo recibe elige su taller y reserva.</li>
+          </ol>
+
+          {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+          <form class="formulario" method="post" id="form-bono">
+            <fieldset class="campo">
+              <legend>Tipo de bono</legend>
+              <label class="casilla"><input type="radio" name="tipo" value="taller" checked={v.tipo !== 'importe'} /> Bono taller</label>
+              <label class="casilla"><input type="radio" name="tipo" value="importe" checked={v.tipo === 'importe'} /> Bono importe</label>
+            </fieldset>
+            <div class="campo" data-bono="taller">
+              <label for="taller">¿Qué taller quieres regalar?</label>
+              <select id="taller" name="taller">
+                <option value="">Aún no lo sé, ayudadme a elegir</option>
+                {talleres.map((t) => <option value={t.titulo} selected={t.titulo === v.taller}>{t.titulo}</option>)}
+              </select>
+            </div>
+            <div class="campo" data-bono="importe">
+              <label for="importe">Importe (€)</label>
+              <input id="importe" name="importe" inputmode="decimal" placeholder="50" value={v.importe} />
+            </div>
+            <div class="campo"><label for="para">Para quién es (opcional)</label><input id="para" name="para" maxlength="120" value={v.para} /></div>
+            <div class="dos-col">
+              <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+              <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+            </div>
+            <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+            <div class="campo"><label for="mensaje">Mensaje para el bono (opcional)</label><textarea id="mensaje" name="mensaje" rows="3" maxlength="600">{v.mensaje}</textarea></div>
+            <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+            <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+            <Turnstile />
+            <button class="boton" type="submit">Pedir mi bono</button>
+          </form>
+        </>
+      )}
     </div>
   </section>
 </Base>
+
+<script is:inline>
+  // Muestra el campo del tipo de bono elegido. Sin JavaScript se ven los dos y el servidor valida.
+  const form = document.getElementById('form-bono');
+  if (form) {
+    const actualizar = () => {
+      const tipo = form.querySelector('input[name=tipo]:checked').value;
+      form.querySelectorAll('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo; });
+    };
+    form.addEventListener('change', actualizar);
+    actualizar();
+  }
+</script>
 
 <style>
   .bonos { margin: 24px 0 16px; }
   .pasos { padding-left: 1.2em; margin-bottom: 32px; }
   .pasos li { margin-bottom: 6px; }
+  .gracias { max-width: 640px; }
+  .gracias h2 { font-size: 1.5rem; }
 </style>

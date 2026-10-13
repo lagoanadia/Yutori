@@ -1,48 +1,104 @@
 ---
+export const prerender = false;
 import Base from '../layouts/Base.astro';
-import { categorias } from '../data/yutori';
+import Turnstile from '../components/Turnstile.astro';
+import { db, todos } from '../lib/db';
+import { verificarTurnstile } from '../lib/turnstile';
+import { esEmail, esFecha } from '../lib/util';
+
+const MOTIVOS = ['Despedida', 'Cumpleaños', 'Grupo de amigas', 'Empresa', 'Otro'];
+const categorias = await todos<{ id: number; nombre: string }>('SELECT id, nombre FROM categorias WHERE activa = 1 ORDER BY id');
+
+const enviado = Astro.url.searchParams.has('enviado');
+const errores: string[] = [];
+let v = { nombre: '', telefono: '', email: '', motivo: MOTIVOS[0], categoria: '', fecha: '', personas: '', mensaje: '' };
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = {
+    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), motivo: campo('motivo', 40),
+    categoria: campo('categoria', 6), fecha: campo('fecha', 10), personas: campo('personas', 4), mensaje: campo('mensaje', 2000),
+  };
+  if (campo('web')) return Astro.redirect('/privados?enviado', 303);
+
+  const personas = v.personas ? Number(v.personas) : null;
+  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
+  if (!esEmail(v.email)) errores.push('Escribe un email válido.');
+  if (!MOTIVOS.includes(v.motivo)) errores.push('Dinos qué celebráis.');
+  if (v.categoria && !categorias.some((c) => String(c.id) === v.categoria)) errores.push('Elige un tipo de taller de la lista.');
+  if (v.fecha && !esFecha(v.fecha)) errores.push('La fecha no es válida.');
+  if (personas !== null && (!Number.isInteger(personas) || personas < 1 || personas > 100)) errores.push('Indica cuántas personas seréis.');
+  if (datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar la política de privacidad.');
+
+  if (errores.length === 0 && !(await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP')))) {
+    errores.push('No hemos podido comprobar que no eres un robot. Vuelve a intentarlo.');
+  }
+
+  if (errores.length === 0) {
+    await db()
+      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, motivo, categoria_id, fecha_aprox, personas, mensaje, acepta_privacidad_en)
+                VALUES ('privado', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, strftime('%Y-%m-%dT%H:%M:%S', 'now'))`)
+      .bind(v.nombre, v.email, v.telefono, v.motivo, v.categoria ? Number(v.categoria) : null, v.fecha || null, personas, v.mensaje || null)
+      .run();
+    return Astro.redirect('/privados?enviado', 303);
+  }
+}
 ---
 <Base titulo="Talleres privados" descripcion="Talleres privados en A Coruña para despedidas, cumpleaños, grupos y empresas.">
   <section class="seccion">
     <div class="contenedor">
       <p class="script">Solo para vosotras</p>
       <h1>Talleres privados</h1>
-      <p class="intro">Despedidas, cumpleaños, grupos de amigas o empresas. Cada taller privado es distinto: cuéntanos qué buscáis y os proponemos fecha, taller y precio.</p>
 
-      <form class="formulario" data-prototipo>
-        <div class="dos-col">
-          <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" required /></div>
-          <div class="campo"><label for="tel">Teléfono</label><input id="tel" name="tel" type="tel" autocomplete="tel" required /></div>
+      {enviado ? (
+        <div class="tarjeta gracias" role="status">
+          <h2>¡Gracias! Hemos recibido vuestra petición</h2>
+          <p>Cada taller privado es distinto: miramos la disponibilidad de las artesanas y os escribimos con una propuesta de fecha, taller y precio.</p>
+          <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
         </div>
-        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
-        <div class="dos-col">
-          <div class="campo">
-            <label for="motivo">¿Qué celebráis?</label>
-            <select id="motivo" name="motivo">
-              <option>Despedida</option>
-              <option>Cumpleaños</option>
-              <option>Grupo de amigas</option>
-              <option>Empresa</option>
-              <option>Otro</option>
-            </select>
-          </div>
-          <div class="campo">
-            <label for="categoria">Tipo de taller</label>
-            <select id="categoria" name="categoria">
-              <option value="">Aún no lo sé</option>
-              {categorias.map((c) => <option>{c}</option>)}
-            </select>
-          </div>
-        </div>
-        <div class="dos-col">
-          <div class="campo"><label for="fecha">Fecha aproximada</label><input id="fecha" name="fecha" type="date" /></div>
-          <div class="campo"><label for="personas">Número de personas</label><input id="personas" name="personas" type="number" min="1" inputmode="numeric" /></div>
-        </div>
-        <div class="campo"><label for="mensaje">Cuéntanos un poco más</label><textarea id="mensaje" name="mensaje" rows="4"></textarea></div>
-        <label class="casilla"><input type="checkbox" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
-        <button class="boton" type="submit">Pedir información</button>
-        <p class="aviso-prototipo" data-resultado hidden>Prototipo: todavía no se envía nada.</p>
-      </form>
+      ) : (
+        <>
+          <p class="intro">Despedidas, cumpleaños, grupos de amigas o empresas. Cada taller privado es distinto: cuéntanos qué buscáis y os proponemos fecha, taller y precio.</p>
+          {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+          <form class="formulario" method="post">
+            <div class="dos-col">
+              <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+              <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+            </div>
+            <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+            <div class="dos-col">
+              <div class="campo">
+                <label for="motivo">¿Qué celebráis?</label>
+                <select id="motivo" name="motivo">{MOTIVOS.map((m) => <option selected={m === v.motivo}>{m}</option>)}</select>
+              </div>
+              <div class="campo">
+                <label for="categoria">Tipo de taller</label>
+                <select id="categoria" name="categoria">
+                  <option value="">Aún no lo sé</option>
+                  {categorias.map((c) => <option value={c.id} selected={String(c.id) === v.categoria}>{c.nombre}</option>)}
+                </select>
+              </div>
+            </div>
+            <div class="dos-col">
+              <div class="campo"><label for="fecha">Fecha aproximada</label><input id="fecha" name="fecha" type="date" value={v.fecha} /></div>
+              <div class="campo"><label for="personas">Número de personas</label><input id="personas" name="personas" type="number" min="1" max="100" inputmode="numeric" value={v.personas} /></div>
+            </div>
+            <div class="campo"><label for="mensaje">Cuéntanos un poco más</label><textarea id="mensaje" name="mensaje" rows="4" maxlength="2000">{v.mensaje}</textarea></div>
+            <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+            <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+            <Turnstile />
+            <button class="boton" type="submit">Pedir información</button>
+          </form>
+        </>
+      )}
     </div>
   </section>
 </Base>
+
+<style>
+  .gracias { max-width: 640px; }
+  .gracias h2 { font-size: 1.5rem; }
+</style>
