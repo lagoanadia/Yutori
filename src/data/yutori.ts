@@ -3,14 +3,13 @@
 export const negocio = {
   nombre: 'Yutori',
   subtitulo: 'Espacio Creativo',
-  lema: 'Clases creativas para aprender, crear y disfrutar',
-  direccion: 'Plaza Pontevedra 14, 1º-B2',
+  lema: 'Talleres y clases para aprender, crear y disfrutar. Un espacio tranquilo para desconectar creando con las manos.',
+  direccion: 'Plaza Pontevedra 14, 1-1º-B2',
   ciudad: '15003 A Coruña',
   mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Yutori+Espacio+Creativo+Plaza+Pontevedra+14+A+Coru%C3%B1a',
   email: 'yutori.espaciocreativo@gmail.com',
   instagram: 'https://www.instagram.com/yutori.espaciocreativo/',
   instagramUsuario: '@yutori.espaciocreativo',
-  whatsapp: '', // TODO: número de Iris en formato 34XXXXXXXXX
   // Cómo se paga a Yutori (clases y talleres propios). TODO: p. ej. 'Bizum al 600 000 000 (Yutori)'.
   pagoYutori: '',
   // Prototipo: Google no debe mostrar la web. Cambiar a true el día que se publique con su dominio.
@@ -47,13 +46,12 @@ export const resenas: { texto: string; autora: string; cuando: string }[] = [
   },
 ];
 
-export const detallesTalleres: { titulo: string; texto: string; pendiente?: boolean }[] = [
-  { titulo: 'Plazas limitadas', texto: 'Grupos pequeños: las clases tienen un máximo de 8 personas y cada taller indica sus plazas.' },
-  { titulo: 'Duración', texto: 'La mayoría de talleres duran entre 2 y 3 horas. Cada ficha indica el horario exacto.' },
-  { titulo: 'Reserva y pago', texto: 'Tu plaza queda confirmada con el pago. Los talleres de otras artesanas se pagan directamente a ellas.' },
-  { titulo: 'Materiales', texto: 'Cada artesana trae el material de su taller. En cada ficha verás si está incluido en el precio.' },
-  { titulo: 'Edad', texto: 'Los talleres están pensados para personas adultas. Para peques tenemos clases semanales.', pendiente: true }, // TODO: confirmar edad mínima de los talleres
-  { titulo: 'Cancelaciones', texto: 'Más de 7 días antes: reembolso o cambio al próximo taller. Menos de 7 días: puedes ceder tu plaza.' },
+// «Antes de reservar», en la página de talleres. El de la política lleva enlace a /condiciones.
+export const detallesTalleres: { titulo: string; texto: string; enlace?: string }[] = [
+  { titulo: 'Grupos pequeños', texto: 'Grupos pequeños para una mejor atención.' },
+  { titulo: 'Materiales', texto: 'En nuestros talleres los materiales están siempre incluidos.' },
+  { titulo: 'Sin experiencia previa', texto: 'No es necesario tener conocimientos para poder realizar nuestros talleres.' },
+  { titulo: 'Política de reservas y cancelaciones', texto: 'Tu plaza queda confirmada con el pago. Consulta aquí qué pasa si necesitas cancelar o ceder tu plaza.', enlace: '/condiciones' },
 ];
 
 export function duracion(inicio: string, fin: string) {
@@ -64,8 +62,9 @@ export function duracion(inicio: string, fin: string) {
   return `${horas} h${resto ? ` ${resto} min` : ''}`;
 }
 
-export const whatsappUrl =(texto = 'Hola Yutori, tengo una pregunta') =>
-  negocio.whatsapp ? `https://wa.me/${negocio.whatsapp}?text=${encodeURIComponent(texto)}` : '#';
+/** Enlace para escribir a Yutori por email (de momento no se usa WhatsApp para el espacio). */
+export const emailUrl = (asunto = '') =>
+  `mailto:${negocio.email}${asunto ? `?subject=${encodeURIComponent(asunto)}` : ''}`;
 
 export type Grupo = { dia: string; inicio: string; fin: string };
 
@@ -172,8 +171,7 @@ export const politicaTalleres = [
 ];
 
 export const politicaClases = [
-  'Las clases mensuales se abonan entre los días 1 y 5 de cada mes.',
-  'Las clases puntuales se abonan en el momento de la reserva.',
+  'Las clases se abonan en el momento de la reserva.',
   'Si cancelas con más de 24 horas de antelación, podrás recuperar tu clase en el mismo mes (clases mensuales) o en otro momento (clases sueltas), siempre que haya disponibilidad.',
   'Si cancelas con menos de 24 horas de antelación, la clase se dará por consumida.',
 ];

@@ -102,8 +102,10 @@ export async function avisoReservaHecha(codigo: string) {
         para: r.email, asunto: `Plaza reservada: ${r.titulo}`, titulo: `¡Hola, ${nombrePila(r.nombre)}! Tu plaza está reservada`,
         parrafos: [
           `Clase de **${r.titulo}**${r.nombre_menor ? ` para ${r.nombre_menor}` : ''}, ${cuando(r)}.`,
-          `Las clases mensuales se pagan **entre los días 1 y 5 del mes**${importe ? ` (${importe})` : ''}. ${comoPagar ? `Cómo pagar: **${comoPagar}**.` : 'Te indicaremos cómo pagar.'}`,
-          'Cuando recibamos el pago, tu plaza quedará confirmada.',
+          `Las clases se abonan al reservar${importe ? ` (${importe})` : ''}. ${comoPagar ? `Cómo pagar: **${comoPagar}**.` : 'Te indicaremos cómo pagar.'}`,
+          r.caduca_en
+            ? `Tienes hasta el **${fecha(r.caduca_en)}** para pagar. Cuando lo recibamos, tu plaza quedará confirmada.`
+            : 'Cuando recibamos el pago, tu plaza quedará confirmada.',
         ],
         boton: { texto: 'Ver mi reserva', url: url(`/reserva/${r.codigo}`) },
       }
@@ -161,7 +163,7 @@ export function avisoPlazasLiberadas(lista: { codigo: string; nombre: string; em
 export async function avisoSolicitud(id: number) {
   const s = await uno<{ tipo: string; nombre: string; email: string; telefono: string | null; motivo: string | null; categoria: string | null;
     fecha_aprox: string | null; personas: number | null; tipo_bono: string | null; detalle: string | null; para_quien: string | null; mensaje: string | null }>(
-    'SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id);
+    'SELECT s.*, COALESCE(s.tipos_taller, c.nombre) AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id);
   if (!s) return;
   const privado = s.tipo === 'privado';
   enviar(
@@ -171,11 +173,17 @@ export async function avisoSolicitud(id: number) {
       titulo: `¡Gracias, ${nombrePila(s.nombre)}!`,
       parrafos: privado
         ? ['Hemos recibido vuestra petición de taller privado. Miramos la disponibilidad de las artesanas y os escribimos con una propuesta de fecha, taller y precio.']
-        : [`Hemos recibido tu petición de bono regalo (${s.detalle}). Te escribimos en breve para el pago y te enviamos el bono. Es válido durante 3 meses.`],
+        : [
+            `Hemos recibido tu bono regalo: **${s.detalle}**${s.para_quien ? `, para ${s.para_quien}` : ''}.`,
+            negocio.pagoYutori
+              ? `Para completar la compra, paga por **${negocio.pagoYutori}** con el concepto **BONO ${id}**. Cuando lo recibamos, te enviamos el bono por email.`
+              : 'Te escribimos enseguida con los datos para el pago y, cuando lo recibamos, te enviamos el bono por email.',
+            'El bono es válido durante 3 meses.',
+          ],
     },
     paraYutori(
       privado ? `Taller privado: ${s.motivo} · ${s.nombre}` : `Bono regalo: ${s.detalle} · ${s.nombre}`,
-      privado ? 'Nueva petición de taller privado' : 'Nueva petición de bono regalo',
+      privado ? 'Nueva petición de taller privado' : `Bono regalo vendido (BONO ${id}), pendiente de pago`,
       [
         `**${s.nombre}** · ${s.telefono ?? ''} · ${s.email}`,
         privado

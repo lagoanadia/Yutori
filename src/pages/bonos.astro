@@ -2,32 +2,44 @@
 export const prerender = false;
 import Base from '../layouts/Base.astro';
 import Turnstile from '../components/Turnstile.astro';
-import { db } from '../lib/db';
+import { db, euros } from '../lib/db';
 import { talleresPublicados } from '../lib/reservas';
 import { verificarTurnstile } from '../lib/turnstile';
 import { avisoSolicitud } from '../lib/avisos';
 import { esEmail } from '../lib/util';
+import { fechaLarga, negocio } from '../data/yutori';
 
-const talleres = await talleresPublicados();
-const enviado = Astro.url.searchParams.has('enviado');
+// Bono taller: cualquiera de los talleres que están a la venta. Bono importe: de 30 a 100 €, de 5 en 5.
+const talleres = (await talleresPublicados()).filter((t) => t.precio_cent != null);
+const IMPORTES = Array.from({ length: 15 }, (_, i) => 30 + i * 5);
+
 const errores: string[] = [];
-let v = { tipo: 'taller', taller: '', importe: '', para: '', nombre: '', telefono: '', email: '', mensaje: '' };
+let v = { tipo: talleres.length ? 'taller' : 'importe', taller: '', importe: '50', de: '', para: '', telefono: '', email: '' };
+
+// Después de comprar: /bonos?compra=ID muestra cómo pagar. El id no da acceso a ningún dato personal.
+const compra = Number(Astro.url.searchParams.get('compra'));
+const pedido = Number.isInteger(compra) && compra > 0
+  ? await db().prepare(`SELECT id, detalle FROM solicitudes WHERE id = ?1 AND tipo = 'bono'`).bind(compra).first<{ id: number; detalle: string }>()
+  : null;
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
   v = {
-    tipo: campo('tipo', 10), taller: campo('taller', 120), importe: campo('importe', 6), para: campo('para', 120),
-    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), mensaje: campo('mensaje', 600),
+    tipo: campo('tipo', 10), taller: campo('taller', 8), importe: campo('importe', 4), de: campo('de', 120),
+    para: campo('para', 120), telefono: campo('telefono', 30), email: campo('email'),
   };
-  if (campo('web')) return Astro.redirect('/bonos?enviado', 303);
+  if (campo('web')) return Astro.redirect('/bonos', 303);
 
-  const importe = Number(v.importe.replace(',', '.'));
+  const taller = talleres.find((t) => String(t.id) === v.taller);
+  const importe = Number(v.importe);
   if (!['taller', 'importe'].includes(v.tipo)) errores.push('Elige el tipo de bono.');
-  if (v.tipo === 'importe' && (!Number.isFinite(importe) || importe < 10 || importe > 500)) errores.push('Indica un importe entre 10 y 500 €.');
-  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (v.tipo === 'taller' && !taller) errores.push('Elige el taller que quieres regalar.');
+  if (v.tipo === 'importe' && !IMPORTES.includes(importe)) errores.push('Elige un importe entre 30 y 100 €.');
+  if (!v.de) errores.push('Escribe de parte de quién es el bono.');
+  if (!v.para) errores.push('Escribe para quién es el bono.');
   if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
-  if (!esEmail(v.email)) errores.push('Escribe un email válido.');
+  if (!esEmail(v.email)) errores.push('Escribe un email válido: ahí te enviamos el bono.');
   if (datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar la política de privacidad.');
 
   if (errores.length === 0 && !(await verificarTurnstile(datos.get('cf-turnstile-response'), Astro.request.headers.get('CF-Connecting-IP')))) {
@@ -35,52 +47,52 @@ if (Astro.request.method === 'POST') {
   }
 
   if (errores.length === 0) {
-    const detalle = v.tipo === 'importe'
-      ? `${importe.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €`
-      : v.taller || 'Aún no sabe qué taller';
-    await db()
-      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, mensaje, acepta_privacidad_en)
-                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
-      .bind(v.nombre, v.email, v.telefono, v.tipo, detalle, v.para || null, v.mensaje || null)
-      .first<{ id: number }>()
-      .then((fila) => fila && avisoSolicitud(fila.id));
-    return Astro.redirect('/bonos?enviado', 303);
+    const detalle = v.tipo === 'taller' && taller
+      ? `${taller.titulo} (${fechaLarga(taller.fecha)}) · ${euros(taller.precio_cent)}`
+      : `${importe} €`;
+    const fila = await db()
+      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, acepta_privacidad_en)
+                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
+      .bind(v.de, v.email, v.telefono, v.tipo, detalle, v.para)
+      .first<{ id: number }>();
+    if (fila) {
+      await avisoSolicitud(fila.id);
+      return Astro.redirect(`/bonos?compra=${fila.id}`, 303);
+    }
   }
 }
+const precioTaller = (t: (typeof talleres)[number]) => euros(t.precio_cent);
 ---
 <Base titulo="Bonos regalo" descripcion="Bonos regalo de talleres creativos en A Coruña: regala un taller o un importe para gastar en el que quieras.">
   <section class="seccion">
     <div class="contenedor">
-      <p class="script">Elige el tuyo</p>
+      <p class="script">Regala desconexión</p>
       <h1>Bonos regalo</h1>
 
-      {enviado ? (
+      {pedido ? (
         <div class="tarjeta gracias" role="status">
-          <h2>¡Gracias! Hemos recibido tu petición</h2>
-          <p>Te escribimos en breve para el pago y te enviamos el bono para que puedas regalarlo. Recuerda que es válido durante 3 meses.</p>
-          <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
+          <h2>¡Tu bono está casi listo!</h2>
+          <p class="pago__importe">{pedido.detalle}</p>
+          {negocio.pagoYutori ? (
+            <>
+              <p><strong>Cómo pagar:</strong> {negocio.pagoYutori}</p>
+              <p><strong>Concepto:</strong> BONO {pedido.id}</p>
+              <p>Cuando recibamos el pago, te enviamos el bono por email para que puedas regalarlo.</p>
+            </>
+          ) : (
+            <p>Te escribimos enseguida por email con los datos para el pago. Cuando lo recibamos, te enviamos el bono.</p>
+          )}
+          <p class="suave">El bono es válido durante 3 meses.</p>
+          <a class="boton boton--borde" href="/talleres">Ver los talleres</a>
         </div>
       ) : (
         <>
-          <p class="intro">No hay nada como regalar experiencias y momentos de desconexión.</p>
+          <p class="intro">No hay nada como regalar experiencias y momentos de desconexión. Los bonos son válidos durante 3 meses.</p>
 
-          <div class="rejilla bonos">
-            <article class="tarjeta">
-              <h2>Bono taller</h2>
-              <p>Regala un taller concreto. El bono cuesta lo mismo que el taller.</p>
-            </article>
-            <article class="tarjeta">
-              <h2>Bono importe</h2>
-              <p>Tú eliges la cantidad y la persona que lo recibe la gasta en el taller que quiera.</p>
-            </article>
-          </div>
-          <p class="intro">Los bonos son válidos durante 3 meses.</p>
-
-          <h2>Cómo funciona</h2>
           <ol class="pasos">
-            <li>Rellena el formulario con el tipo de bono y para quién es.</li>
-            <li>Te escribimos para el pago y te enviamos el bono.</li>
-            <li>La persona que lo recibe elige su taller y reserva.</li>
+            <li>Elige un taller o un importe.</li>
+            <li>Paga por Bizum.</li>
+            <li>Te enviamos el bono por email para que lo regales.</li>
           </ol>
 
           {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
@@ -88,31 +100,35 @@ if (Astro.request.method === 'POST') {
           <form class="formulario" method="post" id="form-bono">
             <fieldset class="campo">
               <legend>Tipo de bono</legend>
-              <label class="casilla"><input type="radio" name="tipo" value="taller" checked={v.tipo !== 'importe'} /> Bono taller</label>
-              <label class="casilla"><input type="radio" name="tipo" value="importe" checked={v.tipo === 'importe'} /> Bono importe</label>
+              {talleres.length > 0 && <label class="casilla"><input type="radio" name="tipo" value="taller" checked={v.tipo === 'taller'} /> Un taller</label>}
+              <label class="casilla"><input type="radio" name="tipo" value="importe" checked={v.tipo === 'importe' || talleres.length === 0} /> Un importe</label>
             </fieldset>
-            <div class="campo" data-bono="taller">
-              <label for="taller">¿Qué taller quieres regalar?</label>
-              <select id="taller" name="taller">
-                <option value="">Aún no lo sé, ayudadme a elegir</option>
-                {talleres.map((t) => <option value={t.titulo} selected={t.titulo === v.taller}>{t.titulo}</option>)}
-              </select>
-            </div>
+            {talleres.length > 0 && (
+              <div class="campo" data-bono="taller">
+                <label for="taller">Taller</label>
+                <select id="taller" name="taller">
+                  <option value="">Elige un taller</option>
+                  {talleres.map((t) => <option value={t.id} selected={String(t.id) === v.taller}>{t.titulo} · {fechaLarga(t.fecha)} · {precioTaller(t)}</option>)}
+                </select>
+              </div>
+            )}
             <div class="campo" data-bono="importe">
-              <label for="importe">Importe (€)</label>
-              <input id="importe" name="importe" inputmode="decimal" placeholder="50" value={v.importe} />
+              <label for="importe">Importe</label>
+              <select id="importe" name="importe">
+                {IMPORTES.map((i) => <option value={i} selected={String(i) === v.importe}>{i} €</option>)}
+              </select>
+              <small>Quien lo recibe lo gasta en el taller que quiera.</small>
             </div>
-            <div class="campo"><label for="para">Para quién es (opcional)</label><input id="para" name="para" maxlength="120" value={v.para} /></div>
+            <div class="campo"><label for="de">De parte de quién</label><input id="de" name="de" autocomplete="name" maxlength="120" value={v.de} required /></div>
+            <div class="campo"><label for="para">Para quién es</label><input id="para" name="para" maxlength="120" value={v.para} required /></div>
             <div class="dos-col">
-              <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
-              <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+              <div class="campo"><label for="email">Tu email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /><small>Te enviamos aquí el bono.</small></div>
+              <div class="campo"><label for="telefono">Tu teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
             </div>
-            <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
-            <div class="campo"><label for="mensaje">Mensaje para el bono (opcional)</label><textarea id="mensaje" name="mensaje" rows="3" maxlength="600">{v.mensaje}</textarea></div>
             <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
             <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
             <Turnstile />
-            <button class="boton" type="submit">Pedir mi bono</button>
+            <button class="boton" type="submit">Comprar bono</button>
           </form>
         </>
       )}
@@ -125,7 +141,7 @@ if (Astro.request.method === 'POST') {
   const form = document.getElementById('form-bono');
   if (form) {
     const actualizar = () => {
-      const tipo = form.querySelector('input[name=tipo]:checked').value;
+      const tipo = form.querySelector('input[name=tipo]:checked')?.value;
       form.querySelectorAll('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo; });
     };
     form.addEventListener('change', actualizar);
@@ -134,9 +150,10 @@ if (Astro.request.method === 'POST') {
 </script>
 
 <style>
-  .bonos { margin: 24px 0 16px; }
-  .pasos { padding-left: 1.2em; margin-bottom: 32px; }
+  .pasos { padding-left: 1.2em; margin-bottom: 24px; }
   .pasos li { margin-bottom: 6px; }
   .gracias { max-width: 640px; }
   .gracias h2 { font-size: 1.5rem; }
+  .pago__importe { font-family: var(--serif); font-size: 1.4rem; color: var(--verde); }
+  .suave { color: var(--tinta-suave); }
 </style>

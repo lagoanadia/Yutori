@@ -2,7 +2,7 @@
 // Página privada de cada reserva (el código largo es la llave). Sirve para talleres y para clases.
 export const prerender = false;
 import Base from '../../layouts/Base.astro';
-import { fechaLarga, negocio, politicaClases, politicaTalleres, whatsappUrl } from '../../data/yutori';
+import { emailUrl, fechaLarga, negocio, politicaClases, politicaTalleres } from '../../data/yutori';
 import { DIAS, euros, eurosCorto, fecha } from '../../lib/db';
 import { nombreMes } from '../../lib/clases';
 import { reservaPorCodigo } from '../../lib/reservas';
@@ -21,7 +21,7 @@ const importe = r.precio_cent == null ? null
 const comoPagar = r.datos_pago ?? (negocio.pagoYutori || null);
 const concepto = `${(r.nombre_menor ?? r.nombre).split(' ')[0]} · ${r.titulo}`.slice(0, 60);
 const cuando = esMensual
-  ? `${DIAS[r.dia_semana ?? 0]}s de ${r.hora_inicio} a ${r.hora_fin}, ${nombreMes(r.mes!)}`
+  ? `${DIAS[r.dia_semana ?? 0].replace(/([^s])$/, '$1s')} de ${r.hora_inicio} a ${r.hora_fin}, ${nombreMes(r.mes!)}`
   : `${fechaLarga(r.fecha!)}, de ${r.hora_inicio} a ${r.hora_fin}`;
 const politica = esTaller ? politicaTalleres : politicaClases;
 
@@ -46,9 +46,10 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
           <h1>Tu plaza está reservada</h1>
           <div class="tarjeta pago">
             {importe && <p class="pago__importe">{importe}</p>}
-            <p>Las clases mensuales se pagan <strong>entre los días 1 y 5 de {nombreMes(r.mes!)}</strong>. Cuando recibamos el pago, tu plaza quedará confirmada.</p>
-            <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por WhatsApp o email.'}</p>
+            <p>Las clases se abonan al reservar. Cuando recibamos el pago, tu plaza de <strong>{nombreMes(r.mes!)}</strong> quedará confirmada.</p>
+            <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por email enseguida.'}</p>
             {comoPagar && <p><strong>Concepto:</strong> {concepto}</p>}
+            {r.caduca_en && <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>}
           </div>
         </>
       )}
@@ -58,7 +59,7 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
           <h1>Ahora solo falta el pago</h1>
           <div class="tarjeta pago">
             {importe && <p class="pago__importe">{importe}</p>}
-            <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por WhatsApp o email enseguida.'}</p>
+            <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por email enseguida.'}</p>
             {comoPagar && <p><strong>Concepto:</strong> {concepto}</p>}
             <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>
           </div>
@@ -82,7 +83,7 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
         <>
           <h1>Esta reserva está cancelada</h1>
           <p>Si crees que es un error, escríbenos.</p>
-          <a class="boton boton--borde" href={whatsappUrl(`Hola, tengo una duda sobre mi reserva de "${r.titulo}"`)}>Escribir por WhatsApp</a>
+          <a class="boton boton--borde" href={emailUrl(`Duda sobre mi reserva de ${r.titulo}`)}>Escribir un email</a>
         </>
       )}
 
@@ -106,7 +107,7 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
       <details class="politica">
         <summary>¿Necesitas cancelar o cambiar tu plaza?</summary>
         <ul class="lista-politica">{politica.map((p) => <li>{p}</li>)}</ul>
-        <p>Para cancelar o cambiar tu plaza, <a href={whatsappUrl(`Hola, necesito cambiar mi reserva de "${r.titulo}"`)}>escríbenos por WhatsApp</a>.</p>
+        <p>Para cancelar o ceder tu plaza, escríbenos por <a href={emailUrl(`Cambio en mi reserva de ${r.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
       </details>
     </div>
   </section>
