@@ -1,0 +1,78 @@
+---
+// Campos de un taller privado o bono regalo: los mismos al añadirlo y al editarlo.
+// Al elegir privado o bono solo se ven (y se envían) los campos de ese tipo.
+import { ESTADOS_SOLICITUD } from '../../lib/db';
+
+interface Props { v: Record<string, string>; categorias: string[] }
+const { v, categorias } = Astro.props;
+const tipo = v.tipo === 'bono' ? 'bono' : 'privado';
+---
+<fieldset class="campo">
+  <legend>Qué es</legend>
+  <label class="casilla"><input type="radio" name="tipo" value="privado" checked={tipo === 'privado'} /> Taller privado</label>
+  <label class="casilla"><input type="radio" name="tipo" value="bono" checked={tipo === 'bono'} /> Bono regalo</label>
+</fieldset>
+<div class="dos-col">
+  <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" value={v.nombre} required maxlength="100" /></div>
+  <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" value={v.telefono} /></div>
+</div>
+<div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" value={v.email} required /></div>
+
+<fieldset class="solo-tipo" data-tipo="privado" disabled={tipo !== 'privado'} hidden={tipo !== 'privado'}>
+  <div class="dos-col">
+    <div class="campo"><label for="motivo">Qué celebran</label><input id="motivo" name="motivo" value={v.motivo} placeholder="Cumpleaños, despedida…" /></div>
+    <div class="campo">
+      <label for="categoria">Tipo de taller</label>
+      <select id="categoria" name="categoria">
+        <option value="">Aún no lo saben</option>
+        {categorias.map((c) => <option selected={c === v.categoria}>{c}</option>)}
+      </select>
+    </div>
+  </div>
+  <div class="dos-col">
+    <div class="campo"><label for="fecha_aprox">Fecha</label><input id="fecha_aprox" name="fecha_aprox" type="date" value={v.fecha_aprox} /></div>
+    <div class="campo"><label for="personas">Personas</label><input id="personas" name="personas" type="number" min="1" inputmode="numeric" value={v.personas} /></div>
+  </div>
+</fieldset>
+
+<fieldset class="solo-tipo" data-tipo="bono" disabled={tipo !== 'bono'} hidden={tipo !== 'bono'}>
+  <div class="dos-col">
+    <div class="campo">
+      <label for="tipo_bono">Tipo de bono</label>
+      <select id="tipo_bono" name="tipo_bono">
+        <option value="taller" selected={v.tipo_bono !== 'importe'}>Un taller</option>
+        <option value="importe" selected={v.tipo_bono === 'importe'}>Por importe</option>
+      </select>
+    </div>
+    <div class="campo"><label for="detalle">Qué taller o qué importe</label><input id="detalle" name="detalle" value={v.detalle} /></div>
+  </div>
+  <div class="campo"><label for="para_quien">Para quién</label><input id="para_quien" name="para_quien" value={v.para_quien} /></div>
+</fieldset>
+
+<div class="campo"><label for="mensaje">Su mensaje</label><textarea id="mensaje" name="mensaje" rows="2" maxlength="2000">{v.mensaje}</textarea></div>
+<div class="dos-col">
+  <div class="campo">
+    <label for="estado">Estado</label>
+    <select id="estado" name="estado">
+      {Object.entries(ESTADOS_SOLICITUD).map(([k, t]) => <option value={k} selected={k === (v.estado || 'nueva')}>{t}</option>)}
+    </select>
+  </div>
+</div>
+<div class="campo"><label for="notas">Notas privadas</label><textarea id="notas" name="notas" rows="2" maxlength="3000">{v.notas}</textarea></div>
+
+<script>
+  // Enseña solo los campos del tipo elegido. Los ocultos se desactivan para que no se envíen.
+  for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="tipo"]')) {
+    radio.addEventListener('change', () => {
+      for (const f of document.querySelectorAll<HTMLFieldSetElement>('.solo-tipo')) {
+        const ver = f.dataset.tipo === radio.value;
+        f.hidden = !ver;
+        f.disabled = !ver;
+      }
+    });
+  }
+</script>
+
+<style>
+  .solo-tipo { border: 0; padding: 0; margin: 0; display: grid; gap: 16px; min-width: 0; }
+</style>

@@ -35,6 +35,7 @@ function texto(e: Email) {
 }
 
 async function enviarAhora(e: Email) {
+  if (!e.para) return; // alumnas añadidas a mano sin email
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
     if (import.meta.env.DEV) console.log(`\n[email] Para: ${e.para}\n[email] Asunto: ${e.asunto}\n${texto(e)}\n`);
     return;

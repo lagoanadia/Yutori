@@ -2,7 +2,9 @@
 export const prerender = false;
 import Panel from '../../../layouts/Panel.astro';
 import { db, todos, uno, fecha, FRANJAS, ESTADOS_TALLER, ESTADOS_TALLERISTA } from '../../../lib/db';
-import { urlFoto } from '../../../lib/fotos';
+import { borrarFoto, urlFoto } from '../../../lib/fotos';
+import { mapaCategorias, mensajes, mapearTallerista } from '../../../lib/importar';
+import CamposTallerista from '../../../components/panel/CamposTallerista.astro';
 
 const id = Number(Astro.params.id);
 type Tallerista = {
@@ -16,15 +18,53 @@ const cargar = () => uno<Tallerista>(
 let t = Number.isInteger(id) ? await cargar() : null;
 if (!t) return new Response('No encontrada', { status: 404 });
 
+const errores: string[] = [];
+let editando: Record<string, string> | null = null;
+
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
-  const estado = String(datos.get('estado') ?? '');
-  const notas = String(datos.get('notas') ?? '').trim().slice(0, 3000);
-  if (estado in ESTADOS_TALLERISTA) {
-    await db().prepare('UPDATE talleristas SET estado = ?1, notas = ?2 WHERE id = ?3').bind(estado, notas || null, id).run();
+  const accion = String(datos.get('accion') ?? '');
+
+  if (accion === 'datos') {
+    // Mismas reglas que al añadirla: nombre, email y propuesta obligatorios, categoría existente…
+    const v = Object.fromEntries([...datos.entries()].filter(([, x]) => typeof x === 'string').map(([k, x]) => [k, String(x).trim()]));
+    const { datos: d, errores: e } = mapearTallerista({ ...v, estado: t.estado }, await mapaCategorias());
+    if (d) {
+      await db().prepare(`UPDATE talleristas SET nombre = ?1, marca = ?2, instagram = ?3, email = ?4, telefono = ?5, categoria_id = ?6,
+                          propuesta = ?7, ha_impartido = ?8, autonoma = ?9 WHERE id = ?10`)
+        .bind(d.nombre, d.marca, d.instagram, d.email, d.telefono, d.categoria_id, d.propuesta, d.ha_impartido, d.autonoma, id).run();
+      return Astro.redirect(`/panel/talleristas/${id}?ok=guardado`, 303);
+    }
+    errores.push(...mensajes(e));
+    editando = v;
   }
-  return Astro.redirect(`/panel/talleristas/${id}?ok=guardado`, 303);
+
+  if (accion === 'eliminar') {
+    const talleres = await uno<{ n: number }>('SELECT count(*) AS n FROM talleres WHERE tallerista_id = ?1', id);
+    if ((talleres?.n ?? 0) > 0) errores.push('Tiene talleres: no se puede eliminar. Márcala como descartada si ya no trabajáis juntas.');
+    else {
+      await db().prepare('DELETE FROM talleristas WHERE id = ?1').bind(id).run();
+      for (const f of JSON.parse(t.fotos || '[]') as string[]) await borrarFoto(f);
+      return Astro.redirect('/panel/talleristas?ok=eliminado', 303);
+    }
+  }
+
+  if (accion === 'decision') {
+    const estado = String(datos.get('estado') ?? '');
+    const notas = String(datos.get('notas') ?? '').trim().slice(0, 3000);
+    if (estado in ESTADOS_TALLERISTA) {
+      await db().prepare('UPDATE talleristas SET estado = ?1, notas = ?2 WHERE id = ?3').bind(estado, notas || null, id).run();
+    }
+    return Astro.redirect(`/panel/talleristas/${id}?ok=guardado`, 303);
+  }
 }
+
+const siNoTexto = (x: number | null) => (x == null ? '' : x ? 'si' : 'no');
+const valores = editando ?? {
+  nombre: t.nombre, marca: t.marca ?? '', email: t.email, telefono: t.telefono ?? '', instagram: t.instagram ?? '',
+  categoria: t.categoria ?? '', propuesta: t.propuesta, ha_impartido: siNoTexto(t.ha_impartido), autonoma: siNoTexto(t.autonoma),
+};
+const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categorias ORDER BY nombre')).map((c) => c.nombre);
 
 const fotos: string[] = JSON.parse(t.fotos || '[]');
 const otrasAceptadas = t.categoria_id
@@ -37,6 +77,8 @@ const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
 ---
 <Panel titulo={t.marca ? `${t.nombre} · ${t.marca}` : t.nombre}>
   <p><a href="/panel/talleristas">← Todas las talleristas</a></p>
+
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
   {otrasAceptadas.length > 0 && (
     <p class="errores">
@@ -63,11 +105,30 @@ const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
           {fotos.map((f) => <a href={urlFoto(f)} target="_blank"><img src={urlFoto(f)} alt="Foto enviada por la tallerista" loading="lazy" /></a>)}
         </div>
       )}
+
+      <details class="editar" open={Boolean(editando)}>
+        <summary class="boton boton--borde">Editar datos</summary>
+        <form method="post" class="formulario">
+          <input type="hidden" name="accion" value="datos" />
+          <CamposTallerista v={valores} categorias={categorias} conEstado={false} />
+          <div class="botones">
+            <button class="boton" type="submit">Guardar cambios</button>
+            <a class="boton boton--borde" href={`/panel/talleristas/${id}`}>Cancelar</a>
+          </div>
+        </form>
+        {susTalleres.length === 0 && (
+          <form method="post" class="eliminar">
+            <input type="hidden" name="accion" value="eliminar" />
+            <button class="boton-texto boton-texto--peligro" type="submit" onclick="return confirm('¿Eliminar esta tallerista? No se puede deshacer.')">Eliminar tallerista</button>
+          </form>
+        )}
+      </details>
     </section>
 
     <section class="tarjeta">
       <h2>Tu decisión</h2>
       <form method="post" class="formulario">
+        <input type="hidden" name="accion" value="decision" />
         <div class="campo">
           <label for="estado">Estado</label>
           <select id="estado" name="estado">

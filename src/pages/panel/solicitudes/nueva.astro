@@ -1,0 +1,35 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import PegarVarias from '../../../components/PegarVarias.astro';
+import CamposSolicitud from '../../../components/panel/CamposSolicitud.astro';
+import { todos } from '../../../lib/db';
+import { procesarEnvio, type Envio } from '../../../lib/importar';
+
+const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categorias WHERE activa = 1 ORDER BY nombre')).map((c) => c.nombre);
+let envio: Envio | null = null;
+
+if (Astro.request.method === 'POST') {
+  envio = await procesarEnvio(await Astro.request.formData(), 'solicitudes');
+  if (envio.guardadas !== null) {
+    return Astro.redirect(envio.modo === 'una' ? '/panel/solicitudes/nueva?ok=anadido' : `/panel/solicitudes?ok=anadidos&n=${envio.guardadas}`, 303);
+  }
+}
+const v: Record<string, string> = envio?.modo === 'una' ? envio.valores : { tipo: 'privado', estado: 'en_curso' };
+---
+<Panel titulo="Añadir privado o bono">
+  <p><a href="/panel/solicitudes">← Privados y bonos</a></p>
+
+  {envio?.modo === 'una' && envio.errores.length > 0 && (
+    <div class="errores" role="alert"><ul>{envio.errores.map((e) => <li>{e}</li>)}</ul></div>
+  )}
+
+  <form method="post" class="formulario tarjeta">
+    <input type="hidden" name="modo" value="una" />
+    <CamposSolicitud v={v} categorias={categorias} />
+    <button class="boton" type="submit">Guardar</button>
+  </form>
+
+  <PegarVarias envio={envio} plural="privados o bonos"
+    ayuda="Una lista o los mensajes que te mandaron pidiendo talleres privados o bonos. La IA los separa y te enseña cómo quedan antes de guardar." />
+</Panel>

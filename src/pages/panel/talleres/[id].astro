@@ -4,7 +4,7 @@ import Panel from '../../../layouts/Panel.astro';
 import { db, uno, todos, fecha, euros, FRANJAS, ESTADOS_TALLER, ESTADOS_RESERVA } from '../../../lib/db';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../../lib/reservas';
 import { calendarioActivo } from '../../../lib/calendario';
-import { desactivarTaller, publicarTaller } from '../../../lib/talleres';
+import { desactivarTaller, editarTaller, publicarTaller, type CamposTaller } from '../../../lib/talleres';
 import { borrarFoto, urlFoto } from '../../../lib/fotos';
 import { codigoAleatorio, telefonoWhatsApp } from '../../../lib/util';
 
@@ -26,11 +26,28 @@ if (!t) return new Response('No encontrado', { status: 404 });
 
 const completo = (x: Taller) => Boolean(x.titulo && x.hora_inicio && x.hora_fin && x.precio_cent != null && x.foto && x.texto && x.datos_pago);
 const errores: string[] = [];
+const aEuros = (c: number | null) => (c == null ? '' : String(c / 100).replace('.', ','));
+let v: CamposTaller = {
+  titulo: t.titulo ?? '', hora_inicio: t.hora_inicio ?? '', hora_fin: t.hora_fin ?? '', precio: aEuros(t.precio_cent),
+  plazas: String(t.plazas), texto: t.texto ?? '', materiales: t.materiales ?? '', datos_pago: t.datos_pago ?? '',
+  fecha: t.fecha, momento: t.franja.endsWith('manana') ? 'manana' : 'tarde',
+};
+let editando = false;
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const accion = String(datos.get('accion') ?? '');
   const actualizar = (sql: string, ...p: unknown[]) => db().prepare(sql).bind(...p, id).run();
+
+  if (accion === 'datos') {
+    const campo = (k: keyof CamposTaller) => String(datos.get(k) ?? '').trim();
+    v = Object.fromEntries((Object.keys(v) as (keyof CamposTaller)[]).map((k) => [k, campo(k)])) as CamposTaller;
+    const archivo = datos.get('foto');
+    const resultado = await editarTaller(id, v, archivo instanceof File && archivo.size > 0 ? archivo : null);
+    if (resultado.ok) return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
+    errores.push(...resultado.errores);
+    editando = true;
+  }
 
   if (accion === 'pagado' || accion === 'cancelar') {
     await cambiarEstadoReserva(Number(datos.get('reserva')), accion, id);
@@ -124,6 +141,46 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
         </>
       )}
 
+      <details class="editar" open={editando}>
+        <summary class="boton boton--borde">{t.titulo ? 'Editar datos' : 'Rellenar los datos tú'}</summary>
+        <form method="post" enctype="multipart/form-data" class="formulario">
+          <input type="hidden" name="accion" value="datos" />
+          <div class="campo"><label for="titulo">Nombre del taller</label><input id="titulo" name="titulo" value={v.titulo} maxlength="100" /></div>
+          <div class="dos-col">
+            <div class="campo">
+              <label for="fecha">Fecha</label>
+              <input id="fecha" name="fecha" type="date" value={v.fecha} required disabled={t.reservas > 0} />
+              {t.reservas > 0 && <><input type="hidden" name="fecha" value={v.fecha} /><small>Tiene reservas: la fecha ya no se cambia.</small></>}
+            </div>
+            <fieldset class="campo">
+              <legend>Franja</legend>
+              <label class="casilla"><input type="radio" name="momento" value="manana" checked={v.momento === 'manana'} disabled={t.reservas > 0} /> Mañana</label>
+              <label class="casilla"><input type="radio" name="momento" value="tarde" checked={v.momento !== 'manana'} disabled={t.reservas > 0} /> Tarde</label>
+              {t.reservas > 0 && <input type="hidden" name="momento" value={v.momento} />}
+            </fieldset>
+          </div>
+          <div class="dos-col">
+            <div class="campo"><label for="hora_inicio">Empieza</label><input id="hora_inicio" name="hora_inicio" type="time" value={v.hora_inicio} /></div>
+            <div class="campo"><label for="hora_fin">Termina</label><input id="hora_fin" name="hora_fin" type="time" value={v.hora_fin} /></div>
+          </div>
+          <div class="dos-col">
+            <div class="campo"><label for="precio">Precio por persona (€)</label><input id="precio" name="precio" inputmode="decimal" value={v.precio} /></div>
+            <div class="campo"><label for="plazas">Plazas</label><input id="plazas" name="plazas" type="number" min={Math.max(1, ocupadas)} max="30" value={v.plazas} required /></div>
+          </div>
+          <div class="campo"><label for="texto">Texto para la web</label><textarea id="texto" name="texto" rows="5" maxlength="3000">{v.texto}</textarea></div>
+          <div class="campo"><label for="materiales">Materiales</label><input id="materiales" name="materiales" value={v.materiales} maxlength="200" placeholder="Material incluido" /></div>
+          <div class="campo"><label for="datos_pago">Cómo se paga</label><input id="datos_pago" name="datos_pago" value={v.datos_pago} maxlength="300" placeholder="Bizum al 600 000 000" /></div>
+          <div class="campo">
+            <label for="foto">{t.foto ? 'Cambiar la foto' : 'Foto'}</label>
+            <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" />
+          </div>
+          <div class="botones">
+            <button class="boton" type="submit">Guardar cambios</button>
+            <a class="boton boton--borde" href={`/panel/talleres/${id}`}>Cancelar</a>
+          </div>
+        </form>
+      </details>
+
       <h3 id="apuntadas">Personas apuntadas ({ocupadas} de {t.plazas} plazas)</h3>
       {apuntadas.length === 0 ? <p class="vacio">Todavía no se ha apuntado nadie.</p> : (
         <ul class="lista-apuntadas">
@@ -139,6 +196,7 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
                 <input type="hidden" name="reserva" value={a.id} />
                 {a.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
                 <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta reserva? La plaza quedará libre.')">Cancelar</button>
+                <a class="boton-texto" href={`/panel/reservas/${a.id}`}>Editar</a>
               </form>
             </li>
           ))}

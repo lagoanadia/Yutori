@@ -53,6 +53,7 @@ const whatsapp = (s: (typeof filas)[number]) => {
 };
 ---
 <Panel titulo="Privados y bonos">
+  <p class="acciones-lista"><a class="boton" href="/panel/solicitudes/nueva">+ Añadir</a></p>
   <nav class="filtros" aria-label="Filtrar por tipo">
     <a href={enlace({ tipo: null })} aria-current={!filtroTipo ? 'true' : undefined}>Todo</a>
     {Object.entries(TIPOS).map(([k, v]) => <a href={enlace({ tipo: k })} aria-current={filtroTipo === k ? 'true' : undefined}>{v}</a>)}
@@ -107,6 +108,7 @@ const whatsapp = (s: (typeof filas)[number]) => {
             <div class="botones">
               <button class="boton" type="submit">Guardar</button>
               {whatsapp(s) && <a class="boton boton--borde" href={whatsapp(s)} target="_blank" rel="noopener">Responder por WhatsApp</a>}
+              <a class="boton-texto" href={`/panel/solicitudes/${s.id}`}>Editar datos</a>
             </div>
           </form>
         </article>

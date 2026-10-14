@@ -1,0 +1,79 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import { db, uno, fecha, DIAS, TIPOS_RESERVA } from '../../../lib/db';
+import { esEmail } from '../../../lib/util';
+
+type Reserva = {
+  id: number; tipo: string; taller_id: number | null; grupo_id: number | null; nombre: string; nombre_menor: string | null;
+  telefono: string; email: string; modalidad: string | null; creado_en: string;
+  taller: string | null; taller_fecha: string | null; clase: string | null; dia_semana: number | null; hora_inicio: string | null;
+  publico: string | null; modalidades: string | null;
+};
+const id = Number(Astro.params.id);
+const r = Number.isInteger(id) ? await uno<Reserva>(`
+  SELECT r.*, t.titulo AS taller, t.fecha AS taller_fecha, c.nombre AS clase, g.dia_semana, g.hora_inicio, g.publico, c.modalidades
+  FROM reservas r LEFT JOIN talleres t ON t.id = r.taller_id LEFT JOIN grupos g ON g.id = r.grupo_id LEFT JOIN clases c ON c.id = g.clase_id
+  WHERE r.id = ?1`, id) : null;
+if (!r) return new Response('No encontrada', { status: 404 });
+
+const modalidades: string[] = JSON.parse(r.modalidades || '[]');
+// Al guardar se vuelve a la página desde la que se llegó (el taller, las clases o la lista de reservas).
+const volver = r.taller_id ? `/panel/talleres/${r.taller_id}#apuntadas` : r.grupo_id ? `/panel/clases#g${r.grupo_id}` : '/panel/reservas';
+const errores: string[] = [];
+let v = { nombre: r.nombre, nombre_menor: r.nombre_menor ?? '', telefono: r.telefono, email: r.email, modalidad: r.modalidad ?? '' };
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const campo = (k: string, max: number) => String(datos.get(k) ?? '').trim().slice(0, max);
+  v = { nombre: campo('nombre', 100), nombre_menor: campo('nombre_menor', 100), telefono: campo('telefono', 30), email: campo('email', 200), modalidad: campo('modalidad', 50) };
+  if (!v.nombre) errores.push('Escribe el nombre.');
+  if (!v.telefono) errores.push('Escribe el teléfono.');
+  if (v.email && !esEmail(v.email)) errores.push('El email no es válido.');
+  if (r.publico === 'ninos' && !v.nombre_menor) errores.push('Escribe el nombre del niño o la niña.');
+  if (v.modalidad && !modalidades.includes(v.modalidad)) errores.push('Elige una modalidad de la lista.');
+  if (!errores.length) {
+    await db().prepare('UPDATE reservas SET nombre = ?1, nombre_menor = ?2, telefono = ?3, email = ?4, modalidad = ?5 WHERE id = ?6')
+      .bind(v.nombre, r.publico === 'ninos' ? v.nombre_menor : null, v.telefono, v.email, modalidades.length ? v.modalidad || null : null, id)
+      .run();
+    return Astro.redirect(`${volver.replace('#', '?ok=guardado#')}`, 303);
+  }
+}
+const que = r.tipo === 'taller'
+  ? `${r.taller ?? 'Taller'} · ${fecha(r.taller_fecha)}`
+  : `${r.clase} · ${DIAS[r.dia_semana ?? 0]} ${r.hora_inicio}`;
+---
+<Panel titulo={`Editar reserva · ${r.nombre}`}>
+  <p><a href={volver}>← Volver</a></p>
+  <p><strong>{TIPOS_RESERVA[r.tipo]}</strong>: {que} <small>· reservó el {fecha(r.creado_en)}</small></p>
+  <p class="intro">Aquí se corrigen los datos de contacto. Para cambiar el pago o cancelar, usa los botones de la lista.</p>
+
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+  <form method="post" class="formulario tarjeta">
+    {r.publico === 'ninos' && (
+      <div class="campo"><label for="nombre_menor">Nombre del niño o la niña</label><input id="nombre_menor" name="nombre_menor" value={v.nombre_menor} required maxlength="100" /></div>
+    )}
+    <div class="campo">
+      <label for="nombre">{r.publico === 'ninos' ? 'Nombre de la madre, padre o tutor' : 'Nombre'}</label>
+      <input id="nombre" name="nombre" value={v.nombre} required maxlength="100" />
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" value={v.telefono} required /></div>
+      <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" value={v.email} /></div>
+    </div>
+    {modalidades.length > 0 && (
+      <div class="campo">
+        <label for="modalidad">Modalidad</label>
+        <select id="modalidad" name="modalidad">
+          <option value="">—</option>
+          {modalidades.map((m) => <option selected={m === v.modalidad}>{m}</option>)}
+        </select>
+      </div>
+    )}
+    <div class="botones">
+      <button class="boton" type="submit">Guardar cambios</button>
+      <a class="boton boton--borde" href={volver}>Cancelar</a>
+    </div>
+  </form>
+</Panel>

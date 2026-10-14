@@ -1,0 +1,108 @@
+---
+export const prerender = false;
+import Panel from '../../../../layouts/Panel.astro';
+import { db, uno, DIAS } from '../../../../lib/db';
+import { meses, nombreMes } from '../../../../lib/clases';
+import { esHora } from '../../../../lib/util';
+
+type Horario = {
+  id: number; clase: string; dia_semana: number; hora_inicio: string; hora_fin: string; plazas: number; publico: string;
+  precio_mes_cent: number | null; precio_mes_max_cent: number | null; activo: number; reservas: number;
+};
+const id = Number(Astro.params.id);
+const h = Number.isInteger(id) ? await uno<Horario>(`
+  SELECT g.*, c.nombre AS clase, (SELECT count(*) FROM reservas r WHERE r.grupo_id = g.id) AS reservas
+  FROM grupos g JOIN clases c ON c.id = g.clase_id WHERE g.id = ?1`, id) : null;
+if (!h) return new Response('No encontrado', { status: 404 });
+
+const errores: string[] = [];
+const aEuros = (c: number | null) => (c == null ? '' : String(c / 100).replace('.', ','));
+let v: Record<string, string> = {
+  dia: String(h.dia_semana), hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, plazas: String(h.plazas), publico: h.publico,
+  precio_mes: aEuros(h.precio_mes_cent), precio_mes_max: aEuros(h.precio_mes_max_cent), activo: h.activo ? '1' : '',
+};
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  if (datos.get('accion') === 'eliminar') {
+    if (h.reservas > 0) errores.push('Este horario tiene alumnas o reservas: desactívalo en lugar de eliminarlo.');
+    else {
+      await db().prepare('DELETE FROM grupos WHERE id = ?1').bind(id).run();
+      return Astro.redirect('/panel/clases?ok=eliminado', 303);
+    }
+  } else {
+    v = Object.fromEntries(['dia', 'hora_inicio', 'hora_fin', 'plazas', 'publico', 'precio_mes', 'precio_mes_max', 'activo']
+      .map((k) => [k, String(datos.get(k) ?? '').trim()]));
+    const dia = Number(v.dia);
+    const plazas = Number(v.plazas);
+    const euros = (t: string) => (t ? Number(t.replace(',', '.')) : null);
+    const precio = euros(v.precio_mes);
+    const precioMax = euros(v.precio_mes_max);
+    if (!(dia >= 1 && dia <= 7)) errores.push('Elige el día.');
+    if (!esHora(v.hora_inicio) || !esHora(v.hora_fin)) errores.push('Las horas tienen que ser HH:MM.');
+    else if (v.hora_inicio >= v.hora_fin) errores.push('La hora de fin tiene que ser después de la de inicio.');
+    if (!Number.isInteger(plazas) || plazas < 1 || plazas > 30) errores.push('Las plazas tienen que estar entre 1 y 30.');
+    if (precio !== null && !(precio >= 0)) errores.push('El precio tiene que ser un importe en euros.');
+    if (precioMax !== null && !(precioMax >= (precio ?? 0))) errores.push('El precio máximo tiene que ser mayor que el precio.');
+
+    // No se pueden dejar menos plazas que alumnas apuntadas este mes o el siguiente.
+    const { actual, siguiente } = meses();
+    for (const mes of [actual, siguiente]) {
+      const n = (await uno<{ n: number }>(`SELECT count(*) AS n FROM reservas WHERE grupo_id = ?1 AND tipo = 'clase_mensual' AND mes = ?2
+                                           AND estado IN ('pendiente', 'confirmada')`, id, mes))?.n ?? 0;
+      if (Number.isInteger(plazas) && plazas < n) errores.push(`En ${nombreMes(mes)} ya hay ${n} alumnas: no puedes dejar ${plazas} plazas.`);
+    }
+    if (!errores.length) {
+      await db().prepare(`UPDATE grupos SET dia_semana = ?1, hora_inicio = ?2, hora_fin = ?3, plazas = ?4, publico = ?5,
+                          precio_mes_cent = ?6, precio_mes_max_cent = ?7, activo = ?8 WHERE id = ?9`)
+        .bind(dia, v.hora_inicio, v.hora_fin, plazas, v.publico === 'ninos' ? 'ninos' : 'adultos',
+              precio === null ? null : Math.round(precio * 100), precioMax === null ? null : Math.round(precioMax * 100), v.activo ? 1 : 0, id)
+        .run();
+      return Astro.redirect(`/panel/clases?ok=guardado#g${id}`, 303);
+    }
+  }
+}
+---
+<Panel titulo={`Editar horario · ${h.clase}`}>
+  <p><a href={`/panel/clases#g${id}`}>← Clases</a></p>
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+  <form method="post" class="formulario tarjeta">
+    <div class="dos-col">
+      <div class="campo">
+        <label for="dia">Día</label>
+        <select id="dia" name="dia">{DIAS.map((d, i) => i > 0 && <option value={i} selected={String(i) === v.dia}>{d}</option>)}</select>
+      </div>
+      <div class="campo">
+        <label for="publico">Para</label>
+        <select id="publico" name="publico">
+          <option value="adultos" selected={v.publico !== 'ninos'}>Adultos</option>
+          <option value="ninos" selected={v.publico === 'ninos'}>Niños</option>
+        </select>
+      </div>
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="hora_inicio">Empieza</label><input id="hora_inicio" name="hora_inicio" type="time" value={v.hora_inicio} required /></div>
+      <div class="campo"><label for="hora_fin">Termina</label><input id="hora_fin" name="hora_fin" type="time" value={v.hora_fin} required /></div>
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="plazas">Plazas</label><input id="plazas" name="plazas" type="number" min="1" max="30" value={v.plazas} required /></div>
+      <div class="campo"><label for="precio_mes">Precio al mes (€)</label><input id="precio_mes" name="precio_mes" inputmode="decimal" value={v.precio_mes} /></div>
+    </div>
+    <div class="campo">
+      <label for="precio_mes_max">Precio máximo (€) <small>(solo si cambia según la modalidad, p. ej. con máquina)</small></label>
+      <input id="precio_mes_max" name="precio_mes_max" inputmode="decimal" value={v.precio_mes_max} />
+    </div>
+    <label class="casilla"><input type="checkbox" name="activo" value="1" checked={Boolean(v.activo)} /> Activo (se ve en la web y se puede reservar)</label>
+    <div class="botones">
+      <button class="boton" type="submit">Guardar cambios</button>
+      <a class="boton boton--borde" href={`/panel/clases#g${id}`}>Cancelar</a>
+    </div>
+  </form>
+  {h.reservas === 0 && (
+    <form method="post" class="eliminar">
+      <input type="hidden" name="accion" value="eliminar" />
+      <button class="boton-texto boton-texto--peligro" type="submit" onclick="return confirm('¿Eliminar este horario?')">Eliminar horario</button>
+    </form>
+  )}
+</Panel>

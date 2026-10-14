@@ -157,7 +157,7 @@ export async function renovarMes(origen: string, destino: string) {
       FROM reservas r
       WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada'
         AND NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.mes = ?2 AND x.grupo_id = r.grupo_id
-                        AND lower(x.email) = lower(r.email) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
+                        AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
                         AND x.estado IN ('pendiente', 'confirmada'))`)
     .bind(origen, destino)
     .run();

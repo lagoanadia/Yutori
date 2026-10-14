@@ -1,0 +1,36 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import PegarVarias from '../../../components/PegarVarias.astro';
+import CamposTallerista from '../../../components/panel/CamposTallerista.astro';
+import { todos } from '../../../lib/db';
+import { procesarEnvio, type Envio } from '../../../lib/importar';
+
+const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categorias WHERE activa = 1 ORDER BY nombre')).map((c) => c.nombre);
+let envio: Envio | null = null;
+
+if (Astro.request.method === 'POST') {
+  envio = await procesarEnvio(await Astro.request.formData(), 'talleristas');
+  if (envio.guardadas !== null) {
+    return Astro.redirect(envio.modo === 'una' ? '/panel/talleristas/nueva?ok=anadido' : `/panel/talleristas?ok=anadidos&n=${envio.guardadas}`, 303);
+  }
+}
+// Las que se añaden a mano suelen ser talleristas con las que ya trabajas: por defecto, aceptadas.
+const v: Record<string, string> = envio?.modo === 'una' ? envio.valores : { estado: 'aceptada' };
+---
+<Panel titulo="Añadir tallerista">
+  <p><a href="/panel/talleristas">← Todas las talleristas</a></p>
+
+  {envio?.modo === 'una' && envio.errores.length > 0 && (
+    <div class="errores" role="alert"><ul>{envio.errores.map((e) => <li>{e}</li>)}</ul></div>
+  )}
+
+  <form method="post" class="formulario tarjeta">
+    <input type="hidden" name="modo" value="una" />
+    <CamposTallerista v={v} categorias={categorias} />
+    <button class="boton" type="submit">Guardar tallerista</button>
+  </form>
+
+  <PegarVarias envio={envio} plural="talleristas"
+    ayuda="Una lista, una tabla copiada del Excel o los mensajes que te mandaron. La IA separa a cada tallerista y te enseña cómo queda antes de guardar." />
+</Panel>

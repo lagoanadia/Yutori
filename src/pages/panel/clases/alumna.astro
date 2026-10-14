@@ -1,0 +1,93 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import PegarVarias from '../../../components/PegarVarias.astro';
+import { meses, nombreMes } from '../../../lib/clases';
+import { horariosActivos, horarioTexto, procesarEnvio, type Envio } from '../../../lib/importar';
+
+const horarios = await horariosActivos();
+const { actual, siguiente } = meses();
+let envio: Envio | null = null;
+
+if (Astro.request.method === 'POST') {
+  envio = await procesarEnvio(await Astro.request.formData(), 'alumnas');
+  if (envio.guardadas !== null) {
+    return Astro.redirect(envio.modo === 'una' ? '/panel/clases/alumna?ok=anadido' : `/panel/clases?mes=${actual}&ok=anadidos&n=${envio.guardadas}`, 303);
+  }
+}
+const v: Record<string, string> = envio?.modo === 'una' ? envio.valores : { mes: actual, estado: 'pagado' };
+const modalidades = [...new Set(horarios.flatMap((h) => JSON.parse(h.modalidades || '[]') as string[]))];
+---
+<Panel titulo="Añadir alumna">
+  <p><a href="/panel/clases">← Clases</a></p>
+  <p class="intro">Para las alumnas que ya venían antes de la web. Así entran en la renovación de cada mes.</p>
+
+  {envio?.modo === 'una' && envio.errores.length > 0 && (
+    <div class="errores" role="alert"><ul>{envio.errores.map((e) => <li>{e}</li>)}</ul></div>
+  )}
+
+  <form method="post" class="formulario tarjeta">
+    <input type="hidden" name="modo" value="una" />
+    <div class="campo">
+      <label for="grupo_id">Horario</label>
+      <select id="grupo_id" name="grupo_id" required>
+        <option value="">Elige…</option>
+        {horarios.map((h) => <option value={h.id} data-ninos={h.publico === 'ninos' ? '1' : undefined} selected={String(h.id) === v.grupo_id}>{horarioTexto(h)}</option>)}
+      </select>
+    </div>
+    <div class="dos-col">
+      <div class="campo">
+        <label for="mes">Mes</label>
+        <select id="mes" name="mes">
+          {[actual, siguiente].map((m) => <option value={m} selected={m === v.mes}>{nombreMes(m)}</option>)}
+        </select>
+      </div>
+      <div class="campo">
+        <label for="estado">Pago del mes</label>
+        <select id="estado" name="estado">
+          <option value="pagado" selected={v.estado !== 'pendiente'}>Pagado</option>
+          <option value="pendiente" selected={v.estado === 'pendiente'}>Pendiente</option>
+        </select>
+      </div>
+    </div>
+    <div class="campo" id="campo-menor" hidden={!horarios.find((h) => String(h.id) === v.grupo_id && h.publico === 'ninos')}>
+      <label for="nombre_menor">Nombre del niño o la niña</label>
+      <input id="nombre_menor" name="nombre_menor" value={v.nombre_menor} maxlength="100" />
+    </div>
+    <div class="campo">
+      <label for="nombre" id="etiqueta-nombre">Nombre</label>
+      <input id="nombre" name="nombre" value={v.nombre} required maxlength="100" />
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" value={v.telefono} required /></div>
+      <div class="campo"><label for="email">Email <small>(opcional)</small></label><input id="email" name="email" type="email" value={v.email} /></div>
+    </div>
+    {modalidades.length > 0 && (
+      <div class="campo">
+        <label for="modalidad">Modalidad <small>(solo si la clase la tiene)</small></label>
+        <select id="modalidad" name="modalidad">
+          <option value="">—</option>
+          {modalidades.map((m) => <option selected={m === v.modalidad}>{m}</option>)}
+        </select>
+      </div>
+    )}
+    <button class="boton" type="submit">Guardar alumna</button>
+  </form>
+
+  <PegarVarias envio={envio} plural="alumnas"
+    ayuda="Tu lista de alumnas con su clase, día y hora (por ejemplo: «Ana Pérez, 600 000 000, ganchillo lunes 18:00»). La IA las coloca en su horario y te enseña cómo queda antes de guardar." />
+</Panel>
+
+<script>
+  // En las clases de niños se pide el nombre del niño o la niña, y el nombre principal es el de la madre, padre o tutor.
+  const horario = document.getElementById('grupo_id') as HTMLSelectElement | null;
+  const menor = document.getElementById('campo-menor');
+  const etiqueta = document.getElementById('etiqueta-nombre');
+  const actualizar = () => {
+    const ninos = horario?.selectedOptions[0]?.dataset.ninos === '1';
+    if (menor) menor.hidden = !ninos;
+    if (etiqueta) etiqueta.textContent = ninos ? 'Nombre de la madre, padre o tutor' : 'Nombre';
+  };
+  horario?.addEventListener('change', actualizar);
+  actualizar();
+</script>

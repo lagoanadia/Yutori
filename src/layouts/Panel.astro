@@ -15,9 +15,10 @@ const menu = [
   { href: '/panel/reservas', texto: 'Reservas' },
   { href: '/panel/clases', texto: 'Clases' },
   { href: '/panel/solicitudes', texto: 'Privados y bonos' },
-  { href: '/panel/importar', texto: 'Importar' },
 ];
 const actual = Astro.url.pathname.replace(/\/$/, '');
+// La sección se marca también en sus subpáginas (/panel/clases/alumna → Clases).
+const seccion = menu.filter((m) => actual === m.href || actual.startsWith(m.href + '/')).pop()?.href;
 
 // Aviso tras guardar algo (las acciones redirigen con ?ok=código).
 const AVISOS: Record<string, string> = {
@@ -25,9 +26,12 @@ const AVISOS: Record<string, string> = {
   creado: 'Hueco creado. Envía el enlace privado a la tallerista.',
   publicado: 'Taller publicado.',
   desactivado: 'Taller desactivado.',
-  eliminado: 'Hueco eliminado.',
+  eliminado: 'Eliminado.',
+  anadido: 'Guardado. Puedes añadir otro.',
 };
-const aviso = AVISOS[Astro.url.searchParams.get('ok') ?? ''];
+const ok = Astro.url.searchParams.get('ok') ?? '';
+const n = Number(Astro.url.searchParams.get('n'));
+const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añadidos'}.` : AVISOS[ok];
 ---
 <!doctype html>
 <html lang="es">
@@ -47,7 +51,7 @@ const aviso = AVISOS[Astro.url.searchParams.get('ok') ?? ''];
           : <span class="barra__usuario">{Astro.locals.usuario === 'local' ? 'Modo local' : Astro.locals.usuario}</span>}
       </div>
       <nav class="contenedor barra__menu" aria-label="Panel">
-        {menu.map((m) => <a href={m.href} aria-current={actual === m.href ? 'page' : undefined}>{m.texto}</a>)}
+        {menu.map((m) => <a href={m.href} aria-current={seccion === m.href ? 'page' : undefined}>{m.texto}</a>)}
       </nav>
     </header>
     <main class="contenedor panel">
@@ -100,6 +104,15 @@ const aviso = AVISOS[Astro.url.searchParams.get('ok') ?? ''];
   .estado--nueva, .estado--pendiente, .estado--hueco, .estado--enviado { background: #fdebd3; color: #8a4b12; }
   .estado--confirmada, .estado--publicado, .estado--aceptada { background: #d9eedd; color: #23613a; }
   .estado--descartada, .estado--cancelada, .estado--liberada, .estado--desactivado, .estado--cerrada { background: #ece7dc; color: #6b6458; }
+
+  /* «Editar datos»: el formulario se abre debajo de la ficha. */
+  .editar { margin-top: 20px; }
+  .editar > summary { list-style: none; display: inline-block; cursor: pointer; }
+  .editar > summary::-webkit-details-marker { display: none; }
+  .editar[open] > summary { display: none; }
+  .editar > .formulario { border-top: 1px solid var(--borde); padding-top: 16px; }
+  .eliminar { margin-top: 16px; }
+  .acciones-lista { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
 
   .vacio { color: var(--tinta-suave); background: var(--crema-claro); border: 1px dashed var(--borde); border-radius: var(--radio); padding: 16px; }
   .ocupacion { display: inline-flex; align-items: center; gap: 8px; }

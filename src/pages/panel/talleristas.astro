@@ -33,6 +33,7 @@ for (const f of filas) {
 const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
 ---
 <Panel titulo="Talleristas">
+  <p class="acciones-lista"><a class="boton" href="/panel/talleristas/nueva">+ Añadir tallerista</a></p>
   <nav class="filtros" aria-label="Filtrar por estado">
     <a href="/panel/talleristas" aria-current={!filtro ? 'true' : undefined}>Todas</a>
     {Object.entries(ESTADOS_TALLERISTA).map(([k, v]) => (

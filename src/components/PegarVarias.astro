@@ -1,0 +1,76 @@
+---
+// «¿Tienes muchas? Pégalas de golpe»: caja para pegar texto o subir un CSV, vista previa y confirmar.
+// Lo procesa procesarEnvio() en la página que lo incluye.
+import type { Envio } from '../lib/importar';
+
+interface Props {
+  envio: Envio | null;
+  /** Qué se puede pegar, en una frase. */
+  ayuda: string;
+  /** Cómo se llaman en plural: "talleristas", "alumnas"… */
+  plural: string;
+}
+const { envio, ayuda, plural } = Astro.props;
+const activo = envio && envio.modo !== 'una' ? envio : null;
+const prep = activo?.prep ?? null;
+const listo = prep && activo?.entrada && prep.validas.length > 0 && prep.errores.length === 0 && activo.errores.length === 0;
+---
+<details class="tarjeta pegar" open={Boolean(activo)}>
+  <summary>¿Tienes muchas? Pégalas de golpe</summary>
+  <p class="pegar__ayuda">{ayuda}</p>
+
+  {activo && activo.errores.length > 0 && (
+    <div class="errores" role="alert"><ul>{activo.errores.map((e) => <li>{e}</li>)}</ul></div>
+  )}
+  {prep && prep.errores.length > 0 && (
+    <div class="errores" role="alert">
+      <p><strong>Corrige esto y vuelve a revisar. No se ha guardado nada:</strong></p>
+      <ul>{prep.errores.map((e) => <li>{e}</li>)}</ul>
+    </div>
+  )}
+
+  {listo && (
+    <section class="pegar__previa">
+      <p>
+        Se añadirán <strong>{prep.validas.length}</strong> {plural}
+        {prep.repetidas > 0 && <> ({prep.repetidas} ya estaban guardadas y se saltan)</>}. Revisa que esté bien:
+      </p>
+      <table class="tabla">
+        <thead><tr>{prep.cabecera.map((c) => <th>{c}</th>)}</tr></thead>
+        <tbody>
+          {prep.validas.slice(0, 50).map((f) => (
+            <tr>{f.vista.map((c, i) => <td data-label={prep.cabecera[i]}>{c}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+      {prep.validas.length > 50 && <p><small>Se muestran las 50 primeras.</small></p>}
+      <form method="post" class="botones">
+        <input type="hidden" name="modo" value="confirmar" />
+        <textarea name="entrada" hidden>{JSON.stringify(activo!.entrada)}</textarea>
+        <button class="boton" type="submit">Añadir {prep.validas.length} {plural}</button>
+      </form>
+    </section>
+  )}
+
+  <form method="post" enctype="multipart/form-data" class="formulario">
+    <input type="hidden" name="modo" value="pegar" />
+    <div class="campo">
+      <label for="texto-pegar">Pega aquí</label>
+      <textarea id="texto-pegar" name="texto" rows="7">{activo?.texto}</textarea>
+    </div>
+    <div class="campo">
+      <label for="archivo-pegar">…o sube un CSV</label>
+      <input id="archivo-pegar" name="archivo" type="file" accept=".csv,text/csv" />
+    </div>
+    <button class="boton boton--borde" type="submit">Revisar</button>
+  </form>
+</details>
+
+<style>
+  .pegar { margin-top: 24px; max-width: 640px; }
+  .pegar[open] { max-width: none; }
+  .pegar summary { cursor: pointer; font-weight: 700; color: var(--verde); }
+  .pegar__ayuda { color: var(--tinta-suave); margin: 12px 0; }
+  .pegar__previa { margin-bottom: 20px; }
+  .pegar__previa .botones { margin-top: 12px; }
+</style>

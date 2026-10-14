@@ -1,0 +1,58 @@
+---
+// Campos de una tallerista: los mismos al añadirla y al editarla.
+import { ESTADOS_TALLERISTA } from '../../lib/db';
+
+interface Props { v: Record<string, string>; categorias: string[]; conEstado?: boolean }
+const { v, categorias, conEstado = true } = Astro.props;
+const siNo = (nombre: string, etiqueta: string) => ({ nombre, etiqueta });
+---
+<div class="dos-col">
+  <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" value={v.nombre} required maxlength="100" /></div>
+  <div class="campo"><label for="marca">Marca <small>(opcional)</small></label><input id="marca" name="marca" value={v.marca} maxlength="100" /></div>
+</div>
+<div class="dos-col">
+  <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" value={v.email} required /></div>
+  <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" value={v.telefono} /></div>
+</div>
+<div class="dos-col">
+  <div class="campo"><label for="instagram">Instagram</label><input id="instagram" name="instagram" value={v.instagram} placeholder="@" /></div>
+  <div class="campo">
+    <label for="categoria">Categoría</label>
+    <select id="categoria" name="categoria">
+      <option value="">Sin categoría</option>
+      {categorias.map((c) => <option selected={c === v.categoria}>{c}</option>)}
+    </select>
+  </div>
+</div>
+<div class="campo">
+  <label for="propuesta">Qué taller ofrece</label>
+  <textarea id="propuesta" name="propuesta" rows="4" required maxlength="3000">{v.propuesta}</textarea>
+</div>
+<div class="dos-col">
+  {[siNo('ha_impartido', '¿Ha dado talleres antes?'), siNo('autonoma', '¿Factura como autónoma?')].map((c) => (
+    <div class="campo">
+      <label for={c.nombre}>{c.etiqueta}</label>
+      <select id={c.nombre} name={c.nombre}>
+        <option value="">No lo sé</option>
+        <option value="si" selected={v[c.nombre] === 'si'}>Sí</option>
+        <option value="no" selected={v[c.nombre] === 'no'}>No</option>
+      </select>
+    </div>
+  ))}
+</div>
+{conEstado && (
+  <div class="dos-col">
+    <div class="campo">
+      <label for="estado">Estado</label>
+      <select id="estado" name="estado">
+        {Object.entries(ESTADOS_TALLERISTA).map(([k, t]) => <option value={k} selected={k === v.estado}>{t}</option>)}
+      </select>
+    </div>
+  </div>
+)}
+{conEstado && (
+  <div class="campo">
+    <label for="notas">Notas privadas</label>
+    <textarea id="notas" name="notas" rows="2" maxlength="3000">{v.notas}</textarea>
+  </div>
+)}

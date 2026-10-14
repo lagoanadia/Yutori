@@ -28,10 +28,18 @@ const alumnas = await todos<{ id: number; grupo_id: number; nombre: string; nomb
 const sueltas = await todos<{ id: number; grupo_id: number; nombre: string; telefono: string; fecha_sesion: string; estado: string; caduca_en: string | null }>(
   `SELECT id, grupo_id, nombre, telefono, fecha_sesion, estado, caduca_en FROM reservas
    WHERE tipo = 'clase_suelta' AND substr(fecha_sesion, 1, 7) = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY fecha_sesion`, mes);
+// Los horarios desactivados no salen arriba: se listan al final para poder volver a activarlos.
+const desactivados = await todos<{ id: number; nombre: string; dia_semana: number; hora_inicio: string; hora_fin: string }>(
+  `SELECT g.id, c.nombre, g.dia_semana, g.hora_inicio, g.hora_fin FROM grupos g JOIN clases c ON c.id = g.clase_id
+   WHERE g.activo = 0 ORDER BY c.id, g.dia_semana, g.hora_inicio`);
 const confirmadasActual = (await todos<{ n: number }>(
   `SELECT count(*) AS n FROM reservas WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado = 'confirmada'`, actual))[0]?.n ?? 0;
 ---
 <Panel titulo="Clases semanales">
+  <p class="acciones-lista">
+    <a class="boton" href="/panel/clases/alumna">+ Añadir alumna</a>
+    <a class="boton boton--borde" href="/panel/clases/horario">+ Añadir horario</a>
+  </p>
   <nav class="filtros" aria-label="Mes">
     <a href={`/panel/clases?mes=${actual}`} aria-current={mes === actual ? 'true' : undefined}>{nombreMes(actual)}</a>
     <a href={`/panel/clases?mes=${siguiente}`} aria-current={mes === siguiente ? 'true' : undefined}>{nombreMes(siguiente)}</a>
@@ -60,6 +68,7 @@ const confirmadasActual = (await todos<{ n: number }>(
         <h2>
           {DIAS[g.dia_semana]} {g.hora_inicio}-{g.hora_fin} · {g.nombre}
           {g.publico === 'ninos' && <span class="estado">Niños</span>}
+          <a class="boton-texto editar-horario" href={`/panel/clases/horario/${g.id}`}>Editar horario</a>
         </h2>
         <p class="grupo__resumen">
           <span class="ocupacion">
@@ -82,6 +91,7 @@ const confirmadasActual = (await todos<{ n: number }>(
                   <input type="hidden" name="grupo" value={g.id} />
                   {a.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
                   <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta plaza? Quedará libre.')">Cancelar</button>
+                  <a class="boton-texto" href={`/panel/reservas/${a.id}`}>Editar</a>
                 </form>
               </li>
             ))}
@@ -98,6 +108,7 @@ const confirmadasActual = (await todos<{ n: number }>(
                   <input type="hidden" name="grupo" value={g.id} />
                   {s.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
                   <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta clase suelta?')">Cancelar</button>
+                  <a class="boton-texto" href={`/panel/reservas/${s.id}`}>Editar</a>
                 </form>
               </li>
             ))}
@@ -106,6 +117,15 @@ const confirmadasActual = (await todos<{ n: number }>(
       </section>
     );
   })}
+
+  {desactivados.length > 0 && (
+    <section>
+      <h2>Horarios desactivados</h2>
+      <ul>
+        {desactivados.map((d) => <li><a href={`/panel/clases/horario/${d.id}`}>{d.nombre} · {DIAS[d.dia_semana]} {d.hora_inicio}-{d.hora_fin}</a></li>)}
+      </ul>
+    </section>
+  )}
 </Panel>
 
 <style>
@@ -114,4 +134,5 @@ const confirmadasActual = (await todos<{ n: number }>(
   .grupo h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 1.2rem; }
   .grupo__resumen { margin: 0 0 12px; }
   .suelta { border-style: dashed; }
+  .editar-horario { font-family: var(--sans); font-size: 0.9rem; font-weight: 400; }
 </style>

@@ -87,6 +87,7 @@ const enlace = (cambios: Record<string, string | null>) => {
                   <input type="hidden" name="reserva" value={r.id} />
                   {r.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
                   <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta reserva? La plaza quedará libre.')">Cancelar</button>
+                  <a class="boton-texto" href={`/panel/reservas/${r.id}`}>Editar</a>
                 </form>
               )}
             </td>

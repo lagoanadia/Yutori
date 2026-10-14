@@ -1,0 +1,74 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import PegarVarias from '../../../components/PegarVarias.astro';
+import { todos, DIAS } from '../../../lib/db';
+import { procesarEnvio, type Envio } from '../../../lib/importar';
+
+const clases = await todos<{ nombre: string }>('SELECT nombre FROM clases ORDER BY id');
+let envio: Envio | null = null;
+
+if (Astro.request.method === 'POST') {
+  envio = await procesarEnvio(await Astro.request.formData(), 'clases');
+  if (envio.guardadas !== null) {
+    return Astro.redirect(envio.modo === 'una' ? '/panel/clases/horario?ok=anadido' : `/panel/clases?ok=anadidos&n=${envio.guardadas}`, 303);
+  }
+}
+const v: Record<string, string> = envio?.modo === 'una' ? envio.valores : { plazas: '8', publico: 'adultos' };
+const nueva = Boolean(v.clase_nueva) && !clases.some((c) => c.nombre === v.clase);
+---
+<Panel titulo="Añadir horario de clase">
+  <p><a href="/panel/clases">← Clases</a></p>
+
+  {envio?.modo === 'una' && envio.errores.length > 0 && (
+    <div class="errores" role="alert"><ul>{envio.errores.map((e) => <li>{e}</li>)}</ul></div>
+  )}
+
+  <form method="post" class="formulario tarjeta">
+    <input type="hidden" name="modo" value="una" />
+    <div class="campo">
+      <label for="clase">Clase</label>
+      <select id="clase" name="clase" required>
+        {clases.map((c) => <option selected={!nueva && c.nombre === v.clase}>{c.nombre}</option>)}
+        <option value="__nueva" selected={nueva}>Una clase nueva…</option>
+      </select>
+    </div>
+    <div class="dos-col" id="clase-nueva" hidden={!nueva}>
+      <div class="campo"><label for="clase_nueva">Nombre de la clase</label><input id="clase_nueva" name="clase_nueva" value={v.clase_nueva} maxlength="80" /></div>
+      <div class="campo"><label for="tipo_clase">Qué es</label><input id="tipo_clase" name="tipo_clase" value={v.tipo_clase} placeholder="Club de ganchillo" maxlength="80" /></div>
+    </div>
+    <div class="dos-col">
+      <div class="campo">
+        <label for="dia">Día</label>
+        <select id="dia" name="dia" required>
+          {DIAS.map((d, i) => i > 0 && <option value={i} selected={String(i) === v.dia}>{d}</option>)}
+        </select>
+      </div>
+      <div class="campo">
+        <label for="publico">Para</label>
+        <select id="publico" name="publico">
+          <option value="adultos" selected={v.publico !== 'ninos'}>Adultos</option>
+          <option value="ninos" selected={v.publico === 'ninos'}>Niños</option>
+        </select>
+      </div>
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="hora_inicio">Empieza</label><input id="hora_inicio" name="hora_inicio" type="time" value={v.hora_inicio} required /></div>
+      <div class="campo"><label for="hora_fin">Termina</label><input id="hora_fin" name="hora_fin" type="time" value={v.hora_fin} required /></div>
+    </div>
+    <div class="dos-col">
+      <div class="campo"><label for="plazas">Plazas</label><input id="plazas" name="plazas" type="number" min="1" max="30" inputmode="numeric" value={v.plazas} required /></div>
+      <div class="campo"><label for="precio_mes">Precio al mes (€)</label><input id="precio_mes" name="precio_mes" inputmode="decimal" value={v.precio_mes} /></div>
+    </div>
+    <button class="boton" type="submit">Guardar horario</button>
+  </form>
+
+  <PegarVarias envio={envio} plural="horarios"
+    ayuda="Tus horarios tal cual los tengas (por ejemplo: «Ganchillo lunes 18:00-19:30, 8 plazas, 55 €»). La IA los separa y te enseña cómo quedan antes de guardar." />
+</Panel>
+
+<script>
+  const clase = document.getElementById('clase') as HTMLSelectElement | null;
+  const nueva = document.getElementById('clase-nueva');
+  clase?.addEventListener('change', () => { if (nueva) nueva.hidden = clase.value !== '__nueva'; });
+</script>

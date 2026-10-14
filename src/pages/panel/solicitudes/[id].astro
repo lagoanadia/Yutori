@@ -1,0 +1,53 @@
+---
+export const prerender = false;
+import Panel from '../../../layouts/Panel.astro';
+import CamposSolicitud from '../../../components/panel/CamposSolicitud.astro';
+import { db, todos, uno, fecha } from '../../../lib/db';
+import { mapaCategorias, mensajes, mapearSolicitud } from '../../../lib/importar';
+
+const id = Number(Astro.params.id);
+const s = Number.isInteger(id)
+  ? await uno<Record<string, string | number | null>>(
+      'SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id)
+  : null;
+if (!s) return new Response('No encontrada', { status: 404 });
+
+const errores: string[] = [];
+let v: Record<string, string> = Object.fromEntries(Object.entries(s).map(([k, x]) => [k, x == null ? '' : String(x)]));
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  if (datos.get('accion') === 'eliminar') {
+    await db().prepare('DELETE FROM solicitudes WHERE id = ?1').bind(id).run();
+    return Astro.redirect('/panel/solicitudes?ok=eliminado', 303);
+  }
+  v = Object.fromEntries([...datos.entries()].filter(([, x]) => typeof x === 'string').map(([k, x]) => [k, String(x).trim()]));
+  const { datos: d, errores: e } = mapearSolicitud(v, await mapaCategorias());
+  if (d) {
+    const columnas = Object.keys(d);
+    await db().prepare(`UPDATE solicitudes SET ${columnas.map((c, i) => `${c} = ?${i + 1}`).join(', ')} WHERE id = ?${columnas.length + 1}`)
+      .bind(...Object.values(d), id).run();
+    return Astro.redirect(`/panel/solicitudes?ok=guardado#s${id}`, 303);
+  }
+  errores.push(...mensajes(e));
+}
+const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categorias ORDER BY nombre')).map((c) => c.nombre);
+---
+<Panel titulo={`Editar · ${s.nombre}`}>
+  <p><a href={`/panel/solicitudes#s${id}`}>← Privados y bonos</a></p>
+  <p><small>Llegó el {fecha(String(s.creado_en))}</small></p>
+
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+  <form method="post" class="formulario tarjeta">
+    <CamposSolicitud v={v} categorias={categorias} />
+    <div class="botones">
+      <button class="boton" type="submit">Guardar cambios</button>
+      <a class="boton boton--borde" href={`/panel/solicitudes#s${id}`}>Cancelar</a>
+    </div>
+  </form>
+  <form method="post" class="eliminar">
+    <input type="hidden" name="accion" value="eliminar" />
+    <button class="boton-texto boton-texto--peligro" type="submit" onclick="return confirm('¿Eliminar esta petición? No se puede deshacer.')">Eliminar</button>
+  </form>
+</Panel>
