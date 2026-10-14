@@ -28,6 +28,8 @@ const cabeceras = defineMiddleware(async (context, next) => {
   // Las páginas privadas (panel, enlaces de talleristas y reservas) no se guardan en cachés compartidas.
   const { pathname } = context.url;
   if (/^\/(panel|t|reserva)(\/|$)/.test(pathname)) respuesta.headers.set('Cache-Control', 'private, no-store');
+  // El panel usa el micrófono para el botón «Dictar» del asistente. El resto de la web lo sigue teniendo bloqueado.
+  if (/^\/panel(\/|$)/.test(pathname)) respuesta.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
   return respuesta;
 });
 

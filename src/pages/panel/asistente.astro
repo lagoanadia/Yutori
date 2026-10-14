@@ -106,6 +106,7 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
             <button class="boton boton--borde" type="button" id="microfono" hidden>🎤 Dictar</button>
             <button class="boton" type="submit">Preparar</button>
           </div>
+          <p class="aviso-dictado" id="aviso-dictado" role="status" hidden></p>
           <small class="nota">Puedo crear talleres o huecos, cambiar sus datos, publicarlos o desactivarlos, y cambiar el estado de talleristas, privados y bonos. Los pagos se marcan siempre a mano.</small>
         </form>
       )}
@@ -119,12 +120,22 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
   type Reconocimiento = {
     lang: string; continuous: boolean; interimResults: boolean;
     onresult: ((e: { resultIndex: number; results: ArrayLike<Resultado> }) => void) | null;
-    onend: (() => void) | null; start(): void; stop(): void;
+    onend: (() => void) | null; onerror: ((e: { error: string }) => void) | null; start(): void; stop(): void;
   };
   const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
   const Clase = w.SpeechRecognition ?? w.webkitSpeechRecognition;
   const boton = document.getElementById('microfono') as HTMLButtonElement | null;
   const caja = document.getElementById('texto') as HTMLTextAreaElement | null;
+  const aviso = document.getElementById('aviso-dictado');
+  const avisar = (texto: string) => { if (aviso) { aviso.textContent = texto; aviso.hidden = !texto; } };
+  // Si el navegador no permite dictar, se dice por qué en vez de no hacer nada.
+  const ERRORES: Record<string, string> = {
+    'not-allowed': 'El navegador no deja usar el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono.',
+    'service-not-allowed': 'Este navegador no permite dictar. Prueba con Chrome, Edge o Safari.',
+    'audio-capture': 'No se encuentra ningún micrófono.',
+    network: 'El dictado necesita internet y no ha podido conectarse. Vuelve a intentarlo.',
+    'no-speech': 'No te he oído. Pulsa Dictar y habla cerca del micrófono.',
+  };
 
   if (Clase && boton && caja) {
     boton.hidden = false;
@@ -148,7 +159,15 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
         caja.value = [base, final, provisional].filter(Boolean).join(' ').trim();
       };
       rec.onend = () => { rec = null; boton.textContent = '🎤 Dictar'; };
-      rec.start();
+      rec.onerror = (e) => { if (e.error !== 'aborted') avisar(ERRORES[e.error] ?? 'No se ha podido dictar. Vuelve a intentarlo.'); };
+      avisar('');
+      try {
+        rec.start();
+      } catch {
+        avisar('No se ha podido empezar a dictar. Recarga la página y vuelve a intentarlo.');
+        rec = null;
+        return;
+      }
       boton.textContent = '■ Parar';
     });
   }
@@ -163,5 +182,6 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
   .resultados li.fallo > span:first-child { color: var(--aviso); }
   .original { margin-top: 12px; color: var(--tinta-suave); }
   .nota { color: var(--tinta-suave); }
+  .aviso-dictado { margin: 0; color: var(--aviso); }
   .errores { margin: 0; }
 </style>
