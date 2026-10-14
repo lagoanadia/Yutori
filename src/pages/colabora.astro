@@ -64,14 +64,14 @@ if (Astro.request.method === 'POST') {
   }
 }
 ---
-<Base titulo="Imparte tu taller" descripcion="¿Eres tallerista? Propón tu taller en Yutori Espacio Creativo, en pleno centro de A Coruña.">
+<Base titulo="Da un taller en Yutori" descripcion="¿Eres artesana o artista? Propón tu taller en Yutori Espacio Creativo, A Coruña.">
   <Fragment slot="head">
     {turnstileActivo() && !enviado && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
   </Fragment>
   <section class="seccion">
     <div class="contenedor">
       <p class="script">Familia Yutori</p>
-      <h1>Imparte tu taller</h1>
+      <h1>Da un taller en Yutori</h1>
 
       {enviado ? (
         <div class="tarjeta gracias" role="status">
@@ -81,7 +81,7 @@ if (Astro.request.method === 'POST') {
         </div>
       ) : (
         <>
-          <p class="intro">¿Eres tallerista y tienes una propuesta que te ilusiona compartir? Tenemos el espacio perfecto en pleno centro de A Coruña. En Yutori nos encanta contar con nuevas ideas, cuéntanos la tuya.</p>
+          <p class="intro">Estamos preparando la programación de talleres y clases y queremos contar con nuevas ideas. Cuéntanos la tuya y pronto tendrás noticias nuestras.</p>
 
           {errores.length > 0 && (
             <div class="errores" role="alert">

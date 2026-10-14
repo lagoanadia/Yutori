@@ -12,25 +12,23 @@ const categorias = await todos<{ id: number; nombre: string }>('SELECT id, nombr
 
 const enviado = Astro.url.searchParams.has('enviado');
 const errores: string[] = [];
-let v = { nombre: '', telefono: '', email: '', motivo: MOTIVOS[0], fecha: '', personas: '', mensaje: '' };
-let tipos: string[] = [];
+let v = { nombre: '', telefono: '', email: '', motivo: MOTIVOS[0], categoria: '', fecha: '', personas: '', mensaje: '' };
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
   v = {
     nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), motivo: campo('motivo', 40),
-    fecha: campo('fecha', 10), personas: campo('personas', 4), mensaje: campo('mensaje', 2000),
+    categoria: campo('categoria', 6), fecha: campo('fecha', 10), personas: campo('personas', 4), mensaje: campo('mensaje', 2000),
   };
   if (campo('web')) return Astro.redirect('/privados?enviado', 303);
 
-  // Varios tipos de taller a la vez: solo los que existen en la lista.
-  tipos = datos.getAll('tipos').map(String).filter((t) => categorias.some((c) => c.nombre === t));
   const personas = v.personas ? Number(v.personas) : null;
   if (!v.nombre) errores.push('Escribe tu nombre.');
   if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
   if (!esEmail(v.email)) errores.push('Escribe un email válido.');
   if (!MOTIVOS.includes(v.motivo)) errores.push('Dinos qué celebráis.');
+  if (v.categoria && !categorias.some((c) => String(c.id) === v.categoria)) errores.push('Elige un tipo de taller de la lista.');
   if (v.fecha && !esFecha(v.fecha)) errores.push('La fecha no es válida.');
   if (personas !== null && (!Number.isInteger(personas) || personas < 1 || personas > 100)) errores.push('Indica cuántas personas seréis.');
   if (datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar la política de privacidad.');
@@ -41,9 +39,9 @@ if (Astro.request.method === 'POST') {
 
   if (errores.length === 0) {
     await db()
-      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, motivo, tipos_taller, fecha_aprox, personas, mensaje, acepta_privacidad_en)
+      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, motivo, categoria_id, fecha_aprox, personas, mensaje, acepta_privacidad_en)
                 VALUES ('privado', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
-      .bind(v.nombre, v.email, v.telefono, v.motivo, tipos.length ? tipos.join(', ') : null, v.fecha || null, personas, v.mensaje || null)
+      .bind(v.nombre, v.email, v.telefono, v.motivo, v.categoria ? Number(v.categoria) : null, v.fecha || null, personas, v.mensaje || null)
       .first<{ id: number }>()
       .then((fila) => fila && avisoSolicitud(fila.id));
     return Astro.redirect('/privados?enviado', 303);
@@ -73,17 +71,19 @@ if (Astro.request.method === 'POST') {
               <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
             </div>
             <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
-            <div class="campo">
-              <label for="motivo">¿Qué celebráis?</label>
-              <select id="motivo" name="motivo">{MOTIVOS.map((m) => <option selected={m === v.motivo}>{m}</option>)}</select>
-            </div>
-            <fieldset class="campo">
-              <legend>Tipo de taller</legend>
-              <small>Marca todos los que os apetezcan. Si aún no lo sabéis, déjalo en blanco y os ayudamos a elegir.</small>
-              <div class="tipos">
-                {categorias.map((c) => <label class="casilla"><input type="checkbox" name="tipos" value={c.nombre} checked={tipos.includes(c.nombre)} /> {c.nombre}</label>)}
+            <div class="dos-col">
+              <div class="campo">
+                <label for="motivo">¿Qué celebráis?</label>
+                <select id="motivo" name="motivo">{MOTIVOS.map((m) => <option selected={m === v.motivo}>{m}</option>)}</select>
               </div>
-            </fieldset>
+              <div class="campo">
+                <label for="categoria">Tipo de taller</label>
+                <select id="categoria" name="categoria">
+                  <option value="">Aún no lo sé</option>
+                  {categorias.map((c) => <option value={c.id} selected={String(c.id) === v.categoria}>{c.nombre}</option>)}
+                </select>
+              </div>
+            </div>
             <div class="dos-col">
               <div class="campo"><label for="fecha">Fecha aproximada</label><input id="fecha" name="fecha" type="date" value={v.fecha} /></div>
               <div class="campo"><label for="personas">Número de personas</label><input id="personas" name="personas" type="number" min="1" max="100" inputmode="numeric" value={v.personas} /></div>
@@ -102,6 +102,5 @@ if (Astro.request.method === 'POST') {
 
 <style>
   .gracias { max-width: 640px; }
-  .tipos { display: grid; gap: 8px 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   .gracias h2 { font-size: 1.5rem; }
 </style>

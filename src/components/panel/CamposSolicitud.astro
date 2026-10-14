@@ -6,7 +6,6 @@ import { ESTADOS_SOLICITUD } from '../../lib/db';
 interface Props { v: Record<string, string>; categorias: string[] }
 const { v, categorias } = Astro.props;
 const tipo = v.tipo === 'bono' ? 'bono' : 'privado';
-const elegidos = (v.tipos_taller || v.categoria || '').split(',').map((t) => t.trim()).filter(Boolean);
 ---
 <fieldset class="campo">
   <legend>Qué es</legend>
@@ -22,13 +21,14 @@ const elegidos = (v.tipos_taller || v.categoria || '').split(',').map((t) => t.t
 <fieldset class="solo-tipo" data-tipo="privado" disabled={tipo !== 'privado'} hidden={tipo !== 'privado'}>
   <div class="dos-col">
     <div class="campo"><label for="motivo">Qué celebran</label><input id="motivo" name="motivo" value={v.motivo} placeholder="Cumpleaños, despedida…" /></div>
-  </div>
-  <fieldset class="campo">
-    <legend>Tipo de taller <small>(los que les interesan; vacío si aún no lo saben)</small></legend>
-    <div class="tipos">
-      {categorias.map((c) => <label class="casilla"><input type="checkbox" name="tipos_taller" value={c} checked={elegidos.includes(c)} /> {c}</label>)}
+    <div class="campo">
+      <label for="categoria">Tipo de taller</label>
+      <select id="categoria" name="categoria">
+        <option value="">Aún no lo saben</option>
+        {categorias.map((c) => <option selected={c === v.categoria}>{c}</option>)}
+      </select>
     </div>
-  </fieldset>
+  </div>
   <div class="dos-col">
     <div class="campo"><label for="fecha_aprox">Fecha</label><input id="fecha_aprox" name="fecha_aprox" type="date" value={v.fecha_aprox} /></div>
     <div class="campo"><label for="personas">Personas</label><input id="personas" name="personas" type="number" min="1" inputmode="numeric" value={v.personas} /></div>
@@ -75,5 +75,4 @@ const elegidos = (v.tipos_taller || v.categoria || '').split(',').map((t) => t.t
 
 <style>
   .solo-tipo { border: 0; padding: 0; margin: 0; display: grid; gap: 16px; min-width: 0; }
-  .tipos { display: grid; gap: 6px 16px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 </style>

@@ -104,11 +104,8 @@ export function mapearSolicitud(f: Fila, categorias: Map<string, number>): Mapeo
   if (f.tipo_bono && !tipoBono) e.push(`el tipo de bono «${f.tipo_bono}» no vale (usa: taller o importe)`);
   if (tipo === 'bono' && !tipoBono) e.push('un bono necesita «tipo_bono» (taller o importe)');
 
-  // Privados: uno o varios tipos de taller ("Bordado, Joyería"). Cada uno tiene que existir en el panel.
-  const tipos = (f.tipos_taller || f.categoria || '').split(',').map((t) => t.trim()).filter(Boolean);
-  const desconocidos = tipos.filter((t) => !categorias.has(normalizar(t)));
-  if (desconocidos.length) e.push(`la categoría «${desconocidos.join(', ')}» no existe en el panel`);
-  const categoriaId = tipos.length === 1 ? categorias.get(normalizar(tipos[0])) ?? null : null;
+  const categoriaId = f.categoria ? categorias.get(normalizar(f.categoria)) ?? null : null;
+  if (f.categoria && categoriaId === null) e.push(`la categoría «${f.categoria}» no existe en el panel`);
 
   const estado = f.estado ? codigoDe(f.estado, ESTADOS_SOLICITUD) : 'nueva';
   if (!estado) e.push(`el estado «${f.estado}» no vale (usa: ${Object.values(ESTADOS_SOLICITUD).join(', ')})`);
@@ -119,12 +116,12 @@ export function mapearSolicitud(f: Fila, categorias: Map<string, number>): Mapeo
 
   const datos = {
     tipo, nombre: f.nombre, email: f.email, telefono: f.telefono || null, motivo: f.motivo || null,
-    categoria_id: categoriaId, tipos_taller: tipos.length ? tipos.join(', ') : null, fecha_aprox: fechaAprox, personas, tipo_bono: tipoBono,
+    categoria_id: categoriaId, fecha_aprox: fechaAprox, personas, tipo_bono: tipoBono,
     detalle: f.detalle || null, para_quien: f.para_quien || null, mensaje: f.mensaje || null, estado, notas: f.notas || null,
   };
   return {
     datos: e.length ? null : datos,
-    vista: [TIPOS_SOLICITUD[tipo ?? ''] ?? '—', f.nombre, f.email, tipos.join(', ') || '—', ESTADOS_SOLICITUD[estado ?? ''] ?? '—'],
+    vista: [TIPOS_SOLICITUD[tipo ?? ''] ?? '—', f.nombre, f.email, f.categoria ?? '—', ESTADOS_SOLICITUD[estado ?? ''] ?? '—'],
     errores: e,
   };
 }
@@ -484,11 +481,7 @@ export async function procesarEnvio(datos: FormData, tipo: Tipo): Promise<Envio>
 
   if (modo === 'una') {
     r.modo = 'una';
-    // Las casillas con el mismo nombre (varios tipos de taller) se juntan: "Bordado, Joyería".
-    for (const [k, v] of datos.entries()) {
-      if (typeof v !== 'string' || k === 'modo') continue;
-      r.valores[k] = r.valores[k] ? `${r.valores[k]}, ${v.trim()}` : v.trim();
-    }
+    for (const [k, v] of datos.entries()) if (typeof v === 'string' && k !== 'modo') r.valores[k] = v.trim();
     if (r.valores.clase === '__nueva') r.valores.clase = r.valores.clase_nueva ?? '';
     r.prep = await preparar({ tipo, filas: [r.valores] });
     if (r.prep.errores.length) r.errores = mensajes(r.prep.errores.map((e) => e.replace(/^[^:]*: /, '')));

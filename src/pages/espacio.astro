@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import { negocio } from '../data/yutori';
+import { negocio, whatsappUrl } from '../data/yutori';
 ---
 <Base titulo="El espacio" descripcion="Yutori Espacio Creativo, en Plaza Pontevedra 14, en el centro de A Coruña.">
   <section class="seccion">
@@ -23,11 +23,12 @@ import { negocio } from '../data/yutori';
         <a class="boton" href={negocio.mapsUrl} rel="noopener" target="_blank">Abrir en Google Maps</a>
       </div>
       <div>
-        <h2>Escríbenos</h2>
-        <p>El espacio abre para las clases y los talleres. Si tienes cualquier duda, escríbenos por email o por Instagram.</p>
+        <h2>Cuándo</h2>
+        <p><strong>Clases semanales:</strong> de lunes a viernes, mañanas y tardes según la clase.</p>
+        <p><strong>Talleres:</strong> viernes por la tarde y fines de semana.</p>
         <div class="botones">
+          <a class="boton boton--borde" href={whatsappUrl()}>WhatsApp</a>
           <a class="boton boton--borde" href={`mailto:${negocio.email}`}>Email</a>
-          <a class="boton boton--borde" href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>
         </div>
       </div>
     </div>

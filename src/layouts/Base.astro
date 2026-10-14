@@ -7,7 +7,7 @@ import '@fontsource/parisienne/400.css';
 import '../styles/global.css';
 import Mariposa from '../components/Mariposa.astro';
 import { env } from 'cloudflare:workers';
-import { negocio } from '../data/yutori';
+import { negocio, whatsappUrl } from '../data/yutori';
 
 interface Props {
   titulo: string;
@@ -19,12 +19,11 @@ interface Props {
 const { titulo, noindex = false, descripcion ='Talleres creativos en el centro de A Coruña: clases de acuarela, ganchillo, costura y bordado, talleres mensuales, talleres privados y bonos regalo.' } = Astro.props;
 
 const menu = [
+  { href: '/clases', texto: 'Clases' },
   { href: '/talleres', texto: 'Talleres' },
-  { href: '/clases', texto: 'Clases Semanales' },
-  { href: '/privados', texto: 'Talleres Privados' },
-  { href: '/bonos', texto: 'Bonos Regalo' },
-  { href: '/espacio', texto: 'El Espacio' },
-  { href: '/colabora', texto: 'Imparte tu Taller' },
+  { href: '/privados', texto: 'Privados' },
+  { href: '/bonos', texto: 'Bonos regalo' },
+  { href: '/espacio', texto: 'El espacio' },
 ];
 const actual = Astro.url.pathname.replace(/\/$/, '');
 const tituloCompleto = titulo === 'Inicio'
@@ -75,6 +74,7 @@ const sitio = env.SITIO_URL || Astro.url.origin;
           <summary aria-label="Abrir menú">Menú</summary>
           <nav aria-label="Principal (móvil)">
             {menu.map((m) => <a href={m.href} aria-current={actual === m.href ? 'page' : undefined}>{m.texto}</a>)}
+            <a href="/colabora">Da un taller en Yutori</a>
           </nav>
         </details>
       </div>
@@ -87,25 +87,21 @@ const sitio = env.SITIO_URL || Astro.url.origin;
     <footer class="pie">
       <div class="contenedor pie__rejilla">
         <div>
-          <p class="pie__marca">{negocio.nombre} {negocio.subtitulo}</p>
+          <p class="pie__marca">{negocio.nombre} <span class="script">{negocio.subtitulo}</span></p>
           <p>{negocio.direccion}<br />{negocio.ciudad}</p>
         </div>
         <div>
           <p><strong>Contacto</strong></p>
-          <ul class="pie__contacto">
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>
-              <a href={`mailto:${negocio.email}`}>{negocio.email}</a>
-            </li>
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" /></svg>
-              <a href={negocio.instagram} rel="noopener" target="_blank">{negocio.instagramUsuario}</a>
-            </li>
-          </ul>
+          <p>
+            <a href={`mailto:${negocio.email}`}>{negocio.email}</a><br />
+            <a href={negocio.instagram} rel="noopener" target="_blank">Instagram {negocio.instagramUsuario}</a><br />
+            <a href={whatsappUrl()}>WhatsApp</a>
+          </p>
         </div>
         <div>
           <p><strong>Yutori</strong></p>
           <p>
+            <a href="/colabora">Da un taller en Yutori</a><br />
             <a href="/condiciones">Reservas y cancelaciones</a><br />
             <a href="/aviso-legal">Aviso legal</a> · <a href="/privacidad">Privacidad</a> · <a href="/cookies">Cookies</a>
           </p>
@@ -113,6 +109,9 @@ const sitio = env.SITIO_URL || Astro.url.origin;
       </div>
     </footer>
 
+    <a class="whatsapp" href={whatsappUrl()} aria-label="Escríbenos por WhatsApp">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.7 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-2.9.8.8-2.8-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 2s.8 2.3.9 2.5c.1.2 1.6 2.5 4 3.5 1.5.6 2.1.7 2.8.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.2-.2-.2-.5-.3Z"/></svg>
+    </a>
   </body>
 </html>
 
@@ -133,7 +132,7 @@ const sitio = env.SITIO_URL || Astro.url.origin;
   .marca__nombre { display: block; font-family: var(--serif); font-size: 1.5rem; font-weight: 700; line-height: 1; }
   .marca__sub { display: block; font-family: var(--script); font-size: 1.15rem; line-height: 1.1; }
 
-  .menu-escritorio { display: none; gap: 20px; }
+  .menu-escritorio { display: none; gap: 24px; }
   .menu-escritorio a, .menu-movil a { color: var(--tinta); text-decoration: none; font-weight: 700; }
   .menu-escritorio a[aria-current='page'], .menu-movil a[aria-current='page'] { color: var(--verde); text-decoration: underline; text-underline-offset: 6px; }
 
@@ -163,18 +162,29 @@ const sitio = env.SITIO_URL || Astro.url.origin;
   .menu-movil nav a { padding: 12px; border-radius: 10px; }
   .menu-movil nav a:hover { background: var(--salvia-suave); }
 
-  /* Seis apartados con nombres largos: el menú completo solo cabe en pantallas anchas. */
-  @media (min-width: 1100px) {
+  @media (min-width: 860px) {
     .menu-escritorio { display: flex; }
     .menu-movil { display: none; }
   }
 
-  .pie { background: var(--verde); color: #f6f1e4; padding: 48px 0; margin-top: 48px; }
+  .pie { background: var(--verde); color: #f6f1e4; padding: 48px 0 96px; margin-top: 48px; }
   .pie a { color: #fff; }
   .pie__rejilla { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .pie__marca { font-family: var(--serif); font-size: 1.6rem; }
-  .pie__contacto { list-style: none; padding: 0; margin: 0 0 1em; display: grid; gap: 8px; }
-  .pie__contacto li { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
-  .pie__contacto svg { flex: none; }
+  .pie .script { color: #f6f1e4; font-size: 1.2em; }
 
+  .whatsapp {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--verde);
+    color: #fff;
+    box-shadow: var(--sombra);
+    z-index: 6;
+  }
 </style>

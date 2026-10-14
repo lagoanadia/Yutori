@@ -37,16 +37,6 @@ export function meses() {
   return { actual: hoy.slice(0, 7), siguiente: sig };
 }
 
-/**
- * El único mes al que se puede apuntar una alumna mensual: el actual hasta el día 19 y, desde el 20,
- * el siguiente (las inscripciones del mes siguiente se abren hacia el 20).
- */
-export function mesInscripcion() {
-  const { actual, siguiente } = meses();
-  return Number(hoyEspana().slice(8, 10)) >= DIA_APERTURA ? siguiente : actual;
-}
-export const DIA_APERTURA = 20;
-
 export const nombreMes = (mes: string) =>
   new Date(`${mes}-01T00:00:00Z`).toLocaleDateString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
@@ -122,17 +112,15 @@ const CAMPOS = `tipo, grupo_id, mes, fecha_sesion, nombre, telefono, email, moda
                 acepta_condiciones_en, acepta_privacidad_en`;
 const AHORA = `strftime('%Y-%m-%dT%H:%M:%S', 'now')`;
 
-/** Plaza mensual: se paga al reservar, con el mismo plazo que los talleres. Solo si queda plaza ese mes. */
+/** Plaza mensual (sin caducidad: se paga del 1 al 5). Solo si queda plaza ese mes. */
 export async function reservarMensual(grupoId: number, mes: string, d: DatosAlumna) {
-  await liberarCaducadas();
   const r = await db()
     .prepare(`
       INSERT INTO reservas (${CAMPOS})
-      SELECT 'clase_mensual', g.id, ?2, NULL, ?3, ?4, ?5, ?6, ?7, 'pendiente', strftime('%Y-%m-%dT%H:%M:%S', 'now', ?8),
-             lower(hex(randomblob(12))), ${AHORA}, ${AHORA}
+      SELECT 'clase_mensual', g.id, ?2, NULL, ?3, ?4, ?5, ?6, ?7, 'pendiente', NULL, lower(hex(randomblob(12))), ${AHORA}, ${AHORA}
       FROM grupos g WHERE g.id = ?1 AND g.activo = 1 AND g.plazas - ${MENSUALES('g.id', '?2')} >= 1
       RETURNING codigo`)
-    .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor, `+${PLAZO_PAGO_HORAS} hours`)
+    .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor)
     .first<{ codigo: string }>();
   if (r?.codigo) await avisoReservaHecha(r.codigo);
   return r?.codigo ?? null;

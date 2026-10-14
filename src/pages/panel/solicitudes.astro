@@ -31,7 +31,7 @@ const filas = await todos<{
   categoria: string | null; fecha_aprox: string | null; personas: number | null; tipo_bono: string | null;
   detalle: string | null; para_quien: string | null; mensaje: string | null; estado: string; notas: string | null; creado_en: string;
 }>(`
-  SELECT s.*, COALESCE(s.tipos_taller, c.nombre) AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id
+  SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id
   ${condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : ''}
   ORDER BY CASE s.estado WHEN 'nueva' THEN 0 WHEN 'en_curso' THEN 1 ELSE 2 END, s.creado_en DESC
 `, ...valores);
