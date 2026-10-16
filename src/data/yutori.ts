@@ -47,11 +47,20 @@ export const resenas: { texto: string; autora: string; cuando: string }[] = [
 ];
 
 // «Antes de reservar», en la página de talleres. El de la política lleva enlace a /condiciones.
-export const detallesTalleres: { titulo: string; texto: string; enlace?: string }[] = [
+export const detallesTalleres: { titulo: string; texto: string | string[]; enlace?: string }[] = [
   { titulo: 'Plazas limitadas', texto: 'Grupos pequeños para una mejor atención.' },
   { titulo: 'Materiales', texto: 'En nuestros talleres los materiales están siempre incluidos.' },
   { titulo: 'Sin experiencia previa', texto: 'No es necesario tener conocimientos para poder realizar nuestros talleres.' },
-  { titulo: 'Política de reservas y cancelaciones', texto: 'Tu plaza queda confirmada con el pago. Los talleres de otras artesanas se pagan directamente a ellas. Más de 7 días antes: reembolso o cambio al próximo taller. Menos de 7 días: puedes ceder tu plaza.', enlace: '/condiciones' },
+  {
+    titulo: 'Política de reservas y cancelaciones',
+    texto: [
+      'Tu plaza queda confirmada con el pago.',
+      'Los talleres de otras artesanas se pagan directamente a ellas.',
+      'Más de 7 días antes: reembolso o cambio al próximo taller.',
+      'Menos de 7 días: puedes ceder tu plaza.',
+    ],
+    enlace: '/condiciones',
+  },
 ];
 
 export function duracion(inicio: string, fin: string) {

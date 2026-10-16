@@ -12,10 +12,12 @@ const taller = await tallerPublicado(Astro.params.slug ?? '');
 if (!taller) return new Response(null, { status: 404 });
 
 const libres = Math.max(0, taller.plazas - taller.ocupadas);
+// Sin precio todavía (taller importado a medias): se enseña, pero aún no se puede reservar.
+const sinPrecio = taller.precio_cent == null;
 const errores: string[] = [];
 let v = { nombre: '', telefono: '', email: '', plazas: '1' };
 
-if (Astro.request.method === 'POST') {
+if (Astro.request.method === 'POST' && !sinPrecio) {
   const datos = await Astro.request.formData();
   const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
   v = { nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), plazas: campo('plazas', 2) };
@@ -61,15 +63,20 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
         <h1>{taller.titulo}</h1>
         <p class="ficha__quien">con {taller.imparte}</p>
         <ul class="ficha__datos">
-          <li><strong>Cuándo:</strong> {fechaLarga(taller.fecha)}, de {taller.hora_inicio} a {taller.hora_fin}</li>
-          <li><strong>Duración:</strong> {duracion(taller.hora_inicio, taller.hora_fin)}</li>
+          <li><strong>Cuándo:</strong> {fechaLarga(taller.fecha)}, {taller.hora_fin ? `de ${taller.hora_inicio} a ${taller.hora_fin}` : `a las ${taller.hora_inicio}`}</li>
+          {taller.hora_fin && <li><strong>Duración:</strong> {duracion(taller.hora_inicio, taller.hora_fin)}</li>}
           {taller.materiales && <li><strong>Materiales:</strong> {taller.materiales}</li>}
-          <li><strong>Precio:</strong> {euros(taller.precio_cent)} por persona</li>
+          <li><strong>Precio:</strong> {sinPrecio ? 'por confirmar' : `${euros(taller.precio_cent)} por persona`}</li>
           <li><strong>Plazas:</strong> {libres === 0 ? 'Completo' : `quedan ${libres} de ${taller.plazas}`}</li>
         </ul>
         <p class="ficha__texto">{taller.texto}</p>
 
-        {libres === 0 ? (
+        {sinPrecio ? (
+          <div class="tarjeta">
+            <h2>Reservas muy pronto</h2>
+            <p>Estamos terminando de preparar este taller. Si quieres reservar plaza, escríbenos por <a href={emailUrl(`Reserva: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
+          </div>
+        ) : libres === 0 ? (
           <div class="tarjeta">
             <h2>Taller completo</h2>
             <p>Si quieres que te avisemos si se libera una plaza, escríbenos por <a href={emailUrl(`Lista de espera: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>

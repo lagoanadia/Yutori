@@ -5,6 +5,8 @@ import type { TallerPublico } from '../lib/reservas';
 
 const { taller } = Astro.props as { taller: TallerPublico };
 const libres = Math.max(0, taller.plazas - taller.ocupadas);
+// Talleres importados sin todos los datos: se ven en el calendario, pero no se reservan hasta tener precio.
+const sinPrecio = taller.precio_cent == null;
 ---
 <article class="tarjeta taller">
   {taller.foto
@@ -13,15 +15,15 @@ const libres = Math.max(0, taller.plazas - taller.ocupadas);
   {taller.es_evento ? <span class="etiqueta">Evento especial</span> : null}
   <h3>{taller.titulo}</h3>
   <p class="taller__quien">con {taller.imparte}</p>
-  <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.hora_inicio}-{taller.hora_fin}</p>
-  <p class="taller__extra">{duracion(taller.hora_inicio, taller.hora_fin)}{taller.materiales && ` · ${taller.materiales}`}</p>
+  <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.hora_fin ? `${taller.hora_inicio}-${taller.hora_fin}` : `${taller.hora_inicio}h`}</p>
+  {taller.hora_fin && <p class="taller__extra">{duracion(taller.hora_inicio, taller.hora_fin)}{taller.materiales && ` · ${taller.materiales}`}</p>}
   <div class="taller__pie">
-    <span class="taller__precio">{euros(taller.precio_cent)}</span>
+    <span class="taller__precio">{sinPrecio ? 'Precio por confirmar' : euros(taller.precio_cent)}</span>
     <span class:list={['taller__plazas', { completo: libres === 0 }]}>
       {libres === 0 ? 'Completo' : libres === 1 ? 'Queda 1 plaza' : `Quedan ${libres} plazas`}
     </span>
   </div>
-  <a class:list={['boton', { 'boton--borde': libres === 0 }]} href={`/talleres/${taller.slug}`}>{libres === 0 ? 'Ver taller' : 'Reservar plaza'}</a>
+  <a class:list={['boton', { 'boton--borde': libres === 0 || sinPrecio }]} href={`/talleres/${taller.slug}`}>{libres === 0 || sinPrecio ? 'Ver taller' : 'Reservar plaza'}</a>
 </article>
 
 <style>

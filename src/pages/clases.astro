@@ -78,12 +78,22 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
   <section class="seccion seccion--salvia">
     <div class="contenedor">
       <h2>Cómo funcionan</h2>
-      <ul class="lista-politica">
-        <li>Las alumnas mensuales tienen prioridad para seguir el mes siguiente.</li>
-        <li>Si quedan plazas libres, se ofrecen como clases sueltas.</li>
-        <li>Las clases se mantienen aunque haya una sola persona apuntada.</li>
-        {politicaClases.map((p) => <li>{p}</li>)}
-      </ul>
+      <div class="como">
+        {[
+          { titulo: 'Plazas', lineas: [
+            'Las alumnas mensuales tienen prioridad para seguir el mes siguiente.',
+            'Si quedan plazas libres, se ofrecen como clases sueltas.',
+            'Las clases se mantienen aunque haya una sola persona apuntada.',
+          ] },
+          { titulo: 'Pago', lineas: politicaClases.filter((p) => !p.startsWith('Si cancelas')) },
+          { titulo: 'Cancelaciones', lineas: politicaClases.filter((p) => p.startsWith('Si cancelas')) },
+        ].map((b) => (
+          <div class="como__bloque">
+            <h3>{b.titulo}</h3>
+            <ul class="lista-politica">{b.lineas.map((l) => <li>{l}</li>)}</ul>
+          </div>
+        ))}
+      </div>
     </div>
   </section>
 </Base>
@@ -105,4 +115,8 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
   .mes-plazas { font-size: 0.85rem; color: var(--tinta-suave); margin-top: -4px; }
   .incluye { padding-left: 1.2em; color: var(--tinta-suave); margin: 4px 0 16px; }
   .clase .botones { margin-top: auto; }
+  .como { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .como__bloque { background: var(--crema-claro); border-radius: var(--radio); padding: 20px; }
+  .como__bloque h3 { margin-bottom: 8px; }
+  .como__bloque .lista-politica { margin: 0; }
 </style>

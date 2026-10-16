@@ -4,9 +4,11 @@ import Base from '../../layouts/Base.astro';
 import TallerCard from '../../components/TallerCard.astro';
 import DetallesImportantes from '../../components/DetallesImportantes.astro';
 import { negocio } from '../../data/yutori';
-import { talleresPublicados } from '../../lib/reservas';
+import { hoyEspana, talleresPublicados } from '../../lib/reservas';
 
-const talleres = await talleresPublicados();
+// Solo el calendario del mes en curso.
+const mesActual = hoyEspana().slice(0, 7);
+const talleres = (await talleresPublicados()).filter((t) => t.fecha.startsWith(mesActual));
 
 // Agrupados por mes: "Calendario de noviembre", etc.
 const meses = new Map<string, typeof talleres>();

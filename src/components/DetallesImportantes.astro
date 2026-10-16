@@ -19,7 +19,10 @@ const iconos: Record<string, string> = {
           </svg>
           <div>
             <h3>{d.titulo}</h3>
-            <p>{d.texto}{d.enlace && <> <a href={d.enlace}>Política de reservas y cancelaciones</a>.</>}</p>
+            {Array.isArray(d.texto)
+              ? <ul class="detalle__lineas">{d.texto.map((t) => <li>{t}</li>)}</ul>
+              : <p>{d.texto}</p>}
+            {d.enlace && <p class="detalle__enlace"><a href={d.enlace}>Leer la política completa →</a></p>}
           </div>
         </li>
       ))}
@@ -33,4 +36,6 @@ const iconos: Record<string, string> = {
   .detalle svg { flex: none; color: var(--verde); margin-top: 2px; }
   .detalle h3 { font-size: 1.1rem; margin-bottom: 4px; }
   .detalle p { margin: 0; color: var(--tinta-suave); }
+  .detalle__lineas { margin: 0; padding-left: 1.1em; color: var(--tinta-suave); display: grid; gap: 4px; }
+  .detalle__enlace { margin-top: 8px !important; }
 </style>
