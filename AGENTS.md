@@ -26,7 +26,7 @@ src/layouts/          Base.astro (web pública) y Panel.astro
 src/data/yutori.ts    Datos y textos del negocio (los TODO son datos de ejemplo)
 src/styles/global.css Tokens de diseño (colores, tipografías) y clases comunes
 migrations/           SQL numerado 0001_, 0002_… (nunca se edita una migración ya aplicada)
-docs/                 Specs, planes e informes de los agentes (ver docs/agentes/COMO-TRABAJAR.md)
+docs/                 Specs (docs/specs/), planes (docs/planes/) e informes de los agentes (docs/agentes/<agente>/)
 ```
 
 ## Convenciones (obligatorias)
@@ -39,8 +39,9 @@ docs/                 Specs, planes e informes de los agentes (ver docs/agentes/
 - **Estados** como texto con `CHECK (estado IN (...))` en la tabla y su etiqueta legible en `src/lib/db.ts` (`ESTADOS_*`).
 - **Plazas**: comprobar y reservar en **una sola sentencia** (`INSERT ... SELECT ... WHERE plazas - ocupadas >= ?`), como en
   `reservarTaller()`. Nunca "leer plazas y luego insertar" en dos pasos.
-- **Formularios públicos**: ver la skill `formulario-publico` (trampa `web`, Turnstile, privacidad con fecha, redirección 303).
-- **Emails**: siempre en `src/lib/avisos.ts` con `enviar()`. Voz de Yutori ("te escribimos"), nunca "Iris" en tercera persona.
+- **Formularios públicos**: ver la skill `astro-cloudflare:formulario-publico` (trampa `web`, Turnstile, privacidad con fecha,
+  redirección 303). Ejemplo de referencia: `src/pages/bonos.astro`.
+- **Emails**: siempre en `src/lib/avisos.ts` con `enviar()` (skill `astro-cloudflare:emails-transaccionales`). Voz de Yutori ("te escribimos"), nunca "Iris" en tercera persona.
   Un fallo de email jamás rompe una reserva.
 - **Páginas con servidor**: `export const prerender = false;`. Las demás son estáticas.
 - **Accesibilidad**: etiquetas `<label for>`, `role="alert"` en errores, `aria-current` en menús, objetivos táctiles de 48 px.
@@ -59,14 +60,18 @@ npm run db:ejemplo           # datos de ejemplo en local
 
 ## Trabajo con agentes
 
-Este repo tiene subagentes en `.claude/agents/` y skills en `.claude/skills/`.
-La guía para la persona que dirige el proyecto está en `docs/agentes/COMO-TRABAJAR.md`.
+Los agentes y skills genéricos vienen del catálogo **kit-agents** (repo `lagoanadia/kit-agents`), declarado en
+`.claude/settings.json`: plugin `equipo-base` (agentes) y plugin `astro-cloudflare` (skills del stack).
+No se copian aquí: se mejoran en el kit y se actualizan con `/plugin marketplace update kit-agents`.
+Las skills que solo sirven para Yutori van en `.claude/skills/` de este repo.
 
-Reglas para todos los agentes:
+Reglas:
 1. Cada bloque de trabajo va en **su propia rama** y termina en un PR.
-2. Los agentes revisores (**revisor**, **seguridad**, **auditor-web**) **no tocan código**: escriben su informe en `docs/agentes/<rol>/`.
+2. Los agentes de solo lectura devuelven su documento y **la sesión principal lo guarda** con nombre `AAAA-MM-DD-<tema>.md`:
+   `producto` → `docs/specs/`, `arquitecto` → `docs/planes/`,
+   `revisor`, `seguridad`, `auditor-web` y `director-arte` → `docs/agentes/<agente>/`.
 3. Antes de construir algo grande, debe existir una spec en `docs/specs/` y un plan en `docs/planes/` aprobados por la usuaria.
-4. Si un patrón se repite, **herrero-skills** puede proponer una skill nueva, siempre en un PR aparte.
+4. Si un patrón se repite, `herrero-skills` puede proponer una skill nueva, siempre en un PR aparte.
 
 ## Documentación de Astro
 
