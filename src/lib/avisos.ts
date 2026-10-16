@@ -102,8 +102,10 @@ export async function avisoReservaHecha(codigo: string) {
         para: r.email, asunto: `Plaza reservada: ${r.titulo}`, titulo: `¡Hola, ${nombrePila(r.nombre)}! Tu plaza está reservada`,
         parrafos: [
           `Clase de **${r.titulo}**${r.nombre_menor ? ` para ${r.nombre_menor}` : ''}, ${cuando(r)}.`,
-          `Las clases mensuales se pagan **entre los días 1 y 5 del mes**${importe ? ` (${importe})` : ''}. ${comoPagar ? `Cómo pagar: **${comoPagar}**.` : 'Te indicaremos cómo pagar.'}`,
-          'Cuando recibamos el pago, tu plaza quedará confirmada.',
+          `Las clases se abonan en el momento de la reserva${importe ? ` (${importe})` : ''}. ${comoPagar ? `Cómo pagar: **${comoPagar}**.` : 'Te indicaremos cómo pagar.'}`,
+          r.caduca_en
+            ? `Tienes hasta el **${fecha(r.caduca_en)}**. Cuando recibamos el pago, tu plaza quedará confirmada.`
+            : 'Cuando recibamos el pago, tu plaza quedará confirmada.',
         ],
         boton: { texto: 'Ver mi reserva', url: url(`/reserva/${r.codigo}`) },
       }
@@ -161,7 +163,7 @@ export function avisoPlazasLiberadas(lista: { codigo: string; nombre: string; em
 export async function avisoSolicitud(id: number) {
   const s = await uno<{ tipo: string; nombre: string; email: string; telefono: string | null; motivo: string | null; categoria: string | null;
     fecha_aprox: string | null; personas: number | null; tipo_bono: string | null; detalle: string | null; para_quien: string | null; mensaje: string | null }>(
-    'SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id);
+    'SELECT s.*, COALESCE(s.tipos_taller, c.nombre) AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id);
   if (!s) return;
   const privado = s.tipo === 'privado';
   enviar(

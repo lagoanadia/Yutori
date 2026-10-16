@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import { politicaTalleres, politicaClases } from '../data/yutori';
+import { negocio, politicaTalleres, politicaClases } from '../data/yutori';
 ---
 <Base titulo="Reservas y cancelaciones">
   <section class="seccion">
@@ -10,7 +10,7 @@ import { politicaTalleres, politicaClases } from '../data/yutori';
       <ul class="lista-politica">{politicaTalleres.map((p) => <li>{p}</li>)}</ul>
       <h2>Clases</h2>
       <ul class="lista-politica">{politicaClases.map((p) => <li>{p}</li>)}</ul>
-      <p>Para cancelar o ceder tu plaza, escríbenos por WhatsApp o por email.</p>
+      <p>Para cancelar o ceder tu plaza, escríbenos por <a href={`mailto:${negocio.email}`}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
     </div>
   </section>
 </Base>

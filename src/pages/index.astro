@@ -9,8 +9,8 @@ import { talleresPublicados } from '../lib/reservas';
 
 const proximos = await talleresPublicados(3);
 const servicios = [
-  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y costura y bordado, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases' },
   { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario' },
+  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y atelier textil, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases' },
   { titulo: 'Talleres privados', texto: 'Despedidas, cumpleaños, grupos de amigas o empresas: un taller solo para vosotras.', href: '/privados', boton: 'Pedir información' },
   { titulo: 'Bonos regalo', texto: 'No hay nada como regalar experiencias y momentos de desconexión.', href: '/bonos', boton: 'Regalar un bono' },
 ];
@@ -19,13 +19,8 @@ const servicios = [
   <section class="portada">
     <div class="contenedor portada__fila">
       <div>
-        <p class="script">{negocio.subtitulo}</p>
         <h1>Talleres creativos en el centro de A Coruña</h1>
-        <p class="intro">{negocio.lema}. Clases semanales, talleres cada mes y un espacio tranquilo para desconectar creando con las manos.</p>
-        <div class="botones">
-          <a class="boton" href="/talleres">Ver talleres de este mes</a>
-          <a class="boton boton--borde" href="/clases">Clases semanales</a>
-        </div>
+        <p class="intro">{negocio.lema}</p>
       </div>
       <div class="portada__imagen">
         <div class="foto-hueco portada__foto">Foto del espacio</div>
@@ -61,28 +56,27 @@ const servicios = [
     </div>
   </section>
 
-  <Resenas />
-
   <section class="seccion">
     <div class="contenedor dos-bloques">
       <div>
-        <h2>¿Quieres dar un taller en Yutori?</h2>
-        <p class="intro">Si eres artesana o artista y tienes una idea de taller, cuéntanosla. Estamos preparando la programación de talleres y clases y queremos contar con nuevas ideas.</p>
+        <h2>¿Quieres impartir un taller en Yutori?</h2>
+        <p class="intro">Nos encanta recibir nuevas ideas, proyectos y personas con ganas de compartir, crear e inspirar.</p>
         <a class="boton" href="/colabora">Proponer un taller</a>
       </div>
       <div>
-        <h2>Ven a conocernos</h2>
+        <h2>Dónde nos encontramos</h2>
         <p class="intro">{negocio.direccion}, {negocio.ciudad}.</p>
         <a class="boton boton--borde" href="/espacio">Cómo llegar</a>
       </div>
     </div>
   </section>
+
+  <Resenas />
 </Base>
 
 <style>
   .portada { padding: 48px 0 32px; }
   .portada__fila { display: grid; gap: 32px; align-items: center; }
-  .portada .script { font-size: 2rem; margin-bottom: 8px; }
   .portada__imagen { position: relative; }
   .portada__foto { aspect-ratio: 4 / 5; border-radius: 200px 200px var(--radio) var(--radio); margin: 0; }
   .portada__imagen :global(.portada__mariposa) { position: absolute; right: 12px; bottom: -16px; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px; box-shadow: var(--sombra); width: 150px; height: auto; box-sizing: content-box; }

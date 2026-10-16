@@ -11,21 +11,24 @@ import { esEmail } from '../lib/util';
 const talleres = await talleresPublicados();
 const enviado = Astro.url.searchParams.has('enviado');
 const errores: string[] = [];
-let v = { tipo: 'taller', taller: '', importe: '', para: '', nombre: '', telefono: '', email: '', mensaje: '' };
+// Importe: de 30 a 100 €, de 5 en 5.
+const IMPORTES = Array.from({ length: 15 }, (_, i) => 30 + i * 5);
+let v = { tipo: 'taller', taller: '', importe: '', para: '', nombre: '', telefono: '', email: '' };
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
   v = {
     tipo: campo('tipo', 10), taller: campo('taller', 120), importe: campo('importe', 6), para: campo('para', 120),
-    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), mensaje: campo('mensaje', 600),
+    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'),
   };
   if (campo('web')) return Astro.redirect('/bonos?enviado', 303);
 
-  const importe = Number(v.importe.replace(',', '.'));
+  const importe = Number(v.importe);
   if (!['taller', 'importe'].includes(v.tipo)) errores.push('Elige el tipo de bono.');
-  if (v.tipo === 'importe' && (!Number.isFinite(importe) || importe < 10 || importe > 500)) errores.push('Indica un importe entre 10 y 500 €.');
-  if (!v.nombre) errores.push('Escribe tu nombre.');
+  if (v.tipo === 'importe' && !IMPORTES.includes(importe)) errores.push('Elige un importe entre 30 y 100 €.');
+  if (v.tipo === 'taller' && v.taller && !talleres.some((t) => t.titulo === v.taller)) errores.push('Elige un taller de la lista.');
+  if (!v.nombre) errores.push('Escribe de parte de quién es el bono.');
   if (v.telefono.replace(/\D/g, '').length < 9) errores.push('Escribe un teléfono de contacto.');
   if (!esEmail(v.email)) errores.push('Escribe un email válido.');
   if (datos.get('privacidad') !== 'on') errores.push('Tienes que aceptar la política de privacidad.');
@@ -39,9 +42,9 @@ if (Astro.request.method === 'POST') {
       ? `${importe.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €`
       : v.taller || 'Aún no sabe qué taller';
     await db()
-      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, mensaje, acepta_privacidad_en)
-                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, ?7, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
-      .bind(v.nombre, v.email, v.telefono, v.tipo, detalle, v.para || null, v.mensaje || null)
+      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, acepta_privacidad_en)
+                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
+      .bind(v.nombre, v.email, v.telefono, v.tipo, detalle, v.para || null)
       .first<{ id: number }>()
       .then((fila) => fila && avisoSolicitud(fila.id));
     return Astro.redirect('/bonos?enviado', 303);
@@ -100,15 +103,16 @@ if (Astro.request.method === 'POST') {
             </div>
             <div class="campo" data-bono="importe">
               <label for="importe">Importe (€)</label>
-              <input id="importe" name="importe" inputmode="decimal" placeholder="50" value={v.importe} />
+              <select id="importe" name="importe">
+                {IMPORTES.map((i) => <option value={i} selected={String(i) === v.importe}>{i} €</option>)}
+              </select>
             </div>
+            <div class="campo"><label for="nombre">De parte de quién</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
             <div class="campo"><label for="para">Para quién es (opcional)</label><input id="para" name="para" maxlength="120" value={v.para} /></div>
             <div class="dos-col">
-              <div class="campo"><label for="nombre">Tu nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
               <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+              <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
             </div>
-            <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
-            <div class="campo"><label for="mensaje">Mensaje para el bono (opcional)</label><textarea id="mensaje" name="mensaje" rows="3" maxlength="600">{v.mensaje}</textarea></div>
             <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
             <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
             <Turnstile />

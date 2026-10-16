@@ -8,7 +8,7 @@ import { mapaCategorias, mensajes, mapearSolicitud } from '../../../lib/importar
 const id = Number(Astro.params.id);
 const s = Number.isInteger(id)
   ? await uno<Record<string, string | number | null>>(
-      'SELECT s.*, c.nombre AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id)
+      'SELECT s.*, COALESCE(s.tipos_taller, c.nombre) AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id WHERE s.id = ?1', id)
   : null;
 if (!s) return new Response('No encontrada', { status: 404 });
 
@@ -22,6 +22,7 @@ if (Astro.request.method === 'POST') {
     return Astro.redirect('/panel/solicitudes?ok=eliminado', 303);
   }
   v = Object.fromEntries([...datos.entries()].filter(([, x]) => typeof x === 'string').map(([k, x]) => [k, String(x).trim()]));
+  v.tipos_taller = datos.getAll('tipos_taller').map(String).join(', ');
   const { datos: d, errores: e } = mapearSolicitud(v, await mapaCategorias());
   if (d) {
     const columnas = Object.keys(d);
@@ -31,7 +32,7 @@ if (Astro.request.method === 'POST') {
   }
   errores.push(...mensajes(e));
 }
-const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categorias ORDER BY nombre')).map((c) => c.nombre);
+const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categorias WHERE activa = 1 ORDER BY id')).map((c) => c.nombre);
 ---
 <Panel titulo={`Editar · ${s.nombre}`}>
   <p><a href={`/panel/solicitudes#s${id}`}>← Privados y bonos</a></p>

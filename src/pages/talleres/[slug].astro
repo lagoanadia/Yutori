@@ -2,7 +2,7 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
-import { fechaLarga, duracion, politicaTalleres, whatsappUrl } from '../../data/yutori';
+import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres } from '../../data/yutori';
 import { euros } from '../../lib/db';
 import { MAX_PLAZAS_RESERVA, PLAZO_PAGO_HORAS, reservarTaller, tallerPublicado } from '../../lib/reservas';
 import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
@@ -72,8 +72,7 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
         {libres === 0 ? (
           <div class="tarjeta">
             <h2>Taller completo</h2>
-            <p>Si quieres que te avisemos si se libera una plaza, escríbenos.</p>
-            <a class="boton boton--borde" href={whatsappUrl(`Hola, me gustaría estar en lista de espera para "${taller.titulo}"`)}>Escribir por WhatsApp</a>
+            <p>Si quieres que te avisemos si se libera una plaza, escríbenos por <a href={emailUrl(`Lista de espera: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
           </div>
         ) : (
           <>
