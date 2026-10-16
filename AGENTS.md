@@ -31,6 +31,11 @@ docs/                 Specs (docs/specs/), planes (docs/planes/) e informes de l
 
 ## Convenciones (obligatorias)
 
+- **Los textos de la web NO se cambian.** Los pidió y aprobó Iris tal cual. Se respetan las palabras, el orden, la puntuación,
+  las mayúsculas y las comillas «», tanto en las páginas como en `src/data/yutori.ts`, los textos legales y los emails.
+  Se pueden cambiar el diseño, la maquetación y el código que los rodea, pero no el texto en sí.
+  Si un texto parece tener una errata o estorba al diseño, **se anota como propuesta para Iris**; nunca se corrige directamente.
+  Solo se cambia un texto cuando la usuaria lo pide de forma explícita.
 - **Todo en español**: nombres de variables, funciones, tablas, columnas, clases CSS y commits.
 - **Dinero en céntimos** (`INTEGER`, columnas `*_cent`). Para mostrarlo, `euros()` o `eurosCorto()` de `src/lib/db.ts`.
 - **Fechas** en texto ISO: día `AAAA-MM-DD`; momento `AAAA-MM-DDTHH:MM:SS` en UTC (`strftime(... 'now')`).
