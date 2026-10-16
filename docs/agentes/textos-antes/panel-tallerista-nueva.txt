@@ -1,0 +1,49 @@
+[estado] 200
+[título] Añadir tallerista · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Añadir tallerista
+← Todas las talleristas
+Nombre
+Marca (opcional)
+Email
+Teléfono
+Instagram
+Categoría
+Sin categoría
+Arcilla y Cerámica
+Autocuidado
+Bordado
+Costura
+Encuadernación
+Ganchillo
+Joyería
+Naturaleza y Botánica
+Pintura y Dibujo
+Velas y Aromas
+Qué taller ofrece
+¿Ha dado talleres antes?
+No lo sé
+Sí
+No
+¿Factura como autónoma?
+No lo sé
+Sí
+No
+Estado
+Nueva
+En revisión
+Aceptada
+En reserva
+Descartada
+Notas privadas
+Guardar tallerista
+¿Tienes muchas? Pégalas de golpe

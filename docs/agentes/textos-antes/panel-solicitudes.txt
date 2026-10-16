@@ -1,0 +1,61 @@
+[estado] 200
+[título] Privados y bonos · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Privados y bonos
++ Añadir
+Todo
+Talleres privados
+Bonos regalo
+Todos los estados
+Nueva
+En curso
+Cerrada
+Nueva
+Taller privado
+mar, 13 oct, 00:10
+Julia Grupo
+633333331 · julia@ejemplo.com
+Qué celebran
+Despedida
+Tipo de taller
+Velas y aromas
+Fecha
+sáb, 21 nov
+Personas
+10
+“Despedida de soltera, nos gustaría hacer velas.”
+Estado
+Nueva
+En curso
+Cerrada
+Notas privadas
+Guardar
+Responder por WhatsApp
+Editar datos
+En curso
+Bono regalo
+sáb, 10 oct, 10:45
+Kike Regalo
+633333332 · kike@ejemplo.com
+Bono
+Por importe: 50 €
+Para
+Mi madre
+“¡Feliz cumpleaños!”
+Estado
+Nueva
+En curso
+Cerrada
+Notas privadas
+Guardar
+Responder por WhatsApp
+Editar datos

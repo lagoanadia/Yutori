@@ -1,0 +1,27 @@
+[estado] 200
+[título] Nuevo hueco de taller · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Nuevo hueco de taller
+← Todos los talleres
+Reserva el día para una tallerista. Después le envías su enlace privado para que rellene el taller.
+Quién lo imparte
+Tú (Yutori)
+Papel Lento (Marta Prueba) · Papel y origami
+Slowly Atelier (Lucía Prueba) · Grabado y estampación
+Fecha
+Franja
+Mañana
+Tarde
+Plazas
+Fecha límite para enviar el taller
+Si la dejas vacía: el miércoles antes del día 20 del mes anterior.
+Crear hueco

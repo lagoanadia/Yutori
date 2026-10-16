@@ -1,0 +1,14 @@
+[estado] 200
+[título] Asistente · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Asistente
+El asistente todavía no está activado: falta la clave de Groq (GROQ_API_KEY) en Cloudflare.

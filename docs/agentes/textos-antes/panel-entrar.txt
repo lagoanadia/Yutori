@@ -1,0 +1,32 @@
+[estado] 200
+[título] Resumen · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Resumen
+2
+reservas pendientes de pago
+1
+talleristas nuevas
+1
+talleres por revisar
+2
+pagos de 25 € sin recibir
+1
+privados y bonos nuevos
+3
+talleres publicados próximos
+Últimas reservas
+CUÁNDO	QUIÉN	QUÉ	ESTADO
+mar, 13 oct, 21:00	Carla Cliente	Grabado y estampación en tote bags · Taller	Liberada
+mar, 13 oct, 14:00	Eva Cliente	Taller de Halloween · Taller	Liberada
+mar, 13 oct, 11:00	Inés Puntual	Aguadas · Clase suelta	Pendiente de pago
+lun, 12 oct, 12:00	Gala Alumna	Punto por punto · Clase mensual	Pendiente de pago
+mar, 6 oct, 13:00	Bea Cliente	Grabado y estampación en tote bags · Taller	Confirmada

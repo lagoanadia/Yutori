@@ -1,0 +1,42 @@
+[estado] 200
+[título] Añadir privado o bono · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Añadir privado o bono
+← Privados y bonos
+Qué es
+Taller privado
+Bono regalo
+Nombre
+Teléfono
+Email
+Qué celebran
+Tipo de taller (los que les interesan; vacío si aún no lo saben)
+Arcilla y Cerámica
+Autocuidado
+Bordado
+Costura
+Encuadernación
+Ganchillo
+Joyería
+Naturaleza y Botánica
+Pintura y Dibujo
+Velas y Aromas
+Fecha
+Personas
+Su mensaje
+Estado
+Nueva
+En curso
+Cerrada
+Notas privadas
+Guardar
+¿Tienes muchas? Pégalas de golpe

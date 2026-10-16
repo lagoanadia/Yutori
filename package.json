@@ -13,7 +13,9 @@
     "generate-types": "wrangler types",
     "db:migrar:local": "wrangler d1 migrations apply yutori --local",
     "db:ejemplo": "wrangler d1 execute yutori --local --file scripts/ejemplo-local.sql",
-    "db:migrar:remoto": "wrangler d1 migrations apply yutori --remote"
+    "db:migrar:remoto": "wrangler d1 migrations apply yutori --remote",
+    "textos:guardar": "node scripts/textos.mjs guardar",
+    "textos:comparar": "node scripts/textos.mjs comparar"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.4",
@@ -24,5 +26,8 @@
     "jose": "^6.2.12",
     "wrangler": "^4.150.0",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }

@@ -1,0 +1,21 @@
+[estado] 200
+[título] Editar reserva · Ana Cliente · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Editar reserva · Ana Cliente
+← Volver
+Taller: Grabado y estampación en tote bags · sáb, 17 oct · reservó el lun, 5 oct, 21:00
+Aquí se corrigen los datos de contacto. Para cambiar el pago o cancelar, usa los botones de la lista.
+Nombre
+Teléfono
+Email
+Guardar cambios
+Cancelar

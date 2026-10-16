@@ -1,0 +1,42 @@
+[estado] 200
+[título] Talleristas · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Talleristas
++ Añadir tallerista
+Todas
+Nueva
+En revisión
+Aceptada
+En reserva
+Descartada
+Acuarela y pintura
+TALLERISTA	PROPUESTA	EXPERIENCIA	AUTÓNOMA	LLEGÓ	ESTADO
+Sara Prueba
+@sara.acuarela · sara@ejemplo.com	Taller de acuarela botánica, 3 h	No	No	jue, 1 oct, 11:15	En reserva
+Costura y bordado
+TALLERISTA	PROPUESTA	EXPERIENCIA	AUTÓNOMA	LLEGÓ	ESTADO
+Nora Prueba · Hilo y Aguja
+@hiloyaguja · nora@ejemplo.com	Bordado de iniciales en servilletas, 2 h	Sí	No	dom, 11 oct, 14:20	En revisión
+Grabado y estampación
+Categoría cubierta
+TALLERISTA	PROPUESTA	EXPERIENCIA	AUTÓNOMA	LLEGÓ	ESTADO
+Lucía Prueba · Slowly Atelier
+@slowly.prueba · lucia@ejemplo.com · 600000001	Grabado y estampación en tote bags, 2,5 h, unos 45 €	Sí	Sí	mié, 2 sept, 12:00	Aceptada
+Otra
+TALLERISTA	PROPUESTA	EXPERIENCIA	AUTÓNOMA	LLEGÓ	ESTADO
+Elena Prueba · Barro Azul
+@barroazul · elena@ejemplo.com · 600000004	Cerámica en frío para principiantes, 2 h, 35 €	Sí	Sí	lun, 12 oct, 23:04	Nueva
+Papel y origami
+Categoría cubierta
+TALLERISTA	PROPUESTA	EXPERIENCIA	AUTÓNOMA	LLEGÓ	ESTADO
+Marta Prueba · Papel Lento
+@papellento · marta@ejemplo.com · 600000002	Lámparas de origami, 2 h, unos 40 €	Sí	Sí	jue, 10 sept, 20:30	Aceptada

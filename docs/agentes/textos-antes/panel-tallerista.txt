@@ -1,0 +1,44 @@
+[estado] 200
+[título] Lucía Prueba · Slowly Atelier · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Lucía Prueba · Slowly Atelier
+← Todas las talleristas
+Propuesta
+Grabado y estampación en tote bags, 2,5 h, unos 45 €
+Categoría
+Grabado y estampación
+Email
+lucia@ejemplo.com
+Teléfono
+600000001
+Instagram
+@slowly.prueba
+Ha dado talleres
+Sí
+Autónoma
+Sí
+Llegó
+mié, 2 sept, 12:00
+Editar datos
+Tu decisión
+Estado
+Nueva
+En revisión
+Aceptada
+En reserva
+Descartada
+Notas privadas
+Guardar
+Crear hueco de taller
+Sus talleres
+dom, 8 nov · Domingo mañana — sin título aún Hueco creado
+sáb, 17 oct · Sábado mañana — Grabado y estampación en tote bags Publicado
