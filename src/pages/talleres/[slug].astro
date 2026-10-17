@@ -2,7 +2,7 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
-import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres } from '../../data/yutori';
+import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres, textoReservasCerradas } from '../../data/yutori';
 import { euros } from '../../lib/db';
 import { MAX_PLAZAS_RESERVA, PLAZO_PAGO_HORAS, reservarTaller, tallerPublicado, tallerReservable } from '../../lib/reservas';
 import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
@@ -73,10 +73,14 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
         </ul>
         <p class="ficha__texto">{taller.texto}</p>
 
-        {cerrado ? (
+        {sinPrecio ? (
           <div class="tarjeta">
             <h2>Reservas muy pronto</h2>
             <p>Estamos terminando de preparar este taller. Si quieres reservar plaza, escríbenos por <a href={emailUrl(`Reserva: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
+          </div>
+        ) : cerrado ? (
+          <div class="tarjeta">
+            <p>{textoReservasCerradas}</p>
           </div>
         ) : libres === 0 ? (
           <div class="tarjeta">
