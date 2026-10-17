@@ -1,12 +1,15 @@
 ---
 import { fechaLarga, duracion } from '../data/yutori';
 import { euros } from '../lib/db';
+import { tallerReservable } from '../lib/reservas';
 import type { TallerPublico } from '../lib/reservas';
 
 const { taller } = Astro.props as { taller: TallerPublico };
 const libres = Math.max(0, taller.plazas - taller.ocupadas);
 // Talleres importados sin todos los datos: se ven en el calendario, pero no se reservan hasta tener precio.
 const sinPrecio = taller.precio_cent == null;
+// El mismo día del taller ya no se reserva: el botón lleva a la ficha sin invitar a reservar.
+const cerrado = sinPrecio || !tallerReservable(taller.fecha);
 ---
 <article class="tarjeta taller">
   {taller.foto
@@ -23,7 +26,7 @@ const sinPrecio = taller.precio_cent == null;
       {libres === 0 ? 'Completo' : libres === 1 ? 'Queda 1 plaza' : `Quedan ${libres} plazas`}
     </span>
   </div>
-  <a class:list={['boton', { 'boton--borde': libres === 0 || sinPrecio }]} href={`/talleres/${taller.slug}`}>{libres === 0 || sinPrecio ? 'Ver taller' : 'Reservar plaza'}</a>
+  <a class:list={['boton', { 'boton--borde': libres === 0 || cerrado }]} href={`/talleres/${taller.slug}`}>{libres === 0 || cerrado ? 'Ver taller' : 'Reservar plaza'}</a>
 </article>
 
 <style>

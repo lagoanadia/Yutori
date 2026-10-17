@@ -142,3 +142,17 @@ export async function editarTaller(id: number, v: CamposTaller, foto: File | nul
   actualizarCalendario(id);
   return { ok: true, valor: null };
 }
+
+/** Meses que enseña /talleres: el actual y, si ya tiene talleres publicados, el siguiente. Nunca más allá. */
+export function mesesVisibles<T extends { fecha: string }>(talleres: T[], hoy: string): Map<string, T[]> {
+  const [anio, mes] = hoy.split('-').map(Number);
+  const clave = (a: number, m: number) => `${a}-${String(m).padStart(2, '0')}`;
+  const actual = clave(anio, mes);
+  const siguiente = mes === 12 ? clave(anio + 1, 1) : clave(anio, mes + 1);
+  const meses = new Map<string, T[]>();
+  for (const t of talleres) {
+    const k = t.fecha.slice(0, 7);
+    if (k === actual || k === siguiente) meses.set(k, [...(meses.get(k) ?? []), t]);
+  }
+  return new Map([...meses].sort(([a], [b]) => a.localeCompare(b)));
+}

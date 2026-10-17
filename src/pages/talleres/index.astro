@@ -5,17 +5,10 @@ import TallerCard from '../../components/TallerCard.astro';
 import DetallesImportantes from '../../components/DetallesImportantes.astro';
 import { negocio } from '../../data/yutori';
 import { hoyEspana, talleresPublicados } from '../../lib/reservas';
+import { mesesVisibles } from '../../lib/talleres';
 
-// Solo el calendario del mes en curso.
-const mesActual = hoyEspana().slice(0, 7);
-const talleres = (await talleresPublicados()).filter((t) => t.fecha.startsWith(mesActual));
-
-// Agrupados por mes: "Calendario de noviembre", etc.
-const meses = new Map<string, typeof talleres>();
-for (const t of talleres) {
-  const clave = t.fecha.slice(0, 7);
-  meses.set(clave, [...(meses.get(clave) ?? []), t]);
-}
+// El mes en curso y, en cuanto haya talleres publicados, el siguiente (agrupados por mes).
+const meses = mesesVisibles(await talleresPublicados(), hoyEspana());
 const nombreMes = (clave: string) =>
   new Date(`${clave}-01T00:00:00Z`).toLocaleDateString('es-ES', { month: 'long', timeZone: 'UTC' });
 ---
@@ -26,7 +19,7 @@ const nombreMes = (clave: string) =>
       <h1>Talleres del mes</h1>
       <p class="intro">Cada mes, talleres distintos con artesanas y artistas. Plazas limitadas: reserva tu plaza y crea tu espacio.</p>
 
-      {talleres.length === 0 ? (
+      {meses.size === 0 ? (
         <div class="tarjeta vacio-publico">
           <h2>Estamos preparando el calendario</h2>
           <p>Publicamos los talleres de cada mes alrededor del día 20 del mes anterior. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>
