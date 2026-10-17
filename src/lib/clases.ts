@@ -55,11 +55,15 @@ const MENSUALES = (grupo: string, mes: string) =>
 const SUELTAS = (grupo: string, fecha: string) =>
   `(SELECT count(*) FROM reservas r WHERE r.grupo_id = ${grupo} AND r.tipo = 'clase_suelta' AND r.fecha_sesion = ${fecha} AND r.estado IN ('pendiente', 'confirmada'))`;
 
-/** Alumnas mensuales de cada grupo en un mes: { grupoId: número }. */
+// Una alumna mensual ocupa sitio en todas las sesiones del mes, así que hay que contar también el día
+// con más clases sueltas (el pico): si no, la mensual podría dejar una sesión con más gente que plazas.
+const PICO_SUELTAS = (grupo: string, mes: string) =>
+  `COALESCE((SELECT count(*) FROM reservas s WHERE s.grupo_id = ${grupo} AND s.tipo = 'clase_suelta' AND substr(s.fecha_sesion, 1, 7) = ${mes} AND s.estado IN ('pendiente', 'confirmada') GROUP BY s.fecha_sesion ORDER BY count(*) DESC LIMIT 1), 0)`;
+
+/** Plazas ocupadas de cada grupo en un mes (mensuales + pico de sueltas): { grupoId: número }. */
 export async function ocupacionMes(mes: string) {
   const filas = await todos<{ grupo_id: number; n: number }>(
-    `SELECT grupo_id, count(*) AS n FROM reservas WHERE tipo = 'clase_mensual' AND mes = ?1
-     AND estado IN ('pendiente', 'confirmada') GROUP BY grupo_id`, mes);
+    `SELECT g.id AS grupo_id, ${MENSUALES('g.id', '?1')} + ${PICO_SUELTAS('g.id', '?1')} AS n FROM grupos g`, mes);
   return new Map(filas.map((f) => [f.grupo_id, f.n]));
 }
 
@@ -130,7 +134,7 @@ export async function reservarMensual(grupoId: number, mes: string, d: DatosAlum
       INSERT INTO reservas (${CAMPOS})
       SELECT 'clase_mensual', g.id, ?2, NULL, ?3, ?4, ?5, ?6, ?7, 'pendiente', strftime('%Y-%m-%dT%H:%M:%S', 'now', ?8),
              lower(hex(randomblob(12))), ${AHORA}, ${AHORA}
-      FROM grupos g WHERE g.id = ?1 AND g.activo = 1 AND g.plazas - ${MENSUALES('g.id', '?2')} >= 1
+      FROM grupos g WHERE g.id = ?1 AND g.activo = 1 AND g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2')} >= 1
       RETURNING codigo`)
     .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor, `+${PLAZO_PAGO_HORAS} hours`)
     .first<{ codigo: string }>();
@@ -158,20 +162,30 @@ export async function reservarSuelta(grupoId: number, fecha: string, d: DatosAlu
 
 /**
  * Prioridad de las alumnas: copia las mensuales CONFIRMADAS de un mes al siguiente como pendientes de pago,
- * salvo que ya estén apuntadas en ese grupo y mes. Devuelve cuántas se han renovado.
+ * salvo que ya estén apuntadas en ese grupo y mes. Solo en horarios activos y mientras quepan en el cupo
+ * (plazas - mensuales - pico de sueltas del destino). Devuelve cuántas se han renovado y cuántas se quedan sin plaza.
  */
 export async function renovarMes(origen: string, destino: string) {
+  // Las candidatas son las que aún no están apuntadas en el destino, en horarios activos.
+  const candidatas = `
+    SELECT r.*, ROW_NUMBER() OVER (PARTITION BY r.grupo_id ORDER BY r.creado_en, r.id) AS fila
+    FROM reservas r JOIN grupos g ON g.id = r.grupo_id AND g.activo = 1
+    WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada'
+      AND NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.mes = ?2 AND x.grupo_id = r.grupo_id
+                      AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
+                      AND x.estado IN ('pendiente', 'confirmada'))`;
+  // Solo para informar: el INSERT de abajo es el que comprueba las plazas de verdad.
+  const previstas = (await uno<{ n: number }>(`WITH candidatas AS (${candidatas}) SELECT count(*) AS n FROM candidatas`, origen, destino))?.n ?? 0;
   const r = await db()
     .prepare(`
+      WITH candidatas AS (${candidatas})
       INSERT INTO reservas (${CAMPOS})
-      SELECT 'clase_mensual', r.grupo_id, ?2, NULL, r.nombre, r.telefono, r.email, r.modalidad, r.nombre_menor, 'pendiente', NULL,
-             lower(hex(randomblob(12))), r.acepta_condiciones_en, r.acepta_privacidad_en
-      FROM reservas r
-      WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada'
-        AND NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.mes = ?2 AND x.grupo_id = r.grupo_id
-                        AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
-                        AND x.estado IN ('pendiente', 'confirmada'))`)
+      SELECT 'clase_mensual', c.grupo_id, ?2, NULL, c.nombre, c.telefono, c.email, c.modalidad, c.nombre_menor, 'pendiente', NULL,
+             lower(hex(randomblob(12))), c.acepta_condiciones_en, c.acepta_privacidad_en
+      FROM candidatas c JOIN grupos g ON g.id = c.grupo_id
+      WHERE c.fila <= g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2')}`)
     .bind(origen, destino)
     .run();
-  return r.meta.changes;
+  const renovadas = r.meta.changes;
+  return { renovadas, sinPlaza: Math.max(0, previstas - renovadas) };
 }
