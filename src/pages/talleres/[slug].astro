@@ -54,7 +54,7 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
     <div class="contenedor ficha">
       <div>
         {taller.foto
-          ? <img class="ficha__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} />
+          ? <img class="ficha__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} style={`view-transition-name: foto-${taller.slug}`} />
           : <div class="foto-hueco ficha__foto">Foto del taller</div>}
       </div>
       <div>

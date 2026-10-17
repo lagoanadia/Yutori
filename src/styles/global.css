@@ -9,6 +9,9 @@
   --tinta-suave: #52625d;
   --borde: #d9cfb8;
   --aviso: #a8553f;
+  --verde-profundo: #2f4a44; /* paneles oscuros, pie y foco (crema encima 8,2:1) */
+  --oro: #9c7330;            /* estrellas de las reseñas */
+  --foco: var(--verde-profundo);
 
   --serif: 'Playfair Display', Georgia, serif;
   --sans: 'Nunito Sans', system-ui, sans-serif;
@@ -17,11 +20,26 @@
   --radio: 16px;
   --sombra: 0 6px 24px rgba(36, 51, 47, 0.08);
   --ancho: 1080px;
+  --ancho-amplio: 1240px;
+  --radio-grande: 28px;
+  /* Arco de la marca: medio punto arriba y esquinas suaves abajo */
+  --radio-arco: 999px 999px var(--radio) var(--radio);
+
+  /* Movimiento (skill movimiento-web): lento y suave, como el nombre */
+  --duracion-corta: 160ms;
+  --duracion-media: 380ms;
+  --duracion-larga: 700ms;
+  --curva-salida: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --curva-entrada: cubic-bezier(0.4, 0, 1, 1);
 }
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  /* Cambio de página con fundido (las fotos de los talleres viajan de la tarjeta a la ficha) */
+  @view-transition { navigation: auto; }
+}
 
 body {
   margin: 0;
@@ -45,11 +63,19 @@ h1, h2, h3 {
 h1 { font-size: clamp(2.1rem, 6vw, 3.4rem); }
 h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); }
 h3 { font-size: 1.3rem; }
+/* Solo cambia por dónde se parte la línea: sin palabras sueltas en los titulares */
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
 
 p { margin: 0 0 1em; }
 
 .contenedor {
   width: min(var(--ancho), 100% - 32px);
+  margin-inline: auto;
+}
+
+.contenedor-amplio {
+  width: min(var(--ancho-amplio), 100% - 32px);
   margin-inline: auto;
 }
 
@@ -84,6 +110,10 @@ p { margin: 0 0 1em; }
   font-weight: 700;
 }
 .boton:hover { background: var(--verde-oscuro); border-color: var(--verde-oscuro); }
+@media (prefers-reduced-motion: no-preference) {
+  .boton { transition: transform var(--duracion-corta) var(--curva-salida), background-color var(--duracion-corta), color var(--duracion-corta); }
+  .boton:active { transform: scale(0.97); }
+}
 .boton--borde { background: transparent; color: var(--verde); }
 .boton--borde:hover { background: var(--verde); color: #fff; }
 .boton[disabled], .boton[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
@@ -156,8 +186,9 @@ input, select, textarea {
   padding: 12px 14px;
   width: 100%;
 }
-input:focus, select:focus, textarea:focus, .boton:focus-visible, a:focus-visible {
-  outline: 3px solid var(--salvia);
+input[type='radio'], input[type='checkbox'] { accent-color: var(--verde); }
+input:focus, select:focus, textarea:focus, .boton:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--foco);
   outline-offset: 2px;
 }
 .casilla { display: block; position: relative; padding-left: 32px; font-weight: 400; }
@@ -193,3 +224,28 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .boton-texto--peligro { color: var(--aviso); }
 [hidden] { display: none !important; }
 .campo .casilla { font-weight: 400; }
+
+/* Aparición suave al entrar en pantalla. Visible por defecto: solo se anima si el navegador lo admite. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .aparece {
+      animation: aparecer linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+  }
+}
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Mariposa del logo pintada en cualquier color (decorativa, con aria-hidden) */
+.mariposa-marca {
+  display: block;
+  aspect-ratio: 2372 / 1834;
+  background: currentColor;
+  -webkit-mask: url(/logo.svg) center / contain no-repeat;
+  mask: url(/logo.svg) center / contain no-repeat;
+  pointer-events: none;
+}

@@ -60,7 +60,7 @@ const sitio = env.SITIO_URL || Astro.url.origin;
   <body>
     <a class="saltar" href="#contenido">Saltar al contenido</a>
     <header class="cabecera">
-      <div class="contenedor cabecera__fila">
+      <div class="contenedor-amplio cabecera__fila">
         <a class="marca" href="/" aria-label="Yutori Espacio Creativo, inicio">
           <Mariposa size={64} />
           <span>
@@ -72,7 +72,10 @@ const sitio = env.SITIO_URL || Astro.url.origin;
           {menu.map((m) => <a href={m.href} aria-current={actual === m.href ? 'page' : undefined}>{m.texto}</a>)}
         </nav>
         <details class="menu-movil">
-          <summary aria-label="Abrir menú">Menú</summary>
+          <summary aria-label="Abrir menú">
+            <svg class="menu-movil__icono" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path class="raya raya--1" d="M4 7h16" /><path class="raya raya--2" d="M4 12h16" /><path class="raya raya--3" d="M4 17h16" /></svg>
+            Menú
+          </summary>
           <nav aria-label="Principal (móvil)">
             {menu.map((m) => <a href={m.href} aria-current={actual === m.href ? 'page' : undefined}>{m.texto}</a>)}
           </nav>
@@ -85,7 +88,8 @@ const sitio = env.SITIO_URL || Astro.url.origin;
     </main>
 
     <footer class="pie">
-      <div class="contenedor pie__rejilla">
+      <span class="mariposa-marca pie__mariposa" aria-hidden="true"></span>
+      <div class="contenedor-amplio pie__rejilla">
         <div>
           <p class="pie__marca">{negocio.nombre} {negocio.subtitulo}</p>
           <p>{negocio.direccion}<br />{negocio.ciudad}</p>
@@ -113,6 +117,21 @@ const sitio = env.SITIO_URL || Astro.url.origin;
       </div>
     </footer>
 
+    <script is:inline>
+      // Menú móvil: se cierra al pulsar fuera, con Esc o al elegir un enlace. Sin JavaScript funciona igual (details).
+      (() => {
+        const menu = document.querySelector('.menu-movil');
+        if (!menu) return;
+        const cerrar = (devolverFoco) => {
+          if (!menu.open) return;
+          menu.open = false;
+          if (devolverFoco) menu.querySelector('summary').focus();
+        };
+        document.addEventListener('click', (e) => { if (!menu.contains(e.target)) cerrar(false); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrar(true); });
+        menu.querySelectorAll('nav a').forEach((a) => a.addEventListener('click', () => cerrar(false)));
+      })();
+    </script>
   </body>
 </html>
 
@@ -133,35 +152,77 @@ const sitio = env.SITIO_URL || Astro.url.origin;
   .marca__nombre { display: block; font-family: var(--serif); font-size: 1.5rem; font-weight: 700; line-height: 1; }
   .marca__sub { display: block; font-family: var(--script); font-size: 1.15rem; line-height: 1.1; }
 
-  .menu-escritorio { display: none; gap: 20px; }
+  .menu-escritorio { display: none; gap: 4px; }
   .menu-escritorio a, .menu-movil a { color: var(--tinta); text-decoration: none; font-weight: 700; }
-  .menu-escritorio a[aria-current='page'], .menu-movil a[aria-current='page'] { color: var(--verde); text-decoration: underline; text-underline-offset: 6px; }
+  .menu-escritorio a {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 10px;
+    font-size: 0.97rem;
+  }
+  /* Línea que crece desde el centro al pasar; fija en la página actual */
+  .menu-escritorio a::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--verde);
+    transform: scaleX(0);
+  }
+  .menu-escritorio a:hover::after, .menu-escritorio a[aria-current='page']::after { transform: scaleX(1); }
+  .menu-escritorio a[aria-current='page'], .menu-movil a[aria-current='page'] { color: var(--verde); }
+  .menu-escritorio a:last-child { margin-left: 8px; padding-left: 18px; border-left: 1px solid var(--borde); }
+  .menu-escritorio a:last-child::after { left: 18px; }
+  .menu-movil a[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; }
 
   .menu-movil summary {
     list-style: none;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
     font-weight: 700;
     color: var(--verde);
     border: 2px solid var(--verde);
     border-radius: 999px;
-    padding: 8px 18px;
+    padding: 8px 18px 8px 14px;
   }
   .menu-movil summary::-webkit-details-marker { display: none; }
+  .menu-movil[open] summary { background: var(--verde); color: var(--crema-claro); }
+  .menu-movil[open] .raya--2 { opacity: 0; }
+  .menu-movil[open] .raya--1 { transform: translateY(5px) rotate(45deg); }
+  .menu-movil[open] .raya--3 { transform: translateY(-5px) rotate(-45deg); }
+  .raya { transform-box: fill-box; transform-origin: center; }
   .menu-movil nav {
     position: absolute;
     right: 16px;
     left: 16px;
-    top: 76px;
+    top: 80px;
     display: grid;
     gap: 4px;
     background: var(--crema-claro);
     border: 1px solid var(--borde);
-    border-radius: var(--radio);
-    box-shadow: var(--sombra);
+    border-radius: var(--radio-grande);
+    box-shadow: 0 0 0 100vmax rgba(36, 51, 47, 0.28), var(--sombra);
     padding: 12px;
   }
-  .menu-movil nav a { padding: 12px; border-radius: 10px; }
+  .menu-movil nav a { display: flex; align-items: center; min-height: 48px; padding: 8px 16px; border-radius: 14px; font-size: 1.1rem; }
   .menu-movil nav a:hover { background: var(--salvia-suave); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .menu-escritorio a::after { transition: transform var(--duracion-corta) var(--curva-salida); }
+    .raya { transition: transform var(--duracion-corta) var(--curva-salida), opacity var(--duracion-corta); }
+    .menu-movil nav { transition: opacity var(--duracion-media) var(--curva-salida), transform var(--duracion-media) var(--curva-salida); }
+    @starting-style {
+      .menu-movil[open] nav { opacity: 0; transform: translateY(-8px); }
+    }
+  }
 
   /* Seis apartados con nombres largos: el menú completo solo cabe en pantallas anchas. */
   @media (min-width: 1100px) {
@@ -169,9 +230,11 @@ const sitio = env.SITIO_URL || Astro.url.origin;
     .menu-movil { display: none; }
   }
 
-  .pie { background: var(--verde); color: #f6f1e4; padding: 48px 0; margin-top: 48px; }
+  .pie { position: relative; overflow: hidden; background: var(--verde-profundo); color: #f6f1e4; padding: 64px 0 56px; margin-top: 48px; --foco: var(--crema); }
+  .pie__mariposa { position: absolute; right: -60px; bottom: -70px; width: min(520px, 90vw); color: var(--salvia); opacity: 0.14; }
+  .pie__rejilla { position: relative; }
   .pie a { color: #fff; }
-  .pie__rejilla { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .pie__rejilla { display: grid; gap: 24px 40px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
   .pie__marca { font-family: var(--serif); font-size: 1.6rem; }
   .pie__contacto { list-style: none; padding: 0; margin: 0 0 1em; display: grid; gap: 8px; }
   .pie__contacto li { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }

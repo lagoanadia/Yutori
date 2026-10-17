@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
+import '@fontsource/playfair-display/400-italic.css';
 import Base from '../layouts/Base.astro';
-import Mariposa from '../components/Mariposa.astro';
 import TallerCard from '../components/TallerCard.astro';
 import Resenas from '../components/Resenas.astro';
 import { negocio } from '../data/yutori';
@@ -9,61 +9,91 @@ import { talleresPublicados } from '../lib/reservas';
 
 const proximos = await talleresPublicados(3);
 const servicios = [
-  { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario' },
-  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y atelier textil, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases' },
-  { titulo: 'Talleres privados', texto: 'Despedidas, cumpleaños, grupos de amigas o empresas: un taller solo para vosotras.', href: '/privados', boton: 'Pedir información' },
-  { titulo: 'Bonos regalo', texto: 'No hay nada como regalar experiencias y momentos de desconexión.', href: '/bonos', boton: 'Regalar un bono' },
+  { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario', icono: 'calendario' },
+  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y atelier textil, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases', icono: 'ovillo' },
+  { titulo: 'Talleres privados', texto: 'Despedidas, cumpleaños, grupos de amigas o empresas: un taller solo para vosotras.', href: '/privados', boton: 'Pedir información', icono: 'grupo' },
+  { titulo: 'Bonos regalo', texto: 'No hay nada como regalar experiencias y momentos de desconexión.', href: '/bonos', boton: 'Regalar un bono', icono: 'regalo' },
 ];
+// Iconos de trazo fino, como el dibujo del logo. Decorativos: el título ya lo dice.
+const iconos: Record<string, string> = {
+  calendario: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M12 13.2c-1.6 0-2.4 1.6-1 3.3l1 1 1-1c1.4-1.7.6-3.3-1-3.3Z"/>',
+  ovillo: '<circle cx="12" cy="12" r="8.5"/><path d="M5.2 7.5c4 .3 8.3 3.6 9.6 12.2M8.6 4.2c3.7 1.8 7.4 6.6 7 13.9M3.6 12.6c4.4-.6 9.7 1 13.9 5.6M20.5 13.5c1.2 2.5 1.2 4.5 0 6"/>',
+  grupo: '<circle cx="8" cy="8.5" r="3"/><circle cx="16.5" cy="8.5" r="3"/><path d="M2.5 19.5c.6-3.4 2.8-5.4 5.5-5.4s4.9 2 5.5 5.4M11.4 15c.9-.9 2.6-1.4 5.1-1.4 2.7 0 4.9 2 5.5 5.4"/>',
+  regalo: '<rect x="3.5" y="9" width="17" height="11.5" rx="2"/><path d="M2.5 9h19M12 9v11.5M12 9c-1.8-4.5-6.5-4.8-6.5-2.2C5.5 9 12 9 12 9Zm0 0c1.8-4.5 6.5-4.8 6.5-2.2C18.5 9 12 9 12 9Z"/>',
+};
 ---
 <Base titulo="Inicio">
   <section class="portada">
-    <div class="contenedor portada__fila">
-      <div>
-        <h1>Talleres creativos en el centro de A Coruña</h1>
-        <p class="intro">{negocio.lema}</p>
+    <div class="contenedor-amplio portada__fila">
+      <div class="portada__texto">
+        <h1 class="portada__titulo">Talleres creativos en el centro de <em>A Coruña</em></h1>
+        <p class="intro portada__lema">{negocio.lema}</p>
+        {/* Texto accesible pendiente de aprobar por Iris */}
+        <a class="portada__bajar" href="#que-hacer" aria-label="Bajar a «Qué puedes hacer en Yutori»">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 13l7 7 7-7" /></svg>
+        </a>
       </div>
       <div class="portada__imagen">
-        <div class="foto-hueco portada__foto">Foto del espacio</div>
-        <Mariposa size={150} class="portada__mariposa" />
+        <div class="portada__marco">
+          <div class="portada__arco">
+            <div class="foto-hueco portada__foto">Foto del espacio</div>
+          </div>
+        </div>
+        <span class="mariposa-marca portada__mariposa" aria-hidden="true"></span>
       </div>
     </div>
   </section>
 
-  <section class="seccion">
-    <div class="contenedor">
-      <h2>Qué puedes hacer en Yutori</h2>
-      <div class="rejilla">
-        {servicios.map((s) => (
-          <article class="tarjeta">
-            <h3>{s.titulo}</h3>
-            <p>{s.texto}</p>
-            <a class="boton boton--borde" href={s.href}>{s.boton}</a>
+  <section class="seccion servicios" id="que-hacer">
+    <div class="contenedor-amplio">
+      <h2 class="titulo-grande aparece">Qué puedes hacer en Yutori</h2>
+      <div class="servicios__rejilla">
+        {servicios.map((s, i) => (
+          <article class={`servicio servicio--${i + 1} aparece`}>
+            <span class="servicio__icono" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={iconos[s.icono]} />
+            </span>
+            <div class="servicio__cuerpo">
+              <h3>{s.titulo}</h3>
+              <p>{s.texto}</p>
+            </div>
+            <a class="boton boton--borde servicio__boton" href={s.href}>
+              {s.boton}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </a>
+            {i === 0 && <span class="mariposa-marca servicio__mariposa" aria-hidden="true"></span>}
           </article>
         ))}
       </div>
     </div>
   </section>
 
-  <section class="seccion seccion--salvia">
-    <div class="contenedor">
-      <div class="titulo-con-enlace">
-        <h2>Próximos talleres</h2>
-        <a href="/talleres">Ver todo el calendario →</a>
+  <section class="seccion proximos">
+    <div class="contenedor-amplio">
+      <div class="proximos__panel">
+        <div class="titulo-con-enlace aparece">
+          <h2 class="titulo-grande">Próximos talleres</h2>
+          <a class="enlace-pildora" href="/talleres">Ver todo el calendario →</a>
+        </div>
+        {proximos.length > 0
+          ? <div class="proximos__rejilla">{proximos.map((t, i) => <div class="aparece" style={`--i: ${i}`}><TallerCard taller={t} /></div>)}</div>
+          : <p class="intro">Estamos preparando el calendario de talleres. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>}
       </div>
-      {proximos.length > 0
-        ? <div class="rejilla">{proximos.map((t) => <TallerCard taller={t} />)}</div>
-        : <p class="intro">Estamos preparando el calendario de talleres. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>}
     </div>
   </section>
 
   <section class="seccion">
-    <div class="contenedor dos-bloques">
-      <div>
+    <div class="contenedor-amplio encuentro">
+      <div class="encuentro__bloque encuentro__bloque--oscuro aparece">
+        <span class="mariposa-marca encuentro__mariposa" aria-hidden="true"></span>
         <h2>¿Quieres impartir un taller en Yutori?</h2>
         <p class="intro">Nos encanta recibir nuevas ideas, proyectos y personas con ganas de compartir, crear e inspirar.</p>
-        <a class="boton" href="/colabora">Proponer un taller</a>
+        <a class="boton boton--crema" href="/colabora">Proponer un taller</a>
       </div>
-      <div>
+      <div class="encuentro__bloque encuentro__bloque--arco aparece">
+        <span class="encuentro__pin" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg>
+        </span>
         <h2>Dónde nos encontramos</h2>
         <p class="intro">{negocio.direccion}, {negocio.ciudad}.</p>
         <a class="boton boton--borde" href="/espacio">Cómo llegar</a>
@@ -75,15 +105,242 @@ const servicios = [
 </Base>
 
 <style>
-  .portada { padding: 48px 0 32px; }
-  .portada__fila { display: grid; gap: 32px; align-items: center; }
-  .portada__imagen { position: relative; }
-  .portada__foto { aspect-ratio: 4 / 5; border-radius: 200px 200px var(--radio) var(--radio); margin: 0; }
-  .portada__imagen :global(.portada__mariposa) { position: absolute; right: 12px; bottom: -16px; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px; box-shadow: var(--sombra); width: 150px; height: auto; box-sizing: content-box; }
-  @media (min-width: 860px) {
-    .portada { padding: 72px 0 56px; }
-    .portada__fila { grid-template-columns: 1.2fr 1fr; }
+  /* ---------- Portada: titular grande y el arco de la marca respirando detrás ---------- */
+  .portada { position: relative; overflow: clip; padding: 32px 0 40px; }
+  .portada__fila { display: grid; gap: 40px; align-items: center; }
+  .portada__titulo {
+    font-size: clamp(2.6rem, 7.4vw, 5.6rem);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    margin-bottom: 0.4em;
   }
-  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .dos-bloques { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .portada__titulo em { font-style: italic; font-weight: 400; color: var(--verde-oscuro); }
+  .portada__lema { font-size: clamp(1.08rem, 1.6vw, 1.25rem); max-width: 34em; margin-bottom: 28px; }
+  .portada__bajar {
+    display: inline-grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 1.5px solid var(--verde);
+    color: var(--verde);
+  }
+  .portada__bajar:hover { background: var(--verde); color: var(--crema-claro); }
+
+  .portada__imagen { position: relative; isolation: isolate; padding: 40px 32px 0; width: 100%; max-width: 560px; margin-inline: auto; }
+  .portada__imagen::before {
+    /* Sol suave detrás del arco */
+    content: '';
+    position: absolute;
+    inset: 0 -20% 10% -20%;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--salvia) 45%, transparent), transparent);
+    z-index: -2;
+  }
+  /* Dos arcos de trazo fino alrededor de la foto, concéntricos con ella */
+  .portada__marco { position: relative; }
+  .portada__marco::before, .portada__marco::after {
+    content: '';
+    position: absolute;
+    inset: -14px -14px 0;
+    border: 1.2px solid var(--salvia);
+    border-bottom: 0;
+    border-radius: 999px 999px 0 0;
+    z-index: -1;
+    transform-origin: 50% 100%;
+  }
+  .portada__marco::after { inset: -32px -32px 0; opacity: 0.6; }
+  .portada__arco { border-radius: var(--radio-arco); overflow: hidden; }
+  .portada__foto {
+    aspect-ratio: 4 / 3.4;
+    max-height: 56svh;
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, var(--salvia-suave), color-mix(in srgb, var(--salvia) 55%, var(--salvia-suave)));
+    color: var(--verde-profundo);
+  }
+  .portada__mariposa {
+    position: absolute;
+    right: -4px;
+    bottom: -28px;
+    width: 46%;
+    max-width: 260px;
+    color: var(--verde-profundo);
+    filter: drop-shadow(0 10px 18px rgba(36, 51, 47, 0.12));
+  }
+
+  @media (min-width: 860px) {
+    .portada { padding: 24px 0 72px; }
+    .portada__fila { grid-template-columns: 1.15fr 1fr; min-height: calc(100svh - 96px); gap: 56px; }
+    .portada__foto { aspect-ratio: 4 / 5; max-height: min(74svh, 640px); }
+    .portada__imagen { padding: 48px 40px 0; max-width: none; }
+    .portada__mariposa { right: -8px; bottom: -36px; width: 46%; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .portada__titulo, .portada__lema, .portada__bajar { animation: subir var(--duracion-larga) var(--curva-salida) both; }
+    .portada__lema { animation-delay: 120ms; }
+    .portada__bajar { animation-delay: 240ms; transition: translate var(--duracion-corta) var(--curva-salida); }
+    .portada__bajar:hover { translate: 0 3px; }
+    .portada__arco { animation: abrir 900ms var(--curva-salida) 80ms both; }
+    .portada__marco::before { animation: respirar 1200ms var(--curva-salida) 250ms both; }
+    .portada__marco::after { animation: respirar 1400ms var(--curva-salida) 380ms both; }
+    .portada__mariposa { animation: posarse 1200ms var(--curva-salida) 450ms both; }
+
+    /* Al bajar, el arco se queda un poco atrás (profundidad sin secuestrar el scroll) */
+    @supports (animation-timeline: scroll()) {
+      .portada__imagen { animation: alejar linear both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
+    }
+  }
+  @keyframes subir { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+  @keyframes abrir { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
+  @keyframes respirar { from { opacity: 0; transform: scale(0.92); } }
+  @keyframes posarse { from { opacity: 0; transform: translate(24px, 18px) rotate(-8deg) scale(0.92); } to { opacity: 1; transform: none; } }
+  @keyframes alejar { to { transform: translateY(-48px); } }
+
+  /* ---------- Qué puedes hacer: composición con ritmo, no cuatro cajas iguales ---------- */
+  .titulo-grande { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.08; letter-spacing: -0.01em; }
+  .servicios .titulo-grande { max-width: 14ch; margin-bottom: 32px; }
+  .servicios__rejilla { display: grid; gap: 16px; }
+  .servicio {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 28px;
+    border-radius: var(--radio-grande);
+    background: var(--crema-claro);
+    border: 1px solid var(--borde);
+  }
+  .servicio h3 { font-size: 1.5rem; margin-bottom: 0.3em; }
+  .servicio p { color: var(--tinta-suave); margin: 0; }
+  .servicio__cuerpo { flex: 1; }
+  .servicio__icono {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--salvia-suave);
+    color: var(--verde-oscuro);
+  }
+  .servicio__boton { align-self: flex-start; }
+  .servicio__boton svg { transition: transform var(--duracion-corta) var(--curva-salida); }
+
+  /* 1 · Talleres del mes: el bloque grande y oscuro */
+  .servicio--1 { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); --foco: var(--crema); }
+  .servicio--1 h3 { color: var(--crema); font-size: clamp(1.7rem, 3.2vw, 2.4rem); }
+  .servicio--1 p { color: var(--crema-claro); font-size: 1.1rem; max-width: 26ch; }
+  .servicio--1 .servicio__icono { background: color-mix(in srgb, var(--salvia) 30%, transparent); color: var(--crema); }
+  .servicio--1 .servicio__boton { border-color: var(--crema); color: var(--crema); }
+  .servicio--1 .servicio__boton:hover { background: var(--crema); color: var(--verde-profundo); }
+  .servicio__mariposa { position: absolute; right: -40px; bottom: -36px; width: 260px; color: var(--salvia); opacity: 0.22; }
+  .servicio--1 > :not(.servicio__mariposa) { position: relative; }
+
+  /* 4 · Bonos regalo: salvia, el color original del logo */
+  .servicio--4 { background: var(--salvia); border-color: var(--salvia); }
+  .servicio--4 h3 { color: var(--verde-profundo); }
+  .servicio--4 p { color: var(--tinta); }
+  .servicio--4 .servicio__icono { background: var(--crema-claro); }
+  /* Botón relleno: el texto verde sobre salvia no llega a 4,5:1 */
+  .servicio--4 .servicio__boton { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
+  .servicio--4 .servicio__boton:hover { background: var(--tinta); border-color: var(--tinta); color: var(--crema); }
+
+  @media (min-width: 720px) {
+    .servicios__rejilla { grid-template-columns: 1fr 1fr; }
+    .servicio--1 { grid-row: span 2; justify-content: flex-end; min-height: 440px; }
+    .servicio--4 { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 24px; }
+  }
+  @media (min-width: 1000px) {
+    .servicios .titulo-grande { max-width: none; }
+    .servicios__rejilla { grid-template-columns: 1.15fr 1fr 1fr; gap: 20px; }
+    .servicio--4 { grid-column: 2 / -1; }
+    .servicio { padding: 32px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .servicio { transition: translate var(--duracion-media) var(--curva-salida); }
+    .servicio:hover { translate: 0 -4px; }
+    .servicio:hover .servicio__boton svg { transform: translateX(4px); }
+    .servicios__rejilla .aparece:nth-child(2) { animation-delay: 60ms; }
+  }
+
+  /* ---------- Próximos talleres: panel salvia con la parte de arriba en arco ---------- */
+  .proximos { padding-top: 16px; }
+  .proximos__panel {
+    background: var(--salvia-suave);
+    border-radius: 50% 50% var(--radio-grande) var(--radio-grande) / 72px 72px var(--radio-grande) var(--radio-grande);
+    padding: 64px 16px 32px;
+  }
+  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; margin-bottom: 28px; }
+  .titulo-con-enlace h2 { margin: 0; }
+  .enlace-pildora {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    background: var(--crema-claro);
+    color: var(--verde-oscuro);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .enlace-pildora:hover { background: var(--verde-oscuro); color: var(--crema-claro); }
+  /* Móvil y tablet: fila que se desliza con el dedo (se asoma la siguiente tarjeta); escritorio: tres columnas */
+  .proximos__rejilla {
+    display: grid;
+    gap: 16px;
+    grid-auto-flow: column;
+    grid-auto-columns: min(82%, 320px);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
+    margin-inline: -16px;
+    padding: 4px 16px 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--salvia) transparent;
+  }
+  .proximos__rejilla > * { display: flex; scroll-snap-align: start; }
+  @media (min-width: 700px) {
+    .proximos__rejilla { margin-inline: -40px; padding-inline: 40px; scroll-padding-inline: 40px; }
+  }
+  @media (min-width: 1000px) {
+    .proximos__rejilla { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); overflow: visible; margin-inline: 0; padding: 0; }
+  }
+  @media (min-width: 700px) {
+    .proximos__panel { padding: 88px 40px 48px; border-radius: 50% 50% var(--radio-grande) var(--radio-grande) / 120px 120px var(--radio-grande) var(--radio-grande); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .proximos__rejilla .aparece { animation-delay: calc(var(--i, 0) * 80ms); }
+  }
+
+  /* ---------- Impartir y dónde: dos paneles con carácter distinto ---------- */
+  .encuentro { display: grid; gap: 20px; }
+  .encuentro__bloque { position: relative; overflow: hidden; border-radius: var(--radio-grande); padding: 36px 24px; }
+  .encuentro__bloque h2 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); }
+  .encuentro__bloque--oscuro { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; background: var(--verde-profundo); color: var(--crema); --foco: var(--crema); }
+  .encuentro__bloque--oscuro h2 { color: var(--crema); max-width: 16ch; }
+  .encuentro__bloque--oscuro .intro { color: var(--crema-claro); }
+  .encuentro__bloque--oscuro > :not(.encuentro__mariposa) { position: relative; }
+  .encuentro__mariposa { position: absolute; right: -60px; top: -30px; width: 300px; color: var(--salvia); opacity: 0.18; }
+  .encuentro__bloque--arco {
+    background: var(--crema-claro);
+    border: 1px solid var(--borde);
+    border-radius: 999px 999px var(--radio-grande) var(--radio-grande);
+    text-align: center;
+    padding-top: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .encuentro__bloque--arco .intro { margin-inline: auto; }
+  .encuentro__pin { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-oscuro); margin-bottom: 16px; }
+  .boton--crema { background: var(--crema); border-color: var(--crema); color: var(--verde-profundo); }
+  .boton--crema:hover { background: var(--crema-claro); border-color: var(--crema-claro); color: var(--verde-profundo); }
+  @media (min-width: 860px) {
+    .encuentro { grid-template-columns: 1.3fr 1fr; gap: 24px; }
+    .encuentro__bloque { padding: 56px 48px; }
+    .encuentro__bloque--arco { padding-top: 96px; }
+  }
 </style>

@@ -2,44 +2,73 @@
 import { negocio, resenas, resenasGoogle } from '../data/yutori';
 ---
 <section class="seccion resenas">
-  <div class="contenedor">
-    <h2 class="script">Lo que dicen de Yutori</h2>
-    <div class="resenas__nota">
-      <span class="resenas__estrellas" aria-hidden="true">★★★★★</span>
-      <p><strong>{resenasGoogle.nota}</strong> de 5 · {resenasGoogle.total} reseñas en Google</p>
+  <div class="contenedor-amplio">
+    <div class="resenas__cabecera aparece">
+      <h2 class="script">Lo que dicen de Yutori</h2>
+      <div class="resenas__nota">
+        <span class="resenas__estrellas" aria-hidden="true">★★★★★</span>
+        <p><strong>{resenasGoogle.nota}</strong> de 5 · {resenasGoogle.total} reseñas en Google</p>
+      </div>
     </div>
 
-    <div class="rejilla resenas__lista">
+    <div class="resenas__lista">
       {resenas.length > 0
-        ? resenas.map((r) => (
-            <figure class="tarjeta resena">
+        ? resenas.map((r, i) => (
+            <figure class:list={['resena', 'aparece', { 'resena--destacada': i === 0 }]}>
+              <svg class="resena__comillas" width="40" height="32" viewBox="0 0 40 32" aria-hidden="true"><path d="M0 32V19C0 8.6 5.3 2.3 15.8 0l1.9 4.2C11.8 6 9 9.6 8.6 15H16v17H0Zm22.3 0V19c0-10.4 5.3-16.7 15.8-19L40 4.2C34.1 6 31.3 9.6 30.9 15h7.4v17H22.3Z" /></svg>
               <span class="resenas__estrellas" aria-label="5 estrellas">★★★★★</span>
               <blockquote>{r.texto}</blockquote>
               <figcaption>{r.autora} <small>· {r.cuando}</small></figcaption>
             </figure>
           ))
         : [1, 2, 3].map(() => (
-            <figure class="tarjeta resena resena--hueco">
+            <figure class="resena resena--hueco">
               <span class="ejemplo">Pendiente</span>
               <blockquote>Aquí irá una reseña real de Google.</blockquote>
             </figure>
           ))}
     </div>
 
-    <a class="boton boton--borde" href={negocio.mapsUrl} rel="noopener" target="_blank">Leer todas las reseñas en Google</a>
+    <div class="resenas__pie">
+      <a class="boton boton--borde" href={negocio.mapsUrl} rel="noopener" target="_blank">Leer todas las reseñas en Google</a>
+    </div>
   </div>
 </section>
 
 <style>
-  .resenas { text-align: center; }
-  .resenas .script { font-size: 2.4rem; font-weight: 400; margin-bottom: 8px; }
-  .resenas__nota { display: grid; justify-items: center; gap: 4px; margin-bottom: 24px; }
+  .resenas { position: relative; }
+  .resenas__cabecera { text-align: center; margin-bottom: 32px; }
+  .resenas .script { font-size: clamp(2.6rem, 7vw, 4rem); font-weight: 400; margin-bottom: 12px; }
+  .resenas__nota { display: grid; justify-items: center; gap: 4px; }
   .resenas__nota p { margin: 0; color: var(--tinta-suave); }
   .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; color: var(--verde); }
-  .resenas__estrellas { color: #c8963e; letter-spacing: 4px; font-size: 1.3rem; }
-  .resenas__lista { margin-bottom: 24px; text-align: left; }
-  .resena { margin: 0; }
-  .resena blockquote { margin: 8px 0 12px; font-size: 1.05rem; }
+  .resenas__estrellas { color: var(--oro); letter-spacing: 4px; font-size: 1.3rem; }
+
+  .resenas__lista { display: grid; gap: 16px; margin-bottom: 32px; align-items: start; }
+  .resena {
+    position: relative;
+    margin: 0;
+    padding: 28px 24px 24px;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+  }
+  .resena__comillas { position: absolute; top: 22px; right: 22px; fill: var(--salvia-suave); }
+  .resena blockquote { margin: 10px 0 16px; font-size: 1.05rem; }
   .resena figcaption { font-weight: 700; color: var(--verde); }
-  .resena--hueco { border-style: dashed; box-shadow: none; color: var(--tinta-suave); }
+  .resena figcaption small { color: var(--tinta-suave); font-weight: 400; }
+  /* La reseña larga se lee como una cita grande */
+  .resena--destacada { background: var(--salvia-suave); }
+  .resena--destacada blockquote { font-family: var(--serif); font-size: clamp(1.15rem, 1.8vw, 1.35rem); line-height: 1.5; color: var(--verde-profundo); }
+  .resena--destacada .resena__comillas { fill: var(--crema-claro); }
+  .resena--hueco { border: 1px dashed var(--borde); color: var(--tinta-suave); }
+  .resenas__pie { text-align: center; }
+
+  @media (min-width: 760px) {
+    .resenas__lista { grid-template-columns: 1.4fr 1fr; }
+    .resena--destacada { grid-row: span 2; padding: 40px 36px; }
+  }
+  @media (min-width: 1100px) {
+    .resenas__lista { grid-template-columns: 1.5fr 1fr 1fr; }
+    .resena--destacada { grid-row: auto; }
+  }
 </style>
