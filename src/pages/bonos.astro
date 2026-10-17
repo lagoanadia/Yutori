@@ -197,6 +197,9 @@ if (Astro.request.method === 'POST') {
       form.querySelectorAll('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo; });
     };
     form.addEventListener('change', actualizarTipo);
+    form.addEventListener('input', actualizarTipo);
+    // Algunos navegadores recuperan la opción elegida antes al volver a la página: se sincroniza otra vez.
+    window.addEventListener('pageshow', actualizarTipo);
     actualizarTipo();
 
     // Con errores del servidor se deja el formulario completo, para verlos todos de una vez.
@@ -231,6 +234,8 @@ if (Astro.request.method === 'POST') {
 
     const ir = (n, conFoco = true) => {
       actual = Math.max(0, Math.min(ultimo, n));
+      // La pregunta del paso 2 depende del tipo elegido: se comprueba siempre antes de enseñar un paso.
+      actualizarTipo();
       pasos.forEach((p, i) => { p.inert = i !== actual; p.classList.toggle('paso--actual', i === actual); });
       pista.style.transform = `translateX(${-100 * actual}%)`;
       ajustarAlto();
