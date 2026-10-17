@@ -11,10 +11,11 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
       </div>
     </div>
 
-    <div class="resenas__lista">
+    <div class="resenas__carrusel">
+    <div class="resenas__lista" tabindex="0" role="region" aria-label="Reseñas">
       {resenas.length > 0
-        ? resenas.map((r, i) => (
-            <figure class:list={['resena', 'aparece', { 'resena--destacada': i === 0 }]}>
+        ? resenas.map((r) => (
+            <figure class="resena">
               <svg class="resena__comillas" width="40" height="32" viewBox="0 0 40 32" aria-hidden="true"><path d="M0 32V19C0 8.6 5.3 2.3 15.8 0l1.9 4.2C11.8 6 9 9.6 8.6 15H16v17H0Zm22.3 0V19c0-10.4 5.3-16.7 15.8-19L40 4.2C34.1 6 31.3 9.6 30.9 15h7.4v17H22.3Z" /></svg>
               <span class="resenas__estrellas" aria-label="5 estrellas">★★★★★</span>
               <blockquote>{r.texto}</blockquote>
@@ -27,6 +28,15 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
               <blockquote>Aquí irá una reseña real de Google.</blockquote>
             </figure>
           ))}
+    </div>
+    <div class="resenas__flechas" hidden>
+      <button type="button" class="resenas__flecha" data-dir="-1" aria-label="Reseña anterior">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+      </button>
+      <button type="button" class="resenas__flecha" data-dir="1" aria-label="Reseña siguiente">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+      </button>
+    </div>
     </div>
 
     <div class="resenas__pie">
@@ -44,31 +54,78 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
   .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; color: var(--verde); }
   .resenas__estrellas { color: var(--oro); letter-spacing: 4px; font-size: 1.3rem; }
 
-  .resenas__lista { display: grid; gap: 16px; margin-bottom: 32px; align-items: start; }
+  /* Carrusel: se desliza con el dedo, con la rueda o con las flechas. Sin movimiento automático. */
+  .resenas__lista {
+    display: grid;
+    grid-auto-flow: column;
+    /* En móvil, una tarjeta y un trozo de la siguiente; en pantallas grandes, unas dos y media.
+       La que asoma invita a deslizar. */
+    grid-auto-columns: 86%;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 4px;
+    padding: 4px 4px 12px;
+    margin-bottom: 16px;
+    scrollbar-width: thin;
+  }
+  .resenas__lista:focus-visible { outline: 3px solid var(--foco); outline-offset: 4px; border-radius: var(--radio-grande); }
   .resena {
     position: relative;
     margin: 0;
     padding: 28px 24px 24px;
     background: var(--crema-claro);
     border-radius: var(--radio-grande);
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
   }
   .resena__comillas { position: absolute; top: 22px; right: 22px; fill: var(--salvia-suave); }
-  .resena blockquote { margin: 10px 0 16px; font-size: 1.05rem; }
+  .resena blockquote { margin: 10px 0 16px; font-size: 1.05rem; flex: 1; }
   .resena figcaption { font-weight: 700; color: var(--verde); }
   .resena figcaption small { color: var(--tinta-suave); font-weight: 400; }
-  /* La reseña larga se lee como una cita grande */
-  .resena--destacada { background: var(--salvia-suave); }
-  .resena--destacada blockquote { font-family: var(--serif); font-size: clamp(1.15rem, 1.8vw, 1.35rem); line-height: 1.5; color: var(--verde-profundo); }
-  .resena--destacada .resena__comillas { fill: var(--crema-claro); }
   .resena--hueco { border: 1px dashed var(--borde); color: var(--tinta-suave); }
+
+  .resenas__flechas { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+  .resenas__flechas[hidden] { display: none; }
+  .resenas__flecha {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 1px solid var(--verde); background: transparent; color: var(--verde); cursor: pointer;
+  }
+  .resenas__flecha:hover { background: var(--verde); color: #fff; }
+  .resenas__flecha:disabled { opacity: .35; cursor: default; background: transparent; color: var(--verde); }
   .resenas__pie { text-align: center; }
 
   @media (min-width: 760px) {
-    .resenas__lista { grid-template-columns: 1.4fr 1fr; }
-    .resena--destacada { grid-row: span 2; padding: 40px 36px; }
+    .resenas__lista { grid-auto-columns: calc((100% - 32px) / 2.4); }
   }
-  @media (min-width: 1100px) {
-    .resenas__lista { grid-template-columns: 1.5fr 1fr 1fr; }
-    .resena--destacada { grid-row: auto; }
+  @media (prefers-reduced-motion: no-preference) {
+    .resenas__lista { scroll-behavior: smooth; }
+    .resenas__flecha { transition: background-color var(--duracion-corta), color var(--duracion-corta); }
   }
 </style>
+
+<script>
+  // Flechas del carrusel: solo aparecen si hay reseñas que no caben en pantalla.
+  for (const carrusel of document.querySelectorAll('.resenas__carrusel')) {
+    const lista = carrusel.querySelector<HTMLElement>('.resenas__lista')!;
+    const flechas = carrusel.querySelector<HTMLElement>('.resenas__flechas')!;
+    const [antes, despues] = flechas.querySelectorAll<HTMLButtonElement>('button');
+    const actualizar = () => {
+      const max = lista.scrollWidth - lista.clientWidth;
+      flechas.hidden = max <= 4;
+      antes.disabled = lista.scrollLeft <= 4;
+      despues.disabled = lista.scrollLeft >= max - 4;
+    };
+    flechas.addEventListener('click', (e) => {
+      const boton = (e.target as Element).closest<HTMLButtonElement>('button');
+      if (!boton) return;
+      const paso = (lista.firstElementChild as HTMLElement | null)?.offsetWidth ?? lista.clientWidth;
+      lista.scrollBy({ left: Number(boton.dataset.dir) * (paso + 16) });
+    });
+    lista.addEventListener('scroll', actualizar, { passive: true });
+    new ResizeObserver(actualizar).observe(lista);
+    actualizar();
+  }
+</script>
