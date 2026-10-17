@@ -63,6 +63,7 @@ const PICO_SUELTAS = (grupo: string, mes: string, hoy: string) =>
 
 /** Plazas ocupadas de cada grupo en un mes (mensuales + pico de sueltas): { grupoId: número }. */
 export async function ocupacionMes(mes: string) {
+  await asegurarRenovacion();
   await liberarCaducadas();
   const filas = await todos<{ grupo_id: number; n: number }>(
     `SELECT g.id AS grupo_id, ${MENSUALES('g.id', '?1')} + ${PICO_SUELTAS('g.id', '?1', '?2')} AS n FROM grupos g`, mes, hoyEspana());
@@ -86,6 +87,7 @@ export function proximasSesiones(g: Pick<Grupo, 'dia_semana' | 'hora_inicio'>, s
 
 /** Plazas libres de un grupo en una fecha concreta (para clases sueltas). */
 export async function libresSesion(grupoId: number, fecha: string) {
+  await asegurarRenovacion();
   await liberarCaducadas();
   const r = await uno<{ libres: number }>(
     `SELECT g.plazas - ${MENSUALES('g.id', '?2')} - ${SUELTAS('g.id', '?3')} AS libres FROM grupos g WHERE g.id = ?1`,
@@ -95,6 +97,7 @@ export async function libresSesion(grupoId: number, fecha: string) {
 
 /** Para cada grupo de adultos: próximas sesiones y plazas libres en cada una (2 consultas para todo). */
 export async function disponibilidadSueltas(grupos: Grupo[]) {
+  await asegurarRenovacion();
   await liberarCaducadas();
   const adultos = grupos.filter((g) => g.publico === 'adultos');
   const sesiones = new Map(adultos.map((g) => [g.id, proximasSesiones(g)]));
@@ -130,6 +133,7 @@ const AHORA = `strftime('%Y-%m-%dT%H:%M:%S', 'now')`;
 
 /** Plaza mensual: se paga al reservar, con el mismo plazo que los talleres. Solo si queda plaza ese mes. */
 export async function reservarMensual(grupoId: number, mes: string, d: DatosAlumna) {
+  await asegurarRenovacion();
   await liberarCaducadas();
   const r = await db()
     .prepare(`
@@ -146,6 +150,7 @@ export async function reservarMensual(grupoId: number, mes: string, d: DatosAlum
 
 /** Clase suelta en una fecha: se paga al reservar (mismo plazo que los talleres). */
 export async function reservarSuelta(grupoId: number, fecha: string, d: DatosAlumna) {
+  await asegurarRenovacion();
   await liberarCaducadas();
   const r = await db()
     .prepare(`
@@ -162,9 +167,54 @@ export async function reservarSuelta(grupoId: number, fecha: string, d: DatosAlu
   return r?.codigo ?? null;
 }
 
+/** Último día (incluido) para pagar la plaza renovada de un mes: el día 5 en hora de España. */
+export const DIA_LIMITE_PAGO = 5;
+
+/** Convierte las 00:00 de un día en Madrid a UTC (`AAAA-MM-DDTHH:MM:SS`), con horario de verano o invierno. */
+export function medianocheMadridAUtc(dia: string) {
+  const [a, m, d] = dia.split('-').map(Number);
+  const local = Date.UTC(a, m - 1, d);
+  // Desfase de Madrid (ms) en un instante: hora de Madrid leída como si fuera UTC, menos el instante real.
+  const desfase = (t: number) => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Madrid', hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: 'numeric', second: 'numeric',
+    }).formatToParts(new Date(t)).map((x) => [x.type, Number(x.value)]));
+    return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - t;
+  };
+  // Dos pasadas: la primera estima el desfase y la segunda lo recalcula en el instante ya corregido.
+  const t1 = local - desfase(local);
+  return new Date(local - desfase(t1)).toISOString().slice(0, 19);
+}
+
+/** Momento en que caduca la plaza renovada de un mes (AAAA-MM): el inicio del día 6 en Madrid, en UTC. */
+export const caducidadRenovacion = (mes: string) => medianocheMadridAUtc(`${mes}-${String(DIA_LIMITE_PAGO + 1).padStart(2, '0')}`);
+
 /**
- * Prioridad de las alumnas: copia las mensuales CONFIRMADAS de un mes al siguiente como pendientes de pago,
- * salvo que ya estén apuntadas en ese grupo y mes. Solo en horarios activos y mientras quepan en el cupo
+ * Renovación automática: desde el día 20 (la primera vez que se usa la web) las mensuales confirmadas del mes actual
+ * pasan al siguiente, antes de que se muestren o vendan sus plazas. La fila de `renovaciones` hace que ocurra una sola vez.
+ */
+export async function asegurarRenovacion() {
+  if (Number(hoyEspana().slice(8, 10)) < DIA_APERTURA) return;
+  const { actual, siguiente } = meses();
+  const r = await db()
+    .prepare(`INSERT OR IGNORE INTO renovaciones (mes, hecha_en) VALUES (?1, ${AHORA})`)
+    .bind(siguiente)
+    .run();
+  if (r.meta.changes !== 1) return;
+  try {
+    await renovarMes(actual, siguiente);
+  } catch (e) {
+    // Si falla, se deshace la marca para que la próxima visita lo reintente.
+    await db().prepare(`DELETE FROM renovaciones WHERE mes = ?1`).bind(siguiente).run();
+    throw e;
+  }
+}
+
+/**
+ * Prioridad de las alumnas: copia las mensuales CONFIRMADAS de un mes al siguiente como pendientes de pago
+ * (con plazo hasta el día 5, ver `caducidadRenovacion`), salvo que ya tengan en ese grupo y mes cualquier reserva
+ * (también cancelada o liberada: así una cancelación de Iris no se deshace). Solo en horarios activos y mientras quepan en el cupo
  * (plazas - mensuales - pico de sueltas del destino). Devuelve cuántas se han renovado y cuántas se quedan sin plaza.
  */
 export async function renovarMes(origen: string, destino: string) {
@@ -176,20 +226,19 @@ export async function renovarMes(origen: string, destino: string) {
     JOIN clases cl ON cl.id = g.clase_id AND cl.activa = 1
     WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada'
       AND NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.mes = ?2 AND x.grupo_id = r.grupo_id
-                      AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
-                      AND x.estado IN ('pendiente', 'confirmada'))`;
+                      AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, ''))`;
   // Solo para informar: el INSERT de abajo es el que comprueba las plazas de verdad.
   const previstas = (await uno<{ n: number }>(`WITH candidatas AS (${candidatas}) SELECT count(*) AS n FROM candidatas`, origen, destino))?.n ?? 0;
   const r = await db()
     .prepare(`
       WITH candidatas AS (${candidatas})
       INSERT INTO reservas (${CAMPOS})
-      SELECT 'clase_mensual', c.grupo_id, ?2, NULL, c.nombre, c.telefono, c.email, c.modalidad, c.nombre_menor, 'pendiente', NULL,
+      SELECT 'clase_mensual', c.grupo_id, ?2, NULL, c.nombre, c.telefono, c.email, c.modalidad, c.nombre_menor, 'pendiente', ?4,
              lower(hex(randomblob(12))), c.acepta_condiciones_en, c.acepta_privacidad_en
       FROM candidatas c JOIN grupos g ON g.id = c.grupo_id
       WHERE c.fila <= g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2', '?3')}
       ORDER BY c.grupo_id, c.fila`)
-    .bind(origen, destino, hoyEspana())
+    .bind(origen, destino, hoyEspana(), caducidadRenovacion(destino))
     .run();
   const renovadas = r.meta.changes;
   return { renovadas, sinPlaza: Math.max(0, previstas - renovadas) };
