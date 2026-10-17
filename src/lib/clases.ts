@@ -57,13 +57,15 @@ const SUELTAS = (grupo: string, fecha: string) =>
 
 // Una alumna mensual ocupa sitio en todas las sesiones del mes, así que hay que contar también el día
 // con más clases sueltas (el pico): si no, la mensual podría dejar una sesión con más gente que plazas.
-const PICO_SUELTAS = (grupo: string, mes: string) =>
-  `COALESCE((SELECT count(*) FROM reservas s WHERE s.grupo_id = ${grupo} AND s.tipo = 'clase_suelta' AND substr(s.fecha_sesion, 1, 7) = ${mes} AND s.estado IN ('pendiente', 'confirmada') GROUP BY s.fecha_sesion ORDER BY count(*) DESC LIMIT 1), 0)`;
+// Las sueltas de días ya pasados no cuentan (`hoy` es un parámetro SQL): ya no ocupan sitio.
+const PICO_SUELTAS = (grupo: string, mes: string, hoy: string) =>
+  `COALESCE((SELECT count(*) FROM reservas s WHERE s.grupo_id = ${grupo} AND s.tipo = 'clase_suelta' AND substr(s.fecha_sesion, 1, 7) = ${mes} AND s.fecha_sesion >= ${hoy} AND s.estado IN ('pendiente', 'confirmada') GROUP BY s.fecha_sesion ORDER BY count(*) DESC LIMIT 1), 0)`;
 
 /** Plazas ocupadas de cada grupo en un mes (mensuales + pico de sueltas): { grupoId: número }. */
 export async function ocupacionMes(mes: string) {
+  await liberarCaducadas();
   const filas = await todos<{ grupo_id: number; n: number }>(
-    `SELECT g.id AS grupo_id, ${MENSUALES('g.id', '?1')} + ${PICO_SUELTAS('g.id', '?1')} AS n FROM grupos g`, mes);
+    `SELECT g.id AS grupo_id, ${MENSUALES('g.id', '?1')} + ${PICO_SUELTAS('g.id', '?1', '?2')} AS n FROM grupos g`, mes, hoyEspana());
   return new Map(filas.map((f) => [f.grupo_id, f.n]));
 }
 
@@ -134,9 +136,9 @@ export async function reservarMensual(grupoId: number, mes: string, d: DatosAlum
       INSERT INTO reservas (${CAMPOS})
       SELECT 'clase_mensual', g.id, ?2, NULL, ?3, ?4, ?5, ?6, ?7, 'pendiente', strftime('%Y-%m-%dT%H:%M:%S', 'now', ?8),
              lower(hex(randomblob(12))), ${AHORA}, ${AHORA}
-      FROM grupos g WHERE g.id = ?1 AND g.activo = 1 AND g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2')} >= 1
+      FROM grupos g WHERE g.id = ?1 AND g.activo = 1 AND g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2', '?9')} >= 1
       RETURNING codigo`)
-    .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor, `+${PLAZO_PAGO_HORAS} hours`)
+    .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor, `+${PLAZO_PAGO_HORAS} hours`, hoyEspana())
     .first<{ codigo: string }>();
   if (r?.codigo) await avisoReservaHecha(r.codigo);
   return r?.codigo ?? null;
@@ -166,10 +168,12 @@ export async function reservarSuelta(grupoId: number, fecha: string, d: DatosAlu
  * (plazas - mensuales - pico de sueltas del destino). Devuelve cuántas se han renovado y cuántas se quedan sin plaza.
  */
 export async function renovarMes(origen: string, destino: string) {
-  // Las candidatas son las que aún no están apuntadas en el destino, en horarios activos.
+  await liberarCaducadas();
+  // Las candidatas son las que aún no están apuntadas en el destino, en horarios y clases activos.
   const candidatas = `
     SELECT r.*, ROW_NUMBER() OVER (PARTITION BY r.grupo_id ORDER BY r.creado_en, r.id) AS fila
     FROM reservas r JOIN grupos g ON g.id = r.grupo_id AND g.activo = 1
+    JOIN clases cl ON cl.id = g.clase_id AND cl.activa = 1
     WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada'
       AND NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.mes = ?2 AND x.grupo_id = r.grupo_id
                       AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
@@ -183,8 +187,9 @@ export async function renovarMes(origen: string, destino: string) {
       SELECT 'clase_mensual', c.grupo_id, ?2, NULL, c.nombre, c.telefono, c.email, c.modalidad, c.nombre_menor, 'pendiente', NULL,
              lower(hex(randomblob(12))), c.acepta_condiciones_en, c.acepta_privacidad_en
       FROM candidatas c JOIN grupos g ON g.id = c.grupo_id
-      WHERE c.fila <= g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2')}`)
-    .bind(origen, destino)
+      WHERE c.fila <= g.plazas - ${MENSUALES('g.id', '?2')} - ${PICO_SUELTAS('g.id', '?2', '?3')}
+      ORDER BY c.grupo_id, c.fila`)
+    .bind(origen, destino, hoyEspana())
     .run();
   const renovadas = r.meta.changes;
   return { renovadas, sinPlaza: Math.max(0, previstas - renovadas) };

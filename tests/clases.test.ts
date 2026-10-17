@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ocupacionMes, renovarMes, reservarMensual, reservarSuelta } from '../src/lib/clases';
-import { alumna, crearGrupo, crearGrupoExtra, insertarReserva, mensualesDe } from './apoyo/datos';
+import { alumna, crearGrupo, crearGrupoExtra, desactivarClaseDe, insertarReserva, mensualesDe } from './apoyo/datos';
 
 const MES = '2027-03';
 const DIA1 = '2027-03-06';
@@ -192,5 +192,120 @@ describe('reservarSuelta (comportamiento previo)', () => {
     expect(await reservarSuelta(g, DIA1, alumna(98))).not.toBeNull(); // 8 - 6 - 0 = 2
     expect(await reservarSuelta(g, DIA1, alumna(99))).not.toBeNull();
     expect(await reservarSuelta(g, DIA1, alumna(97))).toBeNull();
+  });
+});
+
+describe('sueltas de días pasados y caducadas (cambios nuevos)', () => {
+  // Solo se falsea Date: así no se rompen las promesas. El 'now' de SQLite sigue siendo el real (2026), anterior a 2027.
+  const fijarReloj = (iso: string) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(iso));
+  };
+  afterEach(() => vi.useRealTimers());
+
+  const PASADA = '2027-03-06';
+  const FUTURA = '2027-03-13';
+
+  it('una suelta de un día ya pasado del mes no cuenta en ocupacionMes', async () => {
+    fijarReloj('2027-03-10T12:00:00Z');
+    const g = crearGrupo(8);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: PASADA, n: 1 });
+    expect((await ocupacionMes(MES)).get(g)).toBe(0);
+  });
+
+  it('una suelta de un día futuro del mismo mes sí cuenta en ocupacionMes', async () => {
+    fijarReloj('2027-03-10T12:00:00Z');
+    const g = crearGrupo(8);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: FUTURA, n: 1 });
+    expect((await ocupacionMes(MES)).get(g)).toBe(1);
+  });
+
+  it('con una pasada y una futura el pico es solo el de la futura; las sueltas de hoy cuentan', async () => {
+    fijarReloj('2027-03-10T12:00:00Z');
+    const g = crearGrupo(8);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: PASADA, n: 1 });
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: PASADA, n: 2 });
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: PASADA, n: 3 });
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: FUTURA, n: 4 });
+    expect((await ocupacionMes(MES)).get(g)).toBe(1);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: '2027-03-10', n: 5 });
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: '2027-03-10', n: 6 });
+    expect((await ocupacionMes(MES)).get(g)).toBe(2);
+  });
+
+  it('reservarMensual ignora la suelta pasada (7 mensuales + 1 suelta pasada en 8 plazas: acepta)', async () => {
+    fijarReloj('2027-03-10T12:00:00Z');
+    const g = crearGrupo(8);
+    llenar(g, 7);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: PASADA, n: 50 });
+    expect(await reservarMensual(g, MES, alumna(99))).not.toBeNull();
+    expect(mensualesDe(g, MES)).toBe(8);
+  });
+
+  it('reservarMensual sí cuenta la suelta futura (7 mensuales + 1 suelta futura en 8 plazas: rechaza)', async () => {
+    fijarReloj('2027-03-10T12:00:00Z');
+    const g = crearGrupo(8);
+    llenar(g, 7);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: FUTURA, n: 50 });
+    expect(await reservarMensual(g, MES, alumna(99))).toBeNull();
+    expect(mensualesDe(g, MES)).toBe(7);
+  });
+
+  it('"hoy" se mide en hora de España: a las 23:30 UTC del día 9 ya es el 10 en Madrid', async () => {
+    fijarReloj('2027-03-09T23:30:00Z');
+    const g = crearGrupo(8);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: '2027-03-09', n: 1 }); // ayer en Madrid
+    expect((await ocupacionMes(MES)).get(g)).toBe(0);
+    insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: '2027-03-10', n: 2 }); // hoy en Madrid
+    expect((await ocupacionMes(MES)).get(g)).toBe(1);
+  });
+
+  it('ocupacionMes no cuenta una mensual pendiente con caduca_en en el pasado (se libera antes)', async () => {
+    const g = crearGrupo(8);
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 1, estado: 'pendiente', caduca: '2026-01-01T00:00:00' });
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 2, estado: 'pendiente', caduca: '2099-01-01T00:00:00' });
+    expect((await ocupacionMes(MES)).get(g)).toBe(1);
+    expect(mensualesDe(g, MES, 'liberada')).toBe(1);
+  });
+
+  it('liberar caducadas no hace red (ni emails ni calendario) con el entorno de pruebas', async () => {
+    const fetchEspia = vi.fn(() => { throw new Error('red'); });
+    vi.stubGlobal('fetch', fetchEspia);
+    const g = crearGrupo(8);
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 1, estado: 'pendiente', caduca: '2026-01-01T00:00:00' });
+    await ocupacionMes(MES);
+    await renovarMes('2027-02', MES);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mensualesDe(g, MES, 'liberada')).toBe(1);
+    expect(fetchEspia).not.toHaveBeenCalled();
+  });
+
+  it('renovarMes libera las caducadas del destino antes del cupo: una pendiente caducada no quita plaza', async () => {
+    const g = crearGrupo(4);
+    for (let n = 1; n <= 3; n++) insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n, estado: 'confirmada' });
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 4, estado: 'pendiente', caduca: '2026-01-01T00:00:00' });
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2027-02', n: 11 });
+    expect(await renovarMes('2027-02', MES)).toEqual({ renovadas: 1, sinPlaza: 0 });
+    expect(mensualesDe(g, MES, 'liberada')).toBe(1);
+    expect(mensualesDe(g, MES, 'pendiente')).toBe(1); // la renovada
+  });
+
+  it('renovarMes no deja que una pendiente aún vigente (sin caducar) libere plaza', async () => {
+    const g = crearGrupo(4);
+    for (let n = 1; n <= 3; n++) insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n, estado: 'confirmada' });
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 4, estado: 'pendiente', caduca: '2099-01-01T00:00:00' });
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2027-02', n: 11 });
+    expect(await renovarMes('2027-02', MES)).toEqual({ renovadas: 0, sinPlaza: 1 });
+  });
+
+  it('renovarMes no renueva alumnas de una clase con activa = 0 aunque el grupo esté activo, ni las cuenta como sin plaza', async () => {
+    const g = crearGrupo(8);
+    const activo = crearGrupoExtra(8, 1, 'viva');
+    desactivarClaseDe(g);
+    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2027-02', n: 1 });
+    insertarReserva({ grupo: activo, tipo: 'clase_mensual', mes: '2027-02', n: 2 });
+    expect(await renovarMes('2027-02', MES)).toEqual({ renovadas: 1, sinPlaza: 0 });
+    expect(mensualesDe(g, MES)).toBe(0);
+    expect(mensualesDe(activo, MES)).toBe(1);
   });
 });
