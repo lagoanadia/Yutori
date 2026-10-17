@@ -1,0 +1,31 @@
+{
+  "repositorio": "https://github.com/lagoanadia/kit-agents",
+  "plugins": [
+    "equipo-base",
+    "astro-cloudflare"
+  ],
+  "versiones": {
+    "equipo-base": "1.1.0",
+    "astro-cloudflare": "1.0.0"
+  },
+  "actualizado": "2026-10-17",
+  "archivos": [
+    ".claude/agents/arquitecto.md",
+    ".claude/agents/auditor-web.md",
+    ".claude/agents/constructor.md",
+    ".claude/agents/director-arte.md",
+    ".claude/agents/explorador.md",
+    ".claude/agents/herrero-skills.md",
+    ".claude/agents/producto.md",
+    ".claude/agents/redactor.md",
+    ".claude/agents/revisor.md",
+    ".claude/agents/seguridad.md",
+    ".claude/agents/tester.md",
+    ".claude/skills/capturas-pantalla",
+    ".claude/skills/emails-transaccionales",
+    ".claude/skills/formulario-publico",
+    ".claude/skills/movimiento-web",
+    ".claude/skills/nueva-migracion-d1",
+    ".claude/skills/pagina-panel"
+  ]
+}

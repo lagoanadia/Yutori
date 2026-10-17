@@ -44,9 +44,9 @@ docs/                 Specs (docs/specs/), planes (docs/planes/) e informes de l
 - **Estados** como texto con `CHECK (estado IN (...))` en la tabla y su etiqueta legible en `src/lib/db.ts` (`ESTADOS_*`).
 - **Plazas**: comprobar y reservar en **una sola sentencia** (`INSERT ... SELECT ... WHERE plazas - ocupadas >= ?`), como en
   `reservarTaller()`. Nunca "leer plazas y luego insertar" en dos pasos.
-- **Formularios públicos**: ver la skill `astro-cloudflare:formulario-publico` (trampa `web`, Turnstile, privacidad con fecha,
+- **Formularios públicos**: ver la skill `formulario-publico` (trampa `web`, Turnstile, privacidad con fecha,
   redirección 303). Ejemplo de referencia: `src/pages/bonos.astro`.
-- **Emails**: siempre en `src/lib/avisos.ts` con `enviar()` (skill `astro-cloudflare:emails-transaccionales`). Voz de Yutori ("te escribimos"), nunca "Iris" en tercera persona.
+- **Emails**: siempre en `src/lib/avisos.ts` con `enviar()` (skill `emails-transaccionales`). Voz de Yutori ("te escribimos"), nunca "Iris" en tercera persona.
   Un fallo de email jamás rompe una reserva.
 - **Páginas con servidor**: `export const prerender = false;`. Las demás son estáticas.
 - **Accesibilidad**: etiquetas `<label for>`, `role="alert"` en errores, `aria-current` en menús, objetivos táctiles de 48 px.
@@ -65,10 +65,12 @@ npm run db:ejemplo           # datos de ejemplo en local
 
 ## Trabajo con agentes
 
-Los agentes y skills genéricos vienen del catálogo **kit-agents** (repo `lagoanadia/kit-agents`), declarado en
-`.claude/settings.json`: plugin `equipo-base` (agentes) y plugin `astro-cloudflare` (skills del stack).
-No se copian aquí: se mejoran en el kit y se actualizan con `/plugin marketplace update kit-agents`.
-Las skills que solo sirven para Yutori van en `.claude/skills/` de este repo.
+Los agentes (`.claude/agents/`) y skills (`.claude/skills/`) son **copias del kit** `lagoanadia/kit-agents`
+(plugins `equipo-base` y `astro-cloudflare`; versiones en `.claude/kit.json`). Están dentro del repo para que
+cualquier sesión, también en la nube, los tenga desde el primer momento sin instalar nada.
+- **No se editan aquí.** Se mejoran en el kit y se traen con `node scripts/actualizar-kit.mjs`
+  (necesita acceso al repo kit-agents: en la nube, añadirlo a la sesión).
+- Las skills que solo sirvan para Yutori van en `.claude/skills/` con un nombre que no exista en el kit.
 
 Reglas:
 1. Cada bloque de trabajo va en **su propia rama** y termina en un PR.
