@@ -48,10 +48,11 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
 <style>
   .resenas { position: relative; }
   .resenas__cabecera { text-align: center; margin-bottom: 32px; }
-  .resenas .script { font-size: clamp(2.6rem, 7vw, 4rem); font-weight: 400; margin-bottom: 12px; }
+  .resenas .script { justify-content: center; font-size: var(--t-seccion); color: var(--verde-profundo); letter-spacing: -0.02em; margin-bottom: 12px; }
+  .resenas .script::before { display: none; }
   .resenas__nota { display: grid; justify-items: center; gap: 4px; }
   .resenas__nota p { margin: 0; color: var(--tinta-suave); }
-  .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; color: var(--verde); }
+  .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; font-weight: 400; color: var(--verde-profundo); font-variant-numeric: lining-nums; }
   .resenas__estrellas { color: var(--oro); letter-spacing: 4px; font-size: 1.3rem; }
 
   /* Carrusel: se desliza con el dedo, con la rueda o con las flechas. Sin movimiento automático. */
@@ -65,7 +66,7 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     scroll-padding-inline: 4px;
-    padding: 4px 4px 12px;
+    padding: 8px 6px 28px;
     margin-bottom: 16px;
     scrollbar-width: thin;
   }
@@ -73,16 +74,17 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
   .resena {
     position: relative;
     margin: 0;
-    padding: 28px 24px 24px;
+    padding: 28px 26px 24px;
     background: var(--crema-claro);
     border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-suave);
     scroll-snap-align: start;
     display: flex;
     flex-direction: column;
   }
   .resena__comillas { position: absolute; top: 22px; right: 22px; fill: var(--salvia-suave); }
   .resena blockquote { margin: 10px 0 16px; font-size: 1.05rem; flex: 1; }
-  .resena figcaption { font-weight: 700; color: var(--verde); }
+  .resena figcaption { font-weight: 600; color: var(--verde-profundo); }
   .resena figcaption small { color: var(--tinta-suave); font-weight: 400; }
   .resena--hueco { border: 1px dashed var(--borde); color: var(--tinta-suave); }
 

@@ -1,6 +1,5 @@
 ---
 export const prerender = false;
-import '@fontsource/playfair-display/400-italic.css';
 import Base from '../layouts/Base.astro';
 import TallerCard from '../components/TallerCard.astro';
 import Resenas from '../components/Resenas.astro';
@@ -23,67 +22,54 @@ const iconos: Record<string, string> = {
 };
 ---
 <Base titulo="Inicio">
+  {/* Portada: lienzo verde con el titular y, montado encima, lo que se puede hacer. Todo en la primera pantalla. */}
   <section class="portada">
-    <div class="contenedor-amplio portada__fila">
-      <div class="portada__texto">
-        <h1 class="portada__titulo">Talleres creativos en el centro de <em>A Coruña</em></h1>
-        <p class="intro portada__lema">{negocio.lema}</p>
-        {/* Texto accesible pendiente de aprobar por Iris */}
-        <a class="portada__bajar" href="#que-hacer" aria-label="Bajar a «Qué puedes hacer en Yutori»">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 13l7 7 7-7" /></svg>
-        </a>
-      </div>
-      <div class="portada__imagen">
-        <div class="portada__marco">
-          <div class="portada__arco">
-            <div class="foto-hueco portada__foto">Foto del espacio</div>
-          </div>
+    <div class="contenedor portada__escena">
+      <div class="portada__lienzo">
+        <div class="portada__texto">
+          <h1 class="portada__titulo">Talleres creativos en el centro de <em>A Coruña</em></h1>
+          <p class="portada__lema">{negocio.lema}</p>
         </div>
+        {/* Cuando haya foto del espacio irá aquí, a sangre, con un velo verde para que se lea el titular */}
+        <div class="foto-hueco portada__foto">Foto del espacio</div>
+        <div class="portada__arcos" aria-hidden="true"><span></span><span></span><span></span></div>
         <span class="mariposa-marca portada__mariposa" aria-hidden="true"></span>
       </div>
-    </div>
-  </section>
 
-  <section class="seccion servicios" id="que-hacer">
-    <div class="contenedor-amplio">
-      <h2 class="titulo-grande aparece">Qué puedes hacer en Yutori</h2>
-      <div class="servicios__rejilla">
-        {servicios.map((s, i) => (
-          <article class={`servicio servicio--${i + 1} aparece`}>
-            <span class="servicio__icono" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={iconos[s.icono]} />
-            </span>
-            <div class="servicio__cuerpo">
-              <h3>{s.titulo}</h3>
-              <p>{s.texto}</p>
-            </div>
-            <a class="boton boton--borde servicio__boton" href={s.href}>
-              {s.boton}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-            </a>
-            {i === 0 && <span class="mariposa-marca servicio__mariposa" aria-hidden="true"></span>}
-          </article>
-        ))}
+      <div class="servicios" id="que-hacer">
+        <h2 class="servicios__titulo">Qué puedes hacer en Yutori</h2>
+        <div class="servicios__lista">
+          {servicios.map((s, i) => (
+            <article class={`servicio servicio--${i + 1}`}>
+              <span class="servicio__icono" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={iconos[s.icono]} />
+              </span>
+              <div class="servicio__cuerpo">
+                <h3>{s.titulo}</h3>
+                <p>{s.texto}</p>
+                <a class="servicio__enlace" href={s.href}>{s.boton}</a>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   </section>
 
   <section class="seccion proximos">
-    <div class="contenedor-amplio">
-      <div class="proximos__panel">
-        <div class="titulo-con-enlace aparece">
-          <h2 class="titulo-grande">Próximos talleres</h2>
-          <a class="enlace-pildora" href="/talleres">Ver todo el calendario →</a>
-        </div>
-        {proximos.length > 0
-          ? <div class="proximos__rejilla">{proximos.map((t, i) => <div class="aparece" style={`--i: ${i}`}><TallerCard taller={t} /></div>)}</div>
-          : <p class="intro">Estamos preparando el calendario de talleres. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>}
+    <div class="contenedor">
+      <div class="titulo-con-enlace aparece">
+        <h2>Próximos talleres</h2>
+        <a class="enlace-flecha" href="/talleres">Ver todo el calendario →</a>
       </div>
+      {proximos.length > 0
+        ? <div class="proximos__rejilla">{proximos.map((t, i) => <div class="aparece" style={`--i: ${i}`}><TallerCard taller={t} /></div>)}</div>
+        : <p class="intro">Estamos preparando el calendario de talleres. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>}
     </div>
   </section>
 
-  <section class="seccion">
-    <div class="contenedor-amplio encuentro">
+  <section class="seccion encuentro-seccion">
+    <div class="contenedor encuentro">
       <div class="encuentro__bloque encuentro__bloque--oscuro aparece">
         <span class="mariposa-marca encuentro__mariposa" aria-hidden="true"></span>
         <h2>¿Quieres impartir un taller en Yutori?</h2>
@@ -92,7 +78,7 @@ const iconos: Record<string, string> = {
       </div>
       <div class="encuentro__bloque encuentro__bloque--arco aparece">
         <span class="encuentro__pin" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg>
         </span>
         <h2>Dónde nos encontramos</h2>
         <p class="intro">{negocio.direccion}, {negocio.ciudad}.</p>
@@ -105,242 +91,207 @@ const iconos: Record<string, string> = {
 </Base>
 
 <style>
-  /* ---------- Portada: titular grande y el arco de la marca respirando detrás ---------- */
-  .portada { position: relative; overflow: clip; padding: 32px 0 40px; }
-  .portada__fila { display: grid; gap: 40px; align-items: center; }
+  /* ---------- Portada ---------- */
+  .portada { padding: 12px 0 0; }
+  .portada__escena { display: grid; }
+  .portada__lienzo {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--radio-grande);
+    background: var(--verde-profundo);
+    color: var(--crema);
+    padding: 26px 20px 54px;
+    box-shadow: var(--sombra);
+  }
+  .portada__texto { position: relative; z-index: 2; max-width: 34rem; }
   .portada__titulo {
-    font-size: clamp(2.6rem, 7.4vw, 5.6rem);
+    font-size: var(--t-portada);
+    font-weight: 350;
     line-height: 1.02;
-    letter-spacing: -0.015em;
-    margin-bottom: 0.4em;
+    letter-spacing: -0.03em;
+    color: var(--crema-claro);
+    margin-bottom: 0.35em;
   }
-  .portada__titulo em { font-style: italic; font-weight: 400; color: var(--verde-oscuro); }
-  .portada__lema { font-size: clamp(1.08rem, 1.6vw, 1.25rem); max-width: 34em; margin-bottom: 28px; }
-  .portada__bajar {
-    display: inline-grid;
-    place-items: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: 1.5px solid var(--verde);
-    color: var(--verde);
-  }
-  .portada__bajar:hover { background: var(--verde); color: var(--crema-claro); }
+  .portada__titulo em { font-style: italic; color: var(--salvia); font-weight: 300; }
+  .portada__lema { color: color-mix(in srgb, var(--crema-claro) 88%, transparent); font-size: clamp(1rem, 0.95rem + 0.3vw, 1.18rem); max-width: 32em; margin: 0; }
 
-  .portada__imagen { position: relative; isolation: isolate; padding: 40px 32px 0; width: 100%; max-width: 560px; margin-inline: auto; }
-  .portada__imagen::before {
-    /* Sol suave detrás del arco */
-    content: '';
-    position: absolute;
-    inset: 0 -20% 10% -20%;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--salvia) 45%, transparent), transparent);
-    z-index: -2;
-  }
-  /* Dos arcos de trazo fino alrededor de la foto, concéntricos con ella */
-  .portada__marco { position: relative; }
-  .portada__marco::before, .portada__marco::after {
-    content: '';
-    position: absolute;
-    inset: -14px -14px 0;
-    border: 1.2px solid var(--salvia);
-    border-bottom: 0;
-    border-radius: 999px 999px 0 0;
-    z-index: -1;
-    transform-origin: 50% 100%;
-  }
-  .portada__marco::after { inset: -32px -32px 0; opacity: 0.6; }
-  .portada__arco { border-radius: var(--radio-arco); overflow: hidden; }
+  /* La foto (o su hueco) ocupa todo el lienzo, por detrás del texto */
   .portada__foto {
-    aspect-ratio: 4 / 3.4;
-    max-height: 56svh;
-    width: 100%;
-    margin: 0;
-    border-radius: 0;
-    background: linear-gradient(180deg, var(--salvia-suave), color-mix(in srgb, var(--salvia) 55%, var(--salvia-suave)));
-    color: var(--verde-profundo);
-  }
-  .portada__mariposa {
     position: absolute;
-    right: -4px;
-    bottom: -28px;
-    width: 46%;
-    max-width: 260px;
-    color: var(--verde-profundo);
-    filter: drop-shadow(0 10px 18px rgba(36, 51, 47, 0.12));
+    inset: 0;
+    z-index: 0;
+    aspect-ratio: auto;
+    border-radius: 0;
+    background: radial-gradient(90% 70% at 85% 30%, color-mix(in srgb, var(--salvia) 28%, transparent), transparent 70%), var(--verde-profundo);
+    color: color-mix(in srgb, var(--crema) 70%, transparent);
+    place-items: start end;
+    padding: 14px 18px;
+    font-size: 0.85rem;
   }
-
-  @media (min-width: 860px) {
-    .portada { padding: 24px 0 72px; }
-    .portada__fila { grid-template-columns: 1.15fr 1fr; min-height: calc(100svh - 96px); gap: 56px; }
-    .portada__foto { aspect-ratio: 4 / 5; max-height: min(74svh, 640px); }
-    .portada__imagen { padding: 48px 40px 0; max-width: none; }
-    .portada__mariposa { right: -8px; bottom: -36px; width: 46%; }
+  .portada__foto::before { display: none; }
+  .portada__foto::after { opacity: 0.22; mix-blend-mode: soft-light; }
+  /* Velo para que el titular se lea sobre una foto real */
+  .portada__lienzo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(100deg, rgba(36, 55, 50, 0.72), rgba(36, 55, 50, 0.15) 70%);
+    pointer-events: none;
   }
+  .portada__arcos { position: absolute; z-index: 1; right: -12%; bottom: -30%; width: 72%; aspect-ratio: 1; pointer-events: none; }
+  .portada__arcos span { position: absolute; inset: 0; border: 1px solid color-mix(in srgb, var(--salvia) 45%, transparent); border-radius: 50%; }
+  .portada__arcos span:nth-child(2) { inset: 12%; }
+  .portada__arcos span:nth-child(3) { inset: 24%; border-color: color-mix(in srgb, var(--salvia) 25%, transparent); }
+  .portada__mariposa { position: absolute; z-index: 1; right: -18px; bottom: 26px; width: 46%; max-width: 380px; color: var(--salvia); opacity: 0.5; }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .portada__titulo, .portada__lema, .portada__bajar { animation: subir var(--duracion-larga) var(--curva-salida) both; }
-    .portada__lema { animation-delay: 120ms; }
-    .portada__bajar { animation-delay: 240ms; transition: translate var(--duracion-corta) var(--curva-salida); }
-    .portada__bajar:hover { translate: 0 3px; }
-    .portada__arco { animation: abrir 900ms var(--curva-salida) 80ms both; }
-    .portada__marco::before { animation: respirar 1200ms var(--curva-salida) 250ms both; }
-    .portada__marco::after { animation: respirar 1400ms var(--curva-salida) 380ms both; }
-    .portada__mariposa { animation: posarse 1200ms var(--curva-salida) 450ms both; }
-
-    /* Al bajar, el arco se queda un poco atrás (profundidad sin secuestrar el scroll) */
-    @supports (animation-timeline: scroll()) {
-      .portada__imagen { animation: alejar linear both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
-    }
+  /* Lo que se puede hacer: una hoja de papel que se monta sobre el lienzo */
+  .servicios {
+    position: relative;
+    z-index: 3;
+    margin: -38px 8px 0;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-alta);
+    padding: 14px 16px 4px;
+    scroll-margin-top: 90px;
   }
-  @keyframes subir { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
-  @keyframes abrir { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
-  @keyframes respirar { from { opacity: 0; transform: scale(0.92); } }
-  @keyframes posarse { from { opacity: 0; transform: translate(24px, 18px) rotate(-8deg) scale(0.92); } to { opacity: 1; transform: none; } }
-  @keyframes alejar { to { transform: translateY(-48px); } }
-
-  /* ---------- Qué puedes hacer: composición con ritmo, no cuatro cajas iguales ---------- */
-  .titulo-grande { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.08; letter-spacing: -0.01em; }
-  .servicios .titulo-grande { max-width: 14ch; margin-bottom: 32px; }
-  .servicios__rejilla { display: grid; gap: 16px; }
+  .servicios__titulo { font-size: 1.05rem; font-family: var(--sans); font-weight: 600; letter-spacing: 0; color: var(--tinta-suave); margin: 0 0 4px; }
+  .servicios__lista { display: grid; }
   .servicio {
     position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 28px;
-    border-radius: var(--radio-grande);
-    background: var(--crema-claro);
-    border: 1px solid var(--borde);
-  }
-  .servicio h3 { font-size: 1.5rem; margin-bottom: 0.3em; }
-  .servicio p { color: var(--tinta-suave); margin: 0; }
-  .servicio__cuerpo { flex: 1; }
-  .servicio__icono {
     display: grid;
-    place-items: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--salvia-suave);
-    color: var(--verde-oscuro);
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    padding: 9px 0;
+    border-top: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
   }
-  .servicio__boton { align-self: flex-start; }
-  .servicio__boton svg { transition: transform var(--duracion-corta) var(--curva-salida); }
+  .servicio:first-child { border-top: 0; }
+  .servicio__icono { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-profundo); }
+  .servicio h3 { font-size: 1.2rem; margin: 0 0 2px; line-height: 1.2; }
+  .servicio p { color: var(--tinta-suave); font-size: 0.9rem; line-height: 1.42; margin: 0 0 2px; }
+  .servicio__cuerpo { display: flex; flex-direction: column; align-items: flex-start; height: 100%; }
+  .servicio__enlace { margin-top: auto; }
+  .servicio__enlace { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.92rem; color: var(--verde-profundo); text-decoration: none; }
+  .servicio__enlace::after {
+    content: '';
+    width: 1em;
+    height: 1em;
+    background: currentColor;
+    -webkit-mask: var(--flecha) center / contain no-repeat;
+    mask: var(--flecha) center / contain no-repeat;
+  }
+  /* Toda la fila se puede pulsar */
+  .servicio__enlace::before { content: ''; position: absolute; inset: 0; border-radius: 16px; }
+  .servicio:has(.servicio__enlace:focus-visible) { outline: 3px solid var(--foco); outline-offset: 2px; border-radius: 16px; }
+  .servicio__enlace:focus-visible { outline: none; }
 
-  /* 1 · Talleres del mes: el bloque grande y oscuro */
-  .servicio--1 { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); --foco: var(--crema); }
-  .servicio--1 h3 { color: var(--crema); font-size: clamp(1.7rem, 3.2vw, 2.4rem); }
-  .servicio--1 p { color: var(--crema-claro); font-size: 1.1rem; max-width: 26ch; }
-  .servicio--1 .servicio__icono { background: color-mix(in srgb, var(--salvia) 30%, transparent); color: var(--crema); }
-  .servicio--1 .servicio__boton { border-color: var(--crema); color: var(--crema); }
-  .servicio--1 .servicio__boton:hover { background: var(--crema); color: var(--verde-profundo); }
-  .servicio__mariposa { position: absolute; right: -40px; bottom: -36px; width: 260px; color: var(--salvia); opacity: 0.22; }
-  .servicio--1 > :not(.servicio__mariposa) { position: relative; }
-
-  /* 4 · Bonos regalo: salvia, el color original del logo */
-  .servicio--4 { background: var(--salvia); border-color: var(--salvia); }
-  .servicio--4 h3 { color: var(--verde-profundo); }
-  .servicio--4 p { color: var(--tinta); }
-  .servicio--4 .servicio__icono { background: var(--crema-claro); }
-  /* Botón relleno: el texto verde sobre salvia no llega a 4,5:1 */
-  .servicio--4 .servicio__boton { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema); }
-  .servicio--4 .servicio__boton:hover { background: var(--tinta); border-color: var(--tinta); color: var(--crema); }
-
-  @media (min-width: 720px) {
-    .servicios__rejilla { grid-template-columns: 1fr 1fr; }
-    .servicio--1 { grid-row: span 2; justify-content: flex-end; min-height: 440px; }
-    .servicio--4 { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 24px; }
+  @media (min-width: 640px) {
+    .portada__lienzo { padding: 48px 44px 104px; }
+    .servicios { margin: -72px 24px 0; padding: 24px 28px 12px; }
+    .servicios__lista { grid-template-columns: 1fr 1fr; column-gap: 28px; }
+    .servicio:nth-child(2) { border-top: 0; }
   }
   @media (min-width: 1000px) {
-    .servicios .titulo-grande { max-width: none; }
-    .servicios__rejilla { grid-template-columns: 1.15fr 1fr 1fr; gap: 20px; }
-    .servicio--4 { grid-column: 2 / -1; }
-    .servicio { padding: 32px; }
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .servicio { transition: translate var(--duracion-media) var(--curva-salida); }
-    .servicio:hover { translate: 0 -4px; }
-    .servicio:hover .servicio__boton svg { transform: translateX(4px); }
-    .servicios__rejilla .aparece:nth-child(2) { animation-delay: 60ms; }
+    .portada { padding-top: 16px; }
+    .portada__lienzo { padding: 64px 64px 128px; min-height: min(56svh, 520px); display: flex; align-items: center; }
+    .portada__texto { max-width: 40rem; }
+    .portada__mariposa { right: 6%; bottom: 40px; width: 30%; }
+    .portada__arcos { right: 2%; bottom: -55%; width: 44%; }
+    .servicios { margin: -96px 40px 0; padding: 26px 32px 22px; }
+    .servicios__lista { grid-template-columns: repeat(4, 1fr); column-gap: 0; }
+    .servicio { display: flex; flex-direction: column; gap: 12px; border-top: 0; padding: 6px 26px 0; }
+    .servicio__cuerpo { flex: 1; }
+    .servicio:first-child { padding-left: 0; }
+    .servicio:last-child { padding-right: 0; }
+    .servicio + .servicio { border-left: 1px solid color-mix(in srgb, var(--borde) 70%, transparent); }
+    .servicio__icono { width: 44px; height: 44px; }
   }
 
-  /* ---------- Próximos talleres: panel salvia con la parte de arriba en arco ---------- */
-  .proximos { padding-top: 16px; }
-  .proximos__panel {
-    background: var(--salvia-suave);
-    border-radius: 50% 50% var(--radio-grande) var(--radio-grande) / 72px 72px var(--radio-grande) var(--radio-grande);
-    padding: 64px 16px 32px;
+  @media (prefers-reduced-motion: no-preference) {
+    .portada__texto > * { animation: subir var(--duracion-larga) var(--curva-salida) both; }
+    .portada__lema { animation-delay: 120ms !important; }
+    .servicios { animation: subir 900ms var(--curva-salida) 200ms both; }
+    .portada__mariposa { animation: posarse 1400ms var(--curva-salida) 350ms both; }
+    .portada__arcos span { animation: respirar 1600ms var(--curva-salida) both; }
+    .portada__arcos span:nth-child(2) { animation-delay: 120ms; }
+    .portada__arcos span:nth-child(3) { animation-delay: 240ms; }
+    .servicio__enlace::after { transition: transform var(--duracion-corta) var(--curva-salida); }
+    .servicio:hover .servicio__enlace::after { transform: translateX(4px); }
+    .servicio__icono { transition: transform var(--duracion-media) var(--curva-salida), background-color var(--duracion-corta); }
+    .servicio:hover .servicio__icono { transform: translateY(-3px) rotate(-6deg); background: var(--salvia); }
+    /* Parallax suave: al bajar, la mariposa y los arcos se quedan un poco atrás */
+    @supports (animation-timeline: scroll()) {
+      .portada__mariposa {
+        animation: posarse 1400ms var(--curva-salida) 350ms both, flotar linear both;
+        animation-timeline: auto, scroll();
+        animation-range: normal, 0 600px;
+      }
+      .portada__arcos { animation: flotar linear both; animation-timeline: scroll(); animation-range: 0 600px; }
+    }
   }
-  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; margin-bottom: 28px; }
+  @keyframes subir { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes respirar { from { opacity: 0; transform: scale(0.9); } }
+  @keyframes posarse { from { opacity: 0; transform: translate(24px, 18px) rotate(-8deg) scale(0.92); } to { opacity: 1; transform: none; } }
+  @keyframes flotar { to { translate: 0 -60px; } }
+
+  /* ---------- Próximos talleres ---------- */
+  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; margin-bottom: 28px; }
   .titulo-con-enlace h2 { margin: 0; }
-  .enlace-pildora {
-    display: inline-flex;
-    align-items: center;
-    min-height: 48px;
-    padding: 10px 20px;
-    border-radius: 999px;
-    background: var(--crema-claro);
-    color: var(--verde-oscuro);
-    font-weight: 700;
-    text-decoration: none;
-  }
-  .enlace-pildora:hover { background: var(--verde-oscuro); color: var(--crema-claro); }
+  .enlace-flecha { display: inline-flex; align-items: center; min-height: 48px; font-weight: 600; color: var(--verde-profundo); text-decoration: none; border-bottom: 1px solid currentColor; min-height: 0; padding: 6px 0 2px; }
+  .enlace-flecha:hover { color: var(--verde); }
   /* Móvil y tablet: fila que se desliza con el dedo (se asoma la siguiente tarjeta); escritorio: tres columnas */
   .proximos__rejilla {
     display: grid;
-    gap: 16px;
+    gap: 20px;
     grid-auto-flow: column;
-    grid-auto-columns: min(82%, 320px);
+    grid-auto-columns: min(82%, 340px);
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: 16px;
-    margin-inline: -16px;
-    padding: 4px 16px 16px;
+    scroll-padding-inline: var(--margen);
+    margin-inline: calc(-1 * var(--margen));
+    padding: 8px var(--margen) 28px;
     scrollbar-width: thin;
     scrollbar-color: var(--salvia) transparent;
   }
   .proximos__rejilla > * { display: flex; scroll-snap-align: start; }
-  @media (min-width: 700px) {
-    .proximos__rejilla { margin-inline: -40px; padding-inline: 40px; scroll-padding-inline: 40px; }
-  }
   @media (min-width: 1000px) {
-    .proximos__rejilla { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); overflow: visible; margin-inline: 0; padding: 0; }
-  }
-  @media (min-width: 700px) {
-    .proximos__panel { padding: 88px 40px 48px; border-radius: 50% 50% var(--radio-grande) var(--radio-grande) / 120px 120px var(--radio-grande) var(--radio-grande); }
+    .proximos__rejilla { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); gap: 28px; overflow: visible; margin-inline: 0; padding: 8px 0 0; }
   }
   @media (prefers-reduced-motion: no-preference) {
     .proximos__rejilla .aparece { animation-delay: calc(var(--i, 0) * 80ms); }
   }
 
-  /* ---------- Impartir y dónde: dos paneles con carácter distinto ---------- */
+  /* ---------- Impartir y dónde: un bloque oscuro y una hoja en arco que se monta encima ---------- */
+  .encuentro-seccion { background: var(--arena); position: relative; }
   .encuentro { display: grid; gap: 20px; }
-  .encuentro__bloque { position: relative; overflow: hidden; border-radius: var(--radio-grande); padding: 36px 24px; }
-  .encuentro__bloque h2 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); }
-  .encuentro__bloque--oscuro { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; background: var(--verde-profundo); color: var(--crema); --foco: var(--crema); }
-  .encuentro__bloque--oscuro h2 { color: var(--crema); max-width: 16ch; }
-  .encuentro__bloque--oscuro .intro { color: var(--crema-claro); }
+  .encuentro__bloque { position: relative; overflow: hidden; border-radius: var(--radio-grande); padding: 40px 26px; }
+  .encuentro__bloque h2 { font-size: clamp(1.8rem, 1.4rem + 1.6vw, 2.6rem); }
+  .encuentro__bloque--oscuro { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; background: var(--verde-profundo); color: var(--crema); --foco: var(--crema); box-shadow: var(--sombra); }
+  .encuentro__bloque--oscuro h2 { color: var(--crema-claro); max-width: 16ch; }
+  .encuentro__bloque--oscuro .intro { color: color-mix(in srgb, var(--crema-claro) 85%, transparent); }
   .encuentro__bloque--oscuro > :not(.encuentro__mariposa) { position: relative; }
   .encuentro__mariposa { position: absolute; right: -60px; top: -30px; width: 300px; color: var(--salvia); opacity: 0.18; }
   .encuentro__bloque--arco {
     background: var(--crema-claro);
-    border: 1px solid var(--borde);
     border-radius: 999px 999px var(--radio-grande) var(--radio-grande);
     text-align: center;
     padding-top: 72px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    box-shadow: var(--sombra-alta);
   }
   .encuentro__bloque--arco .intro { margin-inline: auto; }
-  .encuentro__pin { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-oscuro); margin-bottom: 16px; }
-  .boton--crema { background: var(--crema); border-color: var(--crema); color: var(--verde-profundo); }
-  .boton--crema:hover { background: var(--crema-claro); border-color: var(--crema-claro); color: var(--verde-profundo); }
+  .encuentro__pin { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-profundo); margin-bottom: 16px; }
+  .boton--crema { background: var(--crema-claro); border-color: var(--crema-claro); color: var(--verde-profundo); }
+  .boton--crema:hover { background: #fff; border-color: #fff; color: var(--verde-profundo); }
   @media (min-width: 860px) {
-    .encuentro { grid-template-columns: 1.3fr 1fr; gap: 24px; }
-    .encuentro__bloque { padding: 56px 48px; }
-    .encuentro__bloque--arco { padding-top: 96px; }
+    .encuentro { grid-template-columns: 1.4fr 1fr; gap: 0; align-items: center; }
+    .encuentro__bloque { padding: 64px 56px; }
+    .encuentro__bloque--oscuro { padding-right: 120px; min-height: 420px; }
+    .encuentro__bloque--arco { margin-left: -72px; padding-top: 104px; }
   }
 </style>

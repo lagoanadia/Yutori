@@ -31,11 +31,13 @@ const iconos: Record<string, string> = {
 </section>
 
 <style>
-  .detalles__lista { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-  .detalle { display: flex; gap: 14px; align-items: flex-start; background: var(--crema-claro); border-radius: var(--radio); padding: 18px; }
-  .detalle svg { flex: none; color: var(--verde); margin-top: 2px; }
-  .detalle h3 { font-size: 1.1rem; margin-bottom: 4px; }
+  /* Sin cajas: cuatro columnas separadas por un trazo fino, como una página de cuaderno */
+  .detalles__lista { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); align-items: start; }
+  .detalle { display: grid; gap: 14px; align-content: start; padding-top: 20px; border-top: 1px solid color-mix(in srgb, var(--verde) 25%, transparent); }
+  .detalle svg { box-sizing: content-box; padding: 12px; border-radius: 50%; background: var(--crema-claro); color: var(--verde-profundo); box-shadow: var(--sombra-suave); }
+  .detalle h3 { font-size: 1.25rem; margin-bottom: 6px; }
   .detalle p { margin: 0; color: var(--tinta-suave); }
   .detalle__lineas { margin: 0; padding-left: 1.1em; color: var(--tinta-suave); display: grid; gap: 4px; }
-  .detalle__enlace { margin-top: 8px !important; }
+  .detalle__enlace { margin-top: 10px !important; }
+  .detalle__enlace a { font-weight: 600; color: var(--verde-profundo); }
 </style>

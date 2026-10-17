@@ -30,39 +30,40 @@ const sinPrecio = taller.precio_cent == null;
 </article>
 
 <style>
-  /* La foto manda: arriba, en arco, sin cajas dentro de cajas. Toda la tarjeta se puede pulsar. */
+  /* La foto manda: arriba, en arco, sobre una hoja que flota. Toda la tarjeta se puede pulsar. */
   .taller {
     position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
     background: var(--crema-claro);
-    border-radius: var(--radio-grande, 24px);
-    padding: 12px 12px 20px;
+    border-radius: var(--radio-grande, 28px);
+    padding: 10px 10px 22px;
+    box-shadow: var(--sombra-suave);
   }
-  .taller > :not(.taller__media):not(.taller__etiqueta) { margin-inline: 12px; }
+  .taller > :not(.taller__media):not(.taller__etiqueta) { margin-inline: 14px; }
   .taller__media {
     overflow: hidden;
-    border-radius: 50% 50% var(--radio) var(--radio) / 34% 34% var(--radio) var(--radio);
+    border-radius: var(--arco-foto);
     margin-bottom: 18px;
   }
-  .taller__foto, .taller__hueco { aspect-ratio: 5 / 4; width: 100%; object-fit: cover; margin: 0; border-radius: 0; }
-  .taller__hueco { background: linear-gradient(180deg, var(--salvia-suave), color-mix(in srgb, var(--salvia) 45%, var(--salvia-suave))); color: var(--verde-profundo); }
+  .taller__foto, .taller__hueco { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; margin: 0; border-radius: 0; }
   .taller__etiqueta {
     position: absolute;
-    top: 24px;
+    top: 22px;
     left: 50%;
     translate: -50% 0;
     margin: 0;
     background: var(--crema-claro);
-    color: var(--verde-oscuro);
+    color: var(--verde-profundo);
     white-space: nowrap;
+    box-shadow: var(--sombra-suave);
   }
-  .taller h3 { font-size: 1.4rem; margin-bottom: 0.2em; }
-  .taller__quien { color: var(--tinta-suave); margin-bottom: 12px; }
-  .taller__cuando { font-weight: 700; margin-bottom: 0; color: var(--verde-oscuro); }
+  .taller h3 { font-size: 1.45rem; margin-bottom: 0.15em; }
+  .taller__quien { color: var(--tinta-suave); margin-bottom: 12px; font-size: 0.97rem; }
+  .taller__cuando { font-weight: 600; margin-bottom: 0; color: var(--verde-profundo); }
   .sin-cortes { white-space: nowrap; }
-  .taller__extra { color: var(--tinta-suave); font-size: 0.95rem; margin-bottom: 8px; }
+  .taller__extra { color: var(--tinta-suave); font-size: 0.93rem; margin-bottom: 8px; }
   .taller__pie {
     display: flex;
     flex-wrap: wrap;
@@ -72,28 +73,29 @@ const sinPrecio = taller.precio_cent == null;
     margin-top: auto;
     margin-bottom: 16px;
     padding-top: 14px;
-    border-top: 1px solid var(--borde);
+    border-top: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
   }
-  .taller__precio { font-family: var(--serif); font-size: 1.5rem; color: var(--verde); }
+  .taller__precio { font-family: var(--serif); font-size: 1.6rem; color: var(--verde-profundo); font-variant-numeric: lining-nums; letter-spacing: -0.01em; }
   .taller__plazas {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--verde-oscuro);
+    font-weight: 600;
+    font-size: 0.86rem;
+    color: var(--verde-profundo);
     background: var(--salvia-suave);
     border-radius: 999px;
     padding: 4px 12px;
   }
-  .taller__plazas.completo { color: var(--aviso); background: transparent; border: 1px solid var(--aviso); }
+  .taller__plazas.completo { color: var(--aviso); background: transparent; box-shadow: inset 0 0 0 1px var(--aviso); }
+  .taller__boton { align-self: stretch; }
   .taller--completo .taller__foto, .taller--completo .taller__hueco { filter: grayscale(0.7); opacity: 0.8; }
 
   /* Enlace estirado: el botón cubre toda la tarjeta para el ratón y el dedo */
-  .taller__boton::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+  .taller__boton::before { content: ''; position: absolute; inset: 0; border-radius: var(--radio-grande, 28px); }
   .taller:has(.taller__boton:focus-visible) { outline: 3px solid var(--foco); outline-offset: 3px; }
 
   @media (prefers-reduced-motion: no-preference) {
-    .taller { transition: translate var(--duracion-media) var(--curva-salida); }
+    .taller { transition: translate var(--duracion-media) var(--curva-salida), box-shadow var(--duracion-media) var(--curva-salida); }
     .taller__foto, .taller__hueco { transition: scale var(--duracion-larga) var(--curva-salida); }
-    .taller:hover { translate: 0 -4px; }
+    .taller:hover { translate: 0 -6px; box-shadow: var(--sombra-alta); }
     .taller:hover .taller__foto, .taller:hover .taller__hueco { scale: 1.04; }
   }
 </style>

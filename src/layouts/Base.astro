@@ -1,10 +1,6 @@
 ---
-import '@fontsource/playfair-display/600.css';
-import '@fontsource/playfair-display/700.css';
-import '@fontsource/nunito-sans/400.css';
-import '@fontsource/nunito-sans/700.css';
-import '@fontsource/parisienne/400.css';
 import '../styles/global.css';
+import Fuentes from '../components/Fuentes.astro';
 import Mariposa from '../components/Mariposa.astro';
 import { env } from 'cloudflare:workers';
 import { negocio } from '../data/yutori';
@@ -38,6 +34,7 @@ const sitio = env.SITIO_URL || Astro.url.origin;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <Fuentes />
     <title>{tituloCompleto}</title>
     <meta name="description" content={descripcion} />
     {(noindex || !negocio.indexar) && <meta name="robots" content="noindex, nofollow" />}
@@ -139,46 +136,51 @@ const sitio = env.SITIO_URL || Astro.url.origin;
   .saltar { position: absolute; left: -9999px; }
   .saltar:focus { left: 16px; top: 16px; background: #fff; padding: 8px 12px; z-index: 10; }
 
+  /* Cabecera ligera: papel translúcido que deja ver lo que pasa por debajo */
   .cabecera {
     position: sticky;
     top: 0;
-    z-index: 5;
-    background: color-mix(in srgb, var(--crema) 92%, transparent);
-    backdrop-filter: blur(6px);
-    border-bottom: 1px solid var(--borde);
+    z-index: 30;
+    background: color-mix(in srgb, var(--crema) 82%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--borde) 70%, transparent);
   }
-  .cabecera__fila { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 72px; }
-  .marca { display: flex; align-items: center; gap: 10px; color: var(--verde); text-decoration: none; }
-  .marca__nombre { display: block; font-family: var(--serif); font-size: 1.5rem; font-weight: 700; line-height: 1; }
-  .marca__sub { display: block; font-family: var(--script); font-size: 1.15rem; line-height: 1.1; }
+  .cabecera__fila { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; }
+  .marca { display: flex; align-items: center; gap: 10px; color: var(--verde-profundo); text-decoration: none; }
+  .marca :global(img) { width: 54px; height: auto; }
+  .marca__nombre { display: block; font-family: var(--serif); font-size: 1.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
+  .marca__sub { display: block; font-family: var(--serif); font-style: italic; font-size: 0.92rem; line-height: 1.2; color: var(--verde); }
 
-  .menu-escritorio { display: none; gap: 4px; }
-  .menu-escritorio a, .menu-movil a { color: var(--tinta); text-decoration: none; font-weight: 700; }
+  .menu-escritorio { display: none; align-items: center; gap: 2px; }
+  .menu-escritorio a, .menu-movil a { color: var(--tinta); text-decoration: none; font-weight: 500; }
   .menu-escritorio a {
     position: relative;
     display: inline-flex;
     align-items: center;
     min-height: 48px;
-    padding: 0 10px;
-    font-size: 0.97rem;
+    padding: 0 12px;
+    font-size: 0.96rem;
   }
-  /* Línea que crece desde el centro al pasar; fija en la página actual */
+  /* Punto bajo el enlace: aparece al pasar y se queda en la página actual */
   .menu-escritorio a::after {
     content: '';
     position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    height: 2px;
-    border-radius: 2px;
+    left: 50%;
+    bottom: 6px;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
     background: var(--verde);
-    transform: scaleX(0);
+    transform: scale(0);
   }
-  .menu-escritorio a:hover::after, .menu-escritorio a[aria-current='page']::after { transform: scaleX(1); }
-  .menu-escritorio a[aria-current='page'], .menu-movil a[aria-current='page'] { color: var(--verde); }
-  .menu-escritorio a:last-child { margin-left: 8px; padding-left: 18px; border-left: 1px solid var(--borde); }
-  .menu-escritorio a:last-child::after { left: 18px; }
-  .menu-movil a[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; }
+  .menu-escritorio a:hover::after, .menu-escritorio a[aria-current='page']::after { transform: scale(1); }
+  .menu-escritorio a[aria-current='page'], .menu-movil a[aria-current='page'] { color: var(--verde-profundo); font-weight: 600; }
+  /* El último enlace (para talleristas) va como píldora aparte */
+  .menu-escritorio a:last-child { margin-left: 12px; padding: 0 20px; border-radius: 999px; background: var(--crema-claro); box-shadow: var(--sombra-suave); }
+  .menu-escritorio a:last-child::after { display: none; }
+  .menu-escritorio a:last-child:hover { background: var(--verde-profundo); color: var(--crema-claro); }
 
   .menu-movil summary {
     list-style: none;
@@ -187,40 +189,42 @@ const sitio = env.SITIO_URL || Astro.url.origin;
     align-items: center;
     gap: 8px;
     min-height: 48px;
-    font-weight: 700;
-    color: var(--verde);
-    border: 2px solid var(--verde);
+    font-weight: 600;
+    color: var(--verde-profundo);
+    background: var(--crema-claro);
     border-radius: 999px;
     padding: 8px 18px 8px 14px;
+    box-shadow: var(--sombra-suave);
   }
   .menu-movil summary::-webkit-details-marker { display: none; }
-  .menu-movil[open] summary { background: var(--verde); color: var(--crema-claro); }
+  .menu-movil[open] summary { background: var(--verde-profundo); color: var(--crema-claro); }
   .menu-movil[open] .raya--2 { opacity: 0; }
   .menu-movil[open] .raya--1 { transform: translateY(5px) rotate(45deg); }
   .menu-movil[open] .raya--3 { transform: translateY(-5px) rotate(-45deg); }
   .raya { transform-box: fill-box; transform-origin: center; }
   .menu-movil nav {
     position: absolute;
-    right: 16px;
-    left: 16px;
-    top: 80px;
+    right: var(--margen);
+    left: var(--margen);
+    top: 76px;
     display: grid;
-    gap: 4px;
+    gap: 2px;
     background: var(--crema-claro);
-    border: 1px solid var(--borde);
     border-radius: var(--radio-grande);
-    box-shadow: 0 0 0 100vmax rgba(36, 51, 47, 0.28), var(--sombra);
+    box-shadow: 0 0 0 100vmax rgba(38, 51, 47, 0.32), var(--sombra-alta);
     padding: 12px;
   }
-  .menu-movil nav a { display: flex; align-items: center; min-height: 48px; padding: 8px 16px; border-radius: 14px; font-size: 1.1rem; }
+  .menu-movil nav a { display: flex; align-items: center; min-height: 52px; padding: 8px 16px; border-radius: 16px; font-family: var(--serif); font-size: 1.3rem; color: var(--verde-profundo); }
   .menu-movil nav a:hover { background: var(--salvia-suave); }
+  .menu-movil a[aria-current='page'] { background: var(--salvia-suave); }
 
   @media (prefers-reduced-motion: no-preference) {
     .menu-escritorio a::after { transition: transform var(--duracion-corta) var(--curva-salida); }
+    .menu-escritorio a:last-child { transition: background-color var(--duracion-corta), color var(--duracion-corta); }
     .raya { transition: transform var(--duracion-corta) var(--curva-salida), opacity var(--duracion-corta); }
     .menu-movil nav { transition: opacity var(--duracion-media) var(--curva-salida), transform var(--duracion-media) var(--curva-salida); }
     @starting-style {
-      .menu-movil[open] nav { opacity: 0; transform: translateY(-8px); }
+      .menu-movil[open] nav { opacity: 0; transform: translateY(-8px) scale(0.98); }
     }
   }
 
@@ -230,14 +234,26 @@ const sitio = env.SITIO_URL || Astro.url.origin;
     .menu-movil { display: none; }
   }
 
-  .pie { position: relative; overflow: hidden; background: var(--verde-profundo); color: #f6f1e4; padding: 64px 0 56px; margin-top: 48px; --foco: var(--crema); }
-  .pie__mariposa { position: absolute; right: -60px; bottom: -70px; width: min(520px, 90vw); color: var(--salvia); opacity: 0.14; }
-  .pie__rejilla { position: relative; }
+  /* Pie: bloque verde que se monta sobre la página con las esquinas en curva */
+  .pie {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--verde-profundo);
+    color: #f3ede0;
+    padding: clamp(56px, 7vw, 88px) 0 48px;
+    margin-top: clamp(40px, 6vw, 80px);
+    border-radius: clamp(28px, 4vw, 48px) clamp(28px, 4vw, 48px) 0 0;
+    --foco: var(--crema);
+  }
+  .pie::before { content: ''; position: absolute; inset: 0; z-index: -1; background-image: var(--grano); opacity: 0.12; mix-blend-mode: soft-light; }
+  .pie__mariposa { position: absolute; right: -60px; bottom: -70px; width: min(520px, 90vw); color: var(--salvia); opacity: 0.12; }
   .pie a { color: #fff; }
-  .pie__rejilla { display: grid; gap: 24px 40px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  .pie__marca { font-family: var(--serif); font-size: 1.6rem; }
+  .pie a:hover { color: var(--salvia-suave); }
+  .pie__rejilla { position: relative; display: grid; gap: 24px 40px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .pie__marca { font-family: var(--serif); font-size: 1.7rem; line-height: 1.15; letter-spacing: -0.015em; }
+  .pie strong { font-weight: 600; color: var(--salvia-suave); }
   .pie__contacto { list-style: none; padding: 0; margin: 0 0 1em; display: grid; gap: 8px; }
   .pie__contacto li { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
   .pie__contacto svg { flex: none; }
-
 </style>

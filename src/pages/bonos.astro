@@ -54,7 +54,7 @@ if (Astro.request.method === 'POST') {
 ---
 <Base titulo="Bonos regalo" descripcion="Bonos regalo de talleres creativos en A Coruña: regala un taller o un importe para gastar en el que quieras.">
   <section class="seccion bonos-pagina">
-    <div class="contenedor-amplio">
+    <div class="contenedor bonos-rejilla">
       <div class="bonos-cabecera">
         <p class="script">Elige el tuyo</p>
         <h1>Bonos regalo</h1>
@@ -67,7 +67,7 @@ if (Astro.request.method === 'POST') {
           <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
         </div>
       ) : (
-        <div class="bonos-rejilla">
+        <>
           <div class="bonos-info">
             <p class="intro">No hay nada como regalar experiencias y momentos de desconexión.</p>
 
@@ -94,15 +94,15 @@ if (Astro.request.method === 'POST') {
           <div class="bonos-formulario">
             {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
-            <form class="formulario bono" method="post" id="form-bono">
+            <form class="formulario formulario-grande bono" method="post" id="form-bono">
               {/* Progreso y flechas: solo con JavaScript (los textos accesibles están pendientes de aprobar por Iris) */}
-              <div class="bono__progreso" role="progressbar" aria-label="Progreso del bono" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" hidden>
+              <div class="pasos-progreso" role="progressbar" aria-label="Progreso del bono" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" hidden>
                 <span></span><span></span><span></span><span></span>
               </div>
 
-              <div class="bono__ventana">
-                <div class="bono__pista">
-                  <fieldset class="campo paso" data-paso>
+              <div class="pasos-ventana">
+                <div class="pasos-pista">
+                  <fieldset class="campo" data-paso>
                     <legend>Tipo de bono</legend>
                     <div class="opciones opciones--tipo">
                       <label class="opcion opcion--grande">
@@ -120,7 +120,7 @@ if (Astro.request.method === 'POST') {
                     </div>
                   </fieldset>
 
-                  <div class="paso" data-paso>
+                  <div data-paso>
                     <fieldset class="campo" data-bono="taller">
                       <legend>¿Qué taller quieres regalar?</legend>
                       <div class="opciones">
@@ -151,50 +151,50 @@ if (Astro.request.method === 'POST') {
                     </fieldset>
                   </div>
 
-                  <div class="paso" data-paso>
+                  <div data-paso>
                     <div class="campo"><label for="nombre">De parte de quién</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
                     <div class="campo"><label for="para">Para quién es</label><input id="para" name="para" maxlength="120" value={v.para} required /></div>
                   </div>
 
-                  <div class="paso" data-paso>
+                  <div data-paso>
                     <div class="dos-col">
                       <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
                       <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
                     </div>
                     <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
-                    <label class="casilla bono__privacidad"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+                    <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
                     <Turnstile />
-                    <button class="boton bono__enviar" type="submit">Pedir mi bono</button>
+                    <button class="boton" type="submit">Pedir mi bono</button>
                   </div>
                 </div>
               </div>
 
-              <div class="bono__nav" hidden>
-                <button type="button" class="bono__flecha bono__flecha--atras" aria-label="Paso anterior">
+              <div class="pasos-nav" hidden>
+                <button type="button" class="pasos-flecha pasos-flecha--atras" aria-label="Paso anterior">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
                 </button>
-                <button type="button" class="bono__flecha bono__flecha--siguiente" aria-label="Paso siguiente">
+                <button type="button" class="pasos-flecha pasos-flecha--siguiente" aria-label="Paso siguiente">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </>
       )}
     </div>
   </section>
 </Base>
 
-<script is:inline>
-  // Sin JavaScript se ve y se envía el formulario completo; el servidor valida igual.
-  (() => {
-    const form = document.getElementById('form-bono');
-    if (!form) return;
+<script>
+  import { formularioPorPasos } from '../scripts/pasos';
 
+  // Sin JavaScript se ve y se envía el formulario completo; el servidor valida igual.
+  const form = document.getElementById('form-bono') as HTMLFormElement | null;
+  if (form) {
     // Muestra solo el campo del tipo de bono elegido.
     const actualizarTipo = () => {
-      const tipo = form.querySelector('input[name=tipo]:checked').value;
-      form.querySelectorAll('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo; });
+      const tipo = form.querySelector<HTMLInputElement>('input[name=tipo]:checked')?.value;
+      form.querySelectorAll<HTMLElement>('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo; });
     };
     form.addEventListener('change', actualizarTipo);
     form.addEventListener('input', actualizarTipo);
@@ -202,114 +202,37 @@ if (Astro.request.method === 'POST') {
     window.addEventListener('pageshow', actualizarTipo);
     actualizarTipo();
 
-    // Con errores del servidor se deja el formulario completo, para verlos todos de una vez.
-    if (document.querySelector('.errores') || !('inert' in HTMLElement.prototype)) return;
-
-    // Formulario por pasos: una pregunta por pantalla.
-    const pasos = [...form.querySelectorAll('[data-paso]')];
-    const ventana = form.querySelector('.bono__ventana');
-    const pista = form.querySelector('.bono__pista');
-    const nav = form.querySelector('.bono__nav');
-    const atras = form.querySelector('.bono__flecha--atras');
-    const siguiente = form.querySelector('.bono__flecha--siguiente');
-    const progreso = form.querySelector('.bono__progreso');
-    const enviar = form.querySelector('.bono__enviar');
-    const ultimo = pasos.length - 1;
-    let actual = 0;
-
-    form.classList.add('bono--pasos');
-    nav.hidden = false;
-    progreso.hidden = false;
-
-    // Campos que cuentan en un paso: los visibles (el del otro tipo de bono está oculto) y nunca la trampa.
-    const campos = (paso) => [...paso.querySelectorAll('input, select, textarea')]
-      .filter((c) => !c.closest('[hidden]') && !c.closest('.trampa') && c.type !== 'hidden');
-    const esValido = (n) => campos(pasos[n]).every((c) => c.checkValidity());
-    const avisar = (n) => {
-      const malo = campos(pasos[n]).find((c) => !c.checkValidity());
-      if (malo) malo.reportValidity();
-      return !malo;
-    };
-    const ajustarAlto = () => { ventana.style.height = pasos[actual].offsetHeight + 'px'; };
-
-    const ir = (n, conFoco = true) => {
-      actual = Math.max(0, Math.min(ultimo, n));
-      // La pregunta del paso 2 depende del tipo elegido: se comprueba siempre antes de enseñar un paso.
-      actualizarTipo();
-      pasos.forEach((p, i) => { p.inert = i !== actual; p.classList.toggle('paso--actual', i === actual); });
-      pista.style.transform = `translateX(${-100 * actual}%)`;
-      ajustarAlto();
-      atras.hidden = actual === 0;
-      siguiente.hidden = actual === ultimo;
-      progreso.setAttribute('aria-valuenow', String(actual + 1));
-      progreso.setAttribute('aria-valuetext', `Paso ${actual + 1} de ${pasos.length}`);
-      [...progreso.children].forEach((s, i) => s.classList.toggle('hecho', i <= actual));
-      if (!conFoco) return;
-      const lista = campos(pasos[actual]);
-      const destino = lista.find((c) => (c.type === 'radio' ? c.checked : true)) || lista[0];
-      if (destino) destino.focus({ preventScroll: true });
-      if (form.getBoundingClientRect().top < 0) form.scrollIntoView({ block: 'start' });
-    };
-
-    siguiente.addEventListener('click', () => { if (avisar(actual)) ir(actual + 1); });
-    atras.addEventListener('click', () => ir(actual - 1));
-
-    // Intro en un campo avanza de paso en lugar de intentar enviar un formulario a medias.
-    form.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && actual < ultimo && e.target.matches('input')) {
-        e.preventDefault();
-        siguiente.click();
-      }
-    });
-
-    // Al enviar, si quedó algo pendiente en un paso anterior, se vuelve a ese paso.
-    enviar.addEventListener('click', (e) => {
-      const pendiente = pasos.findIndex((_, i) => !esValido(i));
-      if (pendiente !== -1 && pendiente !== actual) {
-        e.preventDefault();
-        ir(pendiente);
-        avisar(pendiente);
-      }
-    });
-
-    // Tocar una tarjeta de opción (con el dedo o el ratón) pasa sola a la siguiente pregunta.
-    // Con el teclado no: las flechas solo cambian la opción elegida.
-    let conPuntero = false;
-    form.addEventListener('pointerdown', (e) => { conPuntero = Boolean(e.target.closest('.opcion')); });
-    form.addEventListener('click', (e) => {
-      if (!conPuntero || !e.target.matches('.opcion input[type=radio]')) return;
-      conPuntero = false;
-      const desde = actual;
-      setTimeout(() => { if (actual === desde && desde < ultimo) ir(desde + 1); }, 260);
-    });
-
-    new ResizeObserver(ajustarAlto).observe(pista);
-    window.addEventListener('resize', ajustarAlto);
-    ir(0, false);
-  })();
+    // La pregunta del paso 2 depende del tipo elegido: se comprueba siempre antes de enseñar un paso.
+    formularioPorPasos(form, { antesDeMostrar: actualizarTipo });
+  }
 </script>
 
 <style>
-  .bonos-cabecera { margin-bottom: 24px; }
-  .bonos-cabecera h1 { font-size: clamp(2.6rem, 7vw, 4.6rem); line-height: 1.02; letter-spacing: -0.015em; }
-  .bonos-rejilla { display: grid; gap: 40px; align-items: start; }
+  /* Móvil: título, formulario y debajo la explicación. Escritorio: título y explicación a la izquierda, formulario fijo a la derecha. */
+  .bonos-rejilla { display: grid; gap: 20px 72px; align-items: start; grid-template-areas: 'cabecera' 'formulario' 'info'; }
+  .bonos-cabecera { grid-area: cabecera; }
+  .bonos-cabecera h1 { margin: 0; }
+  .bonos-info { grid-area: info; margin-top: 20px; }
+  .bonos-formulario { grid-area: formulario; }
+  .gracias { grid-area: formulario; }
   .bonos-info .intro { font-size: 1.1rem; }
+  .bonos-info > .intro:first-child { margin-bottom: 0; }
 
   /* Los dos tipos de bono, en arco como el resto de la marca */
-  .bonos-tipos { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); margin: 24px 0 16px; }
+  .bonos-tipos { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); margin: 24px 0 16px; }
   .bono-tipo {
     background: var(--crema-claro);
-    border: 1px solid var(--borde);
     border-radius: 999px 999px var(--radio-grande) var(--radio-grande);
-    padding: 56px 24px 24px;
+    padding: 52px 24px 24px;
     text-align: center;
+    box-shadow: var(--sombra-suave);
   }
-  .bono-tipo h2 { font-size: 1.6rem; margin-bottom: 0.4em; }
+  .bono-tipo h2 { font-size: 1.55rem; margin-bottom: 0.4em; }
   .bono-tipo p { margin: 0; color: var(--tinta-suave); }
-  .bono-tipo--importe { background: var(--salvia-suave); border-color: var(--salvia-suave); }
+  .bono-tipo--importe { background: var(--salvia-suave); }
   .bono-tipo--importe p { color: var(--tinta); }
 
-  .como-funciona { margin-top: 32px; }
+  .como-funciona { margin-top: 36px; font-size: 1.6rem; }
   .pasos { list-style: none; counter-reset: paso; padding: 0; margin: 0 0 8px; display: grid; gap: 14px; }
   .pasos li { counter-increment: paso; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: center; }
   .pasos li::before {
@@ -319,63 +242,15 @@ if (Astro.request.method === 'POST') {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--verde-profundo);
-    color: var(--crema);
-    font-family: var(--serif);
-    font-weight: 700;
-  }
-
-  /* Escenario del formulario */
-  .bonos-formulario .errores { max-width: none; }
-  .bono {
-    max-width: none;
     background: var(--crema-claro);
-    border: 1px solid var(--borde);
-    border-radius: var(--radio-grande);
-    padding: 24px 20px;
-    gap: 20px;
+    box-shadow: var(--sombra-suave);
+    color: var(--verde-profundo);
+    font-family: var(--serif);
+    font-size: 1.1rem;
   }
-  .bono .campo { gap: 10px; }
-  .bono legend, .bono .campo > label { font-family: var(--serif); font-size: 1.35rem; color: var(--verde); line-height: 1.25; margin-bottom: 12px; padding: 0; }
-  .bono .campo > label { margin-bottom: 0; }
-  .bono input:not([type='radio']):not([type='checkbox']) { min-height: 56px; font-size: 1.1rem; border-radius: 16px; border-width: 1.5px; }
-  .bono input:not([type='radio']):not([type='checkbox']):focus { border-color: var(--verde); }
-  .paso { display: grid; gap: 20px; min-width: 0; }
-  /* Sin pasos (sin JavaScript o con errores): todo seguido, con aire entre preguntas */
-  .bono__pista { display: grid; gap: 32px; }
 
-  /* Opciones como tarjetas grandes que se tocan (son radios de verdad) */
-  .opciones { display: grid; gap: 10px; }
-  .opcion {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-height: 56px;
-    padding: 12px 16px;
-    background: #fff;
-    border: 1.5px solid var(--borde);
-    border-radius: 18px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .opcion input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
-  .opcion__marca {
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 2px solid var(--tinta-suave);
-    background: #fff;
-  }
-  .opcion__marca::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--crema-claro); transform: scale(0); }
-  .opcion input:checked + .opcion__marca { border-color: var(--verde); background: var(--verde); }
-  .opcion input:checked + .opcion__marca::after { transform: scale(1); }
-  .opcion:hover { border-color: var(--verde); }
-  .opcion:has(input:checked) { border-color: var(--verde); background: var(--salvia-suave); box-shadow: inset 0 0 0 1px var(--verde); }
-  .opcion:has(input:focus-visible) { outline: 3px solid var(--foco); outline-offset: 2px; }
+  /* Escenario del formulario (el resto, compartido, está en global.css: .formulario-grande, .opcion y pasos) */
+  .bonos-formulario .errores { max-width: none; }
 
   .opciones--tipo { grid-template-columns: 1fr 1fr; gap: 12px; }
   .opcion--grande { flex-direction: column; justify-content: center; text-align: center; gap: 10px; min-height: 168px; padding: 20px 12px; font-size: 1.1rem; border-radius: 999px 999px 22px 22px; }
@@ -385,52 +260,11 @@ if (Astro.request.method === 'POST') {
   .opciones--importes { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
   .opcion--importe { justify-content: center; padding: 10px 6px; min-height: 52px; font-size: 1.05rem; white-space: nowrap; }
 
-  .bono__privacidad { padding-left: 36px; min-height: 28px; }
-  .bono__privacidad input { width: 24px; height: 24px; top: 1px; }
-  .bono__enviar { width: 100%; min-height: 56px; font-size: 1.1rem; }
-
-  /* ----- Solo con JavaScript: un paso cada vez ----- */
-  .bono__progreso { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .bono__progreso span { height: 6px; border-radius: 6px; background: var(--salvia-suave); overflow: hidden; position: relative; }
-  .bono__progreso span::after { content: ''; position: absolute; inset: 0; background: var(--verde); transform: scaleX(0); transform-origin: left; }
-  .bono__progreso span.hecho::after { transform: scaleX(1); }
-
-  .bono--pasos .bono__ventana { overflow: hidden; margin: -6px; padding: 6px; box-sizing: content-box; }
-  .bono--pasos .bono__pista { display: flex; align-items: flex-start; gap: 0; }
-  .bono--pasos .paso { flex: 0 0 100%; padding: 4px; }
-  .bono--pasos .paso:not(.paso--actual) { opacity: 0; }
-
-  .bono__nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .bono__flecha {
-    display: grid;
-    place-items: center;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: 2px solid var(--verde);
-    background: transparent;
-    color: var(--verde);
-    cursor: pointer;
-  }
-  .bono__flecha--siguiente { margin-left: auto; background: var(--verde); color: #fff; width: 72px; border-radius: 999px; }
-  .bono__flecha:hover { background: var(--verde-oscuro); border-color: var(--verde-oscuro); color: #fff; }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .bono--pasos .bono__pista { transition: transform 450ms var(--curva-salida); }
-    .bono--pasos .paso { transition: opacity 450ms var(--curva-salida); }
-    .bono__progreso span::after { transition: transform var(--duracion-media) var(--curva-salida); }
-    .opcion { transition: border-color var(--duracion-corta), background-color var(--duracion-corta), transform var(--duracion-corta) var(--curva-salida); }
-    .opcion:active { transform: scale(0.98); }
-    .opcion__marca::after { transition: transform var(--duracion-corta) var(--curva-salida); }
-    .bono__flecha { transition: transform var(--duracion-corta) var(--curva-salida), background-color var(--duracion-corta); }
-    .bono__flecha--siguiente:hover svg { transform: translateX(3px); }
-    .bono__flecha svg { transition: transform var(--duracion-corta) var(--curva-salida); }
-  }
-
   @media (min-width: 900px) {
-    .bonos-rejilla { grid-template-columns: 1fr 1.05fr; gap: 64px; }
+    .bonos-rejilla { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: 'cabecera formulario' 'info formulario'; grid-template-rows: auto 1fr; }
+    .bonos-cabecera { align-self: end; }
+    .bonos-info { margin-top: 0; }
     .bonos-formulario { position: sticky; top: 96px; }
-    .bono { padding: 36px 36px 28px; }
   }
 
   .gracias { max-width: 640px; }

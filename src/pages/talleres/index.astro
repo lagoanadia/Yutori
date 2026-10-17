@@ -3,12 +3,15 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import TallerCard from '../../components/TallerCard.astro';
 import DetallesImportantes from '../../components/DetallesImportantes.astro';
-import { negocio } from '../../data/yutori';
+import { fechaLarga, negocio } from '../../data/yutori';
 import { hoyEspana, talleresPublicados } from '../../lib/reservas';
 
-// Solo el calendario del mes en curso.
-const mesActual = hoyEspana().slice(0, 7);
-const talleres = (await talleresPublicados()).filter((t) => t.fecha.startsWith(mesActual));
+// El mes en curso y, si ya hay talleres publicados del siguiente (se publican hacia el día 20), también ese.
+const hoy = hoyEspana();
+const mesActual = hoy.slice(0, 7);
+const [anio, mes] = mesActual.split('-').map(Number);
+const mesSiguiente = mes === 12 ? `${anio + 1}-01` : `${anio}-${String(mes + 1).padStart(2, '0')}`;
+const talleres = (await talleresPublicados()).filter((t) => t.fecha.startsWith(mesActual) || t.fecha.startsWith(mesSiguiente));
 
 // Agrupados por mes: "Calendario de noviembre", etc.
 const meses = new Map<string, typeof talleres>();
@@ -18,13 +21,33 @@ for (const t of talleres) {
 }
 const nombreMes = (clave: string) =>
   new Date(`${clave}-01T00:00:00Z`).toLocaleDateString('es-ES', { month: 'long', timeZone: 'UTC' });
+
+// Calendario de cada mes: huecos hasta el primer día (semana de lunes a domingo) y los días con taller.
+const INICIALES = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const calendarios = [...meses.keys()].map((clave) => {
+  const [a, m] = clave.split('-').map(Number);
+  const dias = new Date(Date.UTC(a, m, 0)).getUTCDate();
+  const hueco = (new Date(Date.UTC(a, m - 1, 1)).getUTCDay() + 6) % 7;
+  const conTaller = new Map<string, number>();
+  for (const t of meses.get(clave) ?? []) conTaller.set(t.fecha, (conTaller.get(t.fecha) ?? 0) + 1);
+  return {
+    clave,
+    hueco,
+    dias: Array.from({ length: dias }, (_, i) => {
+      const fecha = `${clave}-${String(i + 1).padStart(2, '0')}`;
+      return { n: i + 1, fecha, talleres: conTaller.get(fecha) ?? 0, pasado: fecha < hoy, hoy: fecha === hoy };
+    }),
+  };
+});
 ---
 <Base titulo="Talleres del mes" descripcion="Calendario de talleres creativos en A Coruña: cada mes, talleres distintos con artesanas y artistas.">
   <section class="seccion">
     <div class="contenedor">
-      <p class="script">Calendario de talleres</p>
-      <h1>Talleres del mes</h1>
-      <p class="intro">Cada mes, talleres distintos con artesanas y artistas. Plazas limitadas: reserva tu plaza y crea tu espacio.</p>
+      <div class="cabecera-pagina">
+        <p class="script">Calendario de talleres</p>
+        <h1>Talleres del mes</h1>
+        <p class="intro">Cada mes, talleres distintos con artesanas y artistas. Plazas limitadas: reserva tu plaza y crea tu espacio.</p>
+      </div>
 
       {talleres.length === 0 ? (
         <div class="tarjeta vacio-publico">
@@ -32,12 +55,35 @@ const nombreMes = (clave: string) =>
           <p>Publicamos los talleres de cada mes alrededor del día 20 del mes anterior. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>
         </div>
       ) : (
-        [...meses].map(([clave, lista]) => (
-          <section class="mes">
-            <h2 class="mes__titulo">{nombreMes(clave)}</h2>
-            <div class="rejilla">{lista.map((t) => <TallerCard taller={t} />)}</div>
-          </section>
-        ))
+        <div class="agenda">
+          {/* Calendario: los números y las iniciales salen de atributos data- (son datos, no textos de la web).
+              Sin JavaScript es solo informativo; con JavaScript, tocar un día filtra los talleres. Textos accesibles pendientes de Iris. */}
+          <aside class="agenda__calendario" aria-label="Calendario de talleres" data-calendario>
+            {calendarios.map((c) => (
+              <div class="calendario" data-nombre={nombreMes(c.clave)}>
+                <div class="calendario__semana" aria-hidden="true">{INICIALES.map((l) => <span data-n={l}></span>)}</div>
+                <div class="calendario__dias" role="group" aria-label={`Talleres de ${nombreMes(c.clave)}`}>
+                  {c.hueco > 0 && <span class="calendario__hueco" style={`grid-column: span ${c.hueco}`}></span>}
+                  {c.dias.map((d) => d.talleres > 0
+                    ? <button type="button" class="calendario__dia calendario__dia--taller" data-n={d.n} data-fecha={d.fecha} aria-pressed="false" aria-label={fechaLarga(d.fecha)} disabled>{d.talleres > 1 && <span class="calendario__varios" aria-hidden="true"></span>}</button>
+                    : <span class:list={['calendario__dia', { 'calendario__dia--pasado': d.pasado, 'calendario__dia--hoy': d.hoy }]} data-n={d.n} aria-hidden="true"></span>)}
+                </div>
+              </div>
+            ))}
+            <button type="button" class="agenda__todos" aria-label="Ver todos los talleres" hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </aside>
+
+          <div class="agenda__lista">
+            {[...meses].map(([clave, lista]) => (
+              <section class="mes" data-mes={clave}>
+                <h2 class="mes__titulo">{nombreMes(clave)}</h2>
+                <div class="rejilla">{lista.map((t) => <div class="mes__taller" data-fecha={t.fecha} style={`view-transition-name: taller-${t.slug}`}><TallerCard taller={t} /></div>)}</div>
+              </section>
+            ))}
+          </div>
+        </div>
       )}
       <p class="nota">¿Os apetece un taller solo para vuestro grupo? <a href="/privados">Pide un taller privado</a>.</p>
     </div>
@@ -45,9 +91,133 @@ const nombreMes = (clave: string) =>
   <DetallesImportantes />
 </Base>
 
+<script>
+  // Tocar un día del calendario deja solo los talleres de ese día; volver a tocarlo (o la ×) los enseña todos.
+  const calendario = document.querySelector<HTMLElement>('[data-calendario]');
+  if (calendario) {
+    const dias = [...calendario.querySelectorAll<HTMLButtonElement>('button[data-fecha]')];
+    const todos = calendario.querySelector<HTMLButtonElement>('.agenda__todos')!;
+    const tarjetas = [...document.querySelectorAll<HTMLElement>('.mes__taller')];
+    const meses = [...document.querySelectorAll<HTMLElement>('.mes')];
+    const lista = document.querySelector<HTMLElement>('.agenda__lista')!;
+    const suave = !matchMedia('(prefers-reduced-motion: reduce)').matches && 'startViewTransition' in document;
+
+    const filtrar = (fecha: string | null) => {
+      const aplicar = () => {
+        dias.forEach((d) => d.setAttribute('aria-pressed', String(d.dataset.fecha === fecha)));
+        tarjetas.forEach((t) => { t.hidden = fecha !== null && t.dataset.fecha !== fecha; });
+        meses.forEach((m) => { m.hidden = !m.querySelector('.mes__taller:not([hidden])'); });
+        todos.hidden = fecha === null;
+        calendario.classList.toggle('con-filtro', fecha !== null);
+      };
+      if (suave) (document as Document & { startViewTransition: (f: () => void) => unknown }).startViewTransition(aplicar);
+      else aplicar();
+      // En móvil la lista queda debajo: se baja hasta ella sin perder el calendario de vista del todo.
+      if (fecha && lista.getBoundingClientRect().top > innerHeight * 0.8) lista.scrollIntoView({ block: 'start', behavior: suave ? 'smooth' : 'auto' });
+    };
+
+    dias.forEach((d) => {
+      d.disabled = false;
+      d.addEventListener('click', () => filtrar(d.getAttribute('aria-pressed') === 'true' ? null : d.dataset.fecha!));
+    });
+    todos.addEventListener('click', () => { filtrar(null); dias[0]?.focus(); });
+  }
+</script>
+
 <style>
-  .mes { margin-top: 32px; }
-  .mes__titulo { text-transform: capitalize; }
+  /* Calendario a la izquierda (fijo al bajar) y talleres a la derecha; en móvil, el calendario arriba y compacto */
+  .agenda { display: grid; gap: 28px; align-items: start; }
+  .agenda__calendario {
+    position: relative;
+    display: grid;
+    gap: 20px;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra);
+    padding: 18px 16px 16px;
+  }
+  .calendario::before {
+    /* Nombre del mes (dato) */
+    content: attr(data-nombre);
+    display: block;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1.25rem;
+    color: var(--verde-profundo);
+    margin: 0 0 8px 6px;
+    text-transform: capitalize;
+  }
+  .calendario__semana, .calendario__dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+  .calendario__semana span::before { content: attr(data-n); font-size: 0.72rem; font-weight: 600; color: var(--tinta-suave); letter-spacing: 0.04em; }
+  .calendario__dia {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    min-height: 36px;
+    max-height: 44px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 44px;
+    border-radius: 50%;
+    font-size: 0.92rem;
+    color: var(--tinta-suave);
+    font-variant-numeric: tabular-nums;
+  }
+  .calendario__dia::before { content: attr(data-n); }
+  .calendario__dia--pasado { opacity: 0.4; }
+  .calendario__dia--hoy { box-shadow: inset 0 0 0 1px var(--verde); color: var(--verde-profundo); }
+  /* Días con taller: un punto de color que se toca */
+  button.calendario__dia {
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--salvia-suave);
+    color: var(--verde-profundo);
+    cursor: pointer;
+  }
+  button.calendario__dia:disabled { cursor: default; }
+  button.calendario__dia[aria-pressed='false']:not(:disabled):hover { background: var(--salvia); box-shadow: none; }
+  button.calendario__dia[aria-pressed='true'] { background: var(--verde-profundo); color: var(--crema-claro); box-shadow: 0 6px 14px -6px rgba(47, 74, 68, 0.6); }
+  .con-filtro button.calendario__dia[aria-pressed='false'] { background: transparent; box-shadow: inset 0 0 0 1px var(--salvia); }
+  .calendario__varios { position: absolute; bottom: 4px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; }
+  .agenda__todos {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 0;
+    background: var(--verde-profundo);
+    color: var(--crema-claro);
+    cursor: pointer;
+    box-shadow: var(--sombra-suave);
+  }
+  .agenda__todos:hover { background: var(--tinta); }
+
+  .mes + .mes { margin-top: 48px; }
+  .mes__titulo { text-transform: capitalize; font-size: 1.5rem; font-style: italic; color: var(--verde); margin-bottom: 16px; }
+  .rejilla { gap: 24px; }
   .vacio-publico { max-width: 640px; margin-top: 24px; }
-  .nota { margin-top: 32px; }
+  .nota { margin-top: 40px; color: var(--tinta-suave); }
+
+  @media (min-width: 560px) and (max-width: 899px) {
+    /* Tablet: dos meses, uno al lado del otro */
+    .agenda__calendario { grid-template-columns: repeat(auto-fit, minmax(240px, 300px)); column-gap: 40px; justify-self: start; }
+  }
+  @media (min-width: 900px) {
+    .agenda { grid-template-columns: 300px minmax(0, 1fr); gap: 48px; }
+    .agenda__calendario { position: sticky; top: 96px; padding: 22px 20px 20px; }
+    .agenda .rejilla { grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    button.calendario__dia { transition: background-color var(--duracion-corta), color var(--duracion-corta), transform var(--duracion-corta) var(--curva-salida); }
+    button.calendario__dia:not(:disabled):active { transform: scale(0.92); }
+  }
+  ::view-transition-group(*) { animation-duration: 380ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
 </style>

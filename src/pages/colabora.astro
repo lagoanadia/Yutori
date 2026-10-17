@@ -69,9 +69,15 @@ if (Astro.request.method === 'POST') {
     {turnstileActivo() && !enviado && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
   </Fragment>
   <section class="seccion">
-    <div class="contenedor">
-      <p class="script">Familia Yutori</p>
-      <h1>Imparte tu taller</h1>
+    <div class="contenedor pagina-formulario">
+      <div class="pagina-formulario__lado">
+        <div class="cabecera-pagina cabecera-pagina--columna">
+          <p class="script">Familia Yutori</p>
+          <h1>Imparte tu taller</h1>
+          {!enviado && <p class="intro">¿Eres tallerista y tienes una propuesta que te ilusiona compartir? Tenemos el espacio perfecto en pleno centro de A Coruña. En Yutori nos encanta contar con nuevas ideas, cuéntanos la tuya.</p>}
+        </div>
+        <div class="lamina" aria-hidden="true"><span class="mariposa-marca"></span></div>
+      </div>
 
       {enviado ? (
         <div class="tarjeta gracias" role="status">
@@ -80,8 +86,7 @@ if (Astro.request.method === 'POST') {
           <a class="boton boton--borde" href="/">Volver al inicio</a>
         </div>
       ) : (
-        <>
-          <p class="intro">¿Eres tallerista y tienes una propuesta que te ilusiona compartir? Tenemos el espacio perfecto en pleno centro de A Coruña. En Yutori nos encanta contar con nuevas ideas, cuéntanos la tuya.</p>
+        <div class="hoja">
 
           {errores.length > 0 && (
             <div class="errores" role="alert">
@@ -137,7 +142,7 @@ if (Astro.request.method === 'POST') {
             {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
             <button class="boton" type="submit">Enviar propuesta</button>
           </form>
-        </>
+        </div>
       )}
     </div>
   </section>
@@ -145,5 +150,6 @@ if (Astro.request.method === 'POST') {
 
 <style>
   .gracias { max-width: 640px; }
+  .formulario [type='submit'] { justify-self: start; }
   .gracias h2 { font-size: 1.5rem; }
 </style>

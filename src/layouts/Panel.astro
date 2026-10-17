@@ -1,8 +1,6 @@
 ---
-import '@fontsource/playfair-display/700.css';
-import '@fontsource/nunito-sans/400.css';
-import '@fontsource/nunito-sans/700.css';
 import '../styles/global.css';
+import Fuentes from '../components/Fuentes.astro';
 
 interface Props { titulo: string }
 const { titulo } = Astro.props;
@@ -37,6 +35,7 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
 <html lang="es">
   <head>
     <meta charset="utf-8" />
+    <Fuentes />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

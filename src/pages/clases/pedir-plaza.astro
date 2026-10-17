@@ -76,11 +76,17 @@ const sesiones = [...sueltas].flatMap(([gid, lista]) => lista.map((s) => ({ g: g
     {turnstileActivo() && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
   </Fragment>
   <section class="seccion">
-    <div class="contenedor">
-      <p class="script">Curso 26/27</p>
-      <h1>Reservar plaza</h1>
-      <p class="intro">Elige tu clase y si vienes cada semana o a una clase suelta. Te confirmamos la plaza cuando recibamos el pago.</p>
+    <div class="contenedor pagina-formulario">
+      <div class="pagina-formulario__lado">
+        <div class="cabecera-pagina cabecera-pagina--columna">
+          <p class="script">Curso 26/27</p>
+          <h1>Reservar plaza</h1>
+          <p class="intro">Elige tu clase y si vienes cada semana o a una clase suelta. Te confirmamos la plaza cuando recibamos el pago.</p>
+        </div>
+        <div class="lamina" aria-hidden="true"><span class="mariposa-marca"></span></div>
+      </div>
 
+      <div class="hoja">
       {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
       <form class="formulario" method="post" id="form-clase">
@@ -144,6 +150,7 @@ const sesiones = [...sueltas].flatMap(([gid, lista]) => lista.map((s) => ({ g: g
         {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
         <button class="boton" type="submit">Reservar plaza</button>
       </form>
+      </div>
     </div>
   </section>
 </Base>
