@@ -2,12 +2,15 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { todos, fecha, euros, ESTADOS_TALLER, FRANJAS } from '../../lib/db';
-import { liberarCaducadas } from '../../lib/reservas';
+import { hoyEspana, liberarCaducadas } from '../../lib/reservas';
 
 await liberarCaducadas();
 
 const estado = Astro.url.searchParams.get('estado');
-const filtro = estado && estado in ESTADOS_TALLER ? estado : null;
+// Por defecto, solo los de hoy en adelante; «Pasados» enseña los que ya han sido (los más recientes primero).
+const pasados = Astro.url.searchParams.get('pasados') === '1';
+const filtro = !pasados && estado && estado in ESTADOS_TALLER ? estado : null;
+const hoy = hoyEspana();
 
 const filas = await todos<{
   id: number; titulo: string | null; fecha: string; franja: string; hora_inicio: string | null; hora_fin: string | null;
@@ -18,20 +21,21 @@ const filas = await todos<{
          (SELECT COALESCE(sum(r.plazas), 0) FROM reservas r
            WHERE r.taller_id = t.id AND r.estado IN ('pendiente', 'confirmada')) AS ocupadas
   FROM talleres t LEFT JOIN talleristas ta ON ta.id = t.tallerista_id
-  ${filtro ? 'WHERE t.estado = ?1' : ''}
-  ORDER BY t.fecha, t.franja
-`, ...(filtro ? [filtro] : []));
+  WHERE t.fecha ${pasados ? '<' : '>='} ?1 ${filtro ? 'AND t.estado = ?2' : ''}
+  ORDER BY ${pasados ? 't.fecha DESC, t.franja DESC' : 't.fecha, t.franja'}
+`, hoy, ...(filtro ? [filtro] : []));
 ---
 <Panel titulo="Talleres">
   <p><a class="boton" href="/panel/talleres/nuevo">Nuevo hueco de taller</a></p>
   <nav class="filtros" aria-label="Filtrar por estado">
-    <a href="/panel/talleres" aria-current={!filtro ? 'true' : undefined}>Todos</a>
+    <a href="/panel/talleres" aria-current={!filtro && !pasados ? 'true' : undefined}>Todos</a>
     {Object.entries(ESTADOS_TALLER).map(([k, v]) => (
       <a href={`?estado=${k}`} aria-current={filtro === k ? 'true' : undefined}>{v}</a>
     ))}
+    <a href="?pasados=1" aria-current={pasados ? 'true' : undefined}>Pasados</a>
   </nav>
 
-  {filas.length === 0 ? <p class="vacio">No hay talleres{filtro ? ' con este estado' : ''}.</p> : (
+  {filas.length === 0 ? <p class="vacio">No hay talleres{filtro ? ' con este estado' : pasados ? ' pasados' : ''}.</p> : (
     <table class="tabla">
       <thead><tr><th>Fecha</th><th>Taller</th><th>Quién</th><th>Plazas</th><th>Precio</th><th>25 €</th><th>Estado</th></tr></thead>
       <tbody>

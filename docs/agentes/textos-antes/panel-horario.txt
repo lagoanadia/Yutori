@@ -1,0 +1,36 @@
+[estado] 200
+[título] Añadir horario de clase · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Añadir horario de clase
+← Clases
+Clase
+Punto por punto
+Aguadas
+Atelier textil
+Una clase nueva…
+Día
+Lunes
+Martes
+Miércoles
+Jueves
+Viernes
+Sábado
+Domingo
+Para
+Adultos
+Niños
+Empieza
+Termina
+Plazas
+Precio al mes (€)
+Guardar horario
+¿Tienes muchas? Pégalas de golpe

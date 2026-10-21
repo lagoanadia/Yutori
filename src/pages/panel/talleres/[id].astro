@@ -7,6 +7,7 @@ import { calendarioActivo } from '../../../lib/calendario';
 import { desactivarTaller, editarTaller, publicarTaller, type CamposTaller } from '../../../lib/talleres';
 import { borrarFoto, urlFoto } from '../../../lib/fotos';
 import { codigoAleatorio, telefonoWhatsApp } from '../../../lib/util';
+import { marcarPagoReserva } from '../../../lib/acciones';
 
 type Taller = {
   id: number; tallerista_id: number | null; titulo: string | null; slug: string | null; fecha: string; franja: string;
@@ -59,7 +60,8 @@ if (Astro.request.method === 'POST') {
   }
 
   if (accion === 'pago') {
-    await actualizar('UPDATE talleres SET pago_reserva_recibido = 1 - pago_reserva_recibido WHERE id = ?1');
+    // El valor que se quiere viene en el formulario (no es un interruptor): pulsar dos veces no deshace el cambio.
+    await marcarPagoReserva(id, datos.get('valor') === '1');
     return Astro.redirect(`/panel/talleres/${id}?ok=guardado`, 303);
   }
   if (accion === 'publicar') {
@@ -210,6 +212,7 @@ const whatsapp = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
       {t.tallerista_id && (
         <form method="post" class="accion">
           <input type="hidden" name="accion" value="pago" />
+          <input type="hidden" name="valor" value={t.pago_reserva_recibido ? '0' : '1'} />
           <p>25 € de la reserva: <strong>{t.pago_reserva_recibido ? 'recibidos' : 'pendientes'}</strong></p>
           <button class="boton boton--borde" type="submit">{t.pago_reserva_recibido ? 'Marcar como no recibidos' : 'Marcar como recibidos'}</button>
         </form>

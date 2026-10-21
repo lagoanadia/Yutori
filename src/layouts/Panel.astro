@@ -4,21 +4,31 @@ import '@fontsource/nunito-sans/400.css';
 import '@fontsource/nunito-sans/700.css';
 import '../styles/global.css';
 
-interface Props { titulo: string }
-const { titulo } = Astro.props;
+import { pendientesDelMenu, type Pendientes } from '../lib/pendientes';
 
-const menu = [
-  { href: '/panel', texto: 'Resumen' },
-  { href: '/panel/asistente', texto: 'Asistente' },
-  { href: '/panel/talleristas', texto: 'Talleristas' },
-  { href: '/panel/talleres', texto: 'Talleres' },
-  { href: '/panel/reservas', texto: 'Reservas' },
-  { href: '/panel/clases', texto: 'Clases' },
-  { href: '/panel/solicitudes', texto: 'Privados y bonos' },
+interface Props { titulo: string; ocultarTitulo?: boolean }
+const { titulo, ocultarTitulo = false } = Astro.props;
+
+const menu: { href: string; texto: string; globo?: keyof Pendientes; icono: string }[] = [
+  { href: '/panel', texto: 'Hoy', icono: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z' },
+  { href: '/panel/asistente', texto: 'Asistente', icono: 'M4 5h16v11H9l-5 4z' },
+  { href: '/panel/talleristas', texto: 'Talleristas', globo: 'talleristas', icono: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 20c0-4 3.5-6 8-6s8 2 8 6' },
+  { href: '/panel/talleres', texto: 'Talleres', globo: 'talleres', icono: 'M4 5h16v14H4zM4 10h16M9 5v14' },
+  { href: '/panel/reservas', texto: 'Reservas', globo: 'reservas', icono: 'M5 6h14v4a2 2 0 0 0 0 4v4H5v-4a2 2 0 0 0 0-4zM14 6v12' },
+  { href: '/panel/clases', texto: 'Clases', globo: 'clases', icono: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4' },
+  { href: '/panel/solicitudes', texto: 'Privados y bonos', globo: 'solicitudes', icono: 'M4 8h16v11H4zM4 12h16M12 8v11M12 8c-3 0-4-4-1.5-4S12 8 12 8zm0 0c3 0 4-4 1.5-4S12 8 12 8z' },
 ];
+// Barra inferior del móvil: los apartados más usados y «Más» con el resto, para ver los siete sin deslizar.
+const enBarra = ['/panel', '/panel/talleres', '/panel/reservas', '/panel/clases'];
+const principales = menu.filter((m) => enBarra.includes(m.href));
+const secundarios = menu.filter((m) => !enBarra.includes(m.href));
+const pendientes = await pendientesDelMenu();
+const globo = (m: (typeof menu)[number]) => (m.globo ? pendientes[m.globo] : 0);
+const globoMas = secundarios.reduce((suma, m) => suma + globo(m), 0);
 const actual = Astro.url.pathname.replace(/\/$/, '');
 // La sección se marca también en sus subpáginas (/panel/clases/alumna → Clases).
 const seccion = menu.filter((m) => actual === m.href || actual.startsWith(m.href + '/')).pop()?.href;
+const enMas = secundarios.some((m) => m.href === seccion);
 
 // Aviso tras guardar algo (las acciones redirigen con ?ok=código).
 const AVISOS: Record<string, string> = {
@@ -46,16 +56,41 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
     <header class="barra">
       <div class="contenedor barra__fila">
         <a class="barra__marca" href="/panel">Yutori <span>panel</span></a>
+        <nav class="menu-escritorio" aria-label="Panel">
+          {menu.map((m) => (
+            <a href={m.href} aria-current={seccion === m.href ? 'page' : undefined}>
+              {m.texto}{globo(m) > 0 && <span class="globo" aria-label={`${globo(m)} pendientes`}>{globo(m)}</span>}
+            </a>
+          ))}
+        </nav>
         {Astro.locals.usuario === 'clave'
           ? <form method="post" action="/panel/salir"><button class="barra__salir" type="submit">Salir</button></form>
           : <span class="barra__usuario">{Astro.locals.usuario === 'local' ? 'Modo local' : Astro.locals.usuario}</span>}
       </div>
-      <nav class="contenedor barra__menu" aria-label="Panel">
-        {menu.map((m) => <a href={m.href} aria-current={seccion === m.href ? 'page' : undefined}>{m.texto}</a>)}
-      </nav>
     </header>
+
+    <nav class="menu-movil" aria-label="Panel">
+      {principales.map((m) => (
+        <a href={m.href} aria-current={seccion === m.href ? 'page' : undefined}>
+          <span class="menu-movil__icono"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d={m.icono} /></svg>{globo(m) > 0 && <span class="globo" aria-label={`${globo(m)} pendientes`}>{globo(m)}</span>}</span>
+          {m.texto}
+        </a>
+      ))}
+      <button type="button" class:list={['menu-movil__mas', { 'menu-movil__mas--actual': enMas }]} popovertarget="menu-mas">
+        <span class="menu-movil__icono"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>{globoMas > 0 && <span class="globo" aria-label={`${globoMas} pendientes`}>{globoMas}</span>}</span>
+        Más
+      </button>
+      <div id="menu-mas" popover class="menu-movil__lista">
+        {secundarios.map((m) => (
+          <a href={m.href} aria-current={seccion === m.href ? 'page' : undefined}>
+            {m.texto}{globo(m) > 0 && <span class="globo" aria-label={`${globo(m)} pendientes`}>{globo(m)}</span>}
+          </a>
+        ))}
+      </div>
+    </nav>
+
     <main class="contenedor panel">
-      <h1>{titulo}</h1>
+      {!ocultarTitulo && <h1>{titulo}</h1>}
       {aviso && <p class="aviso-ok" role="status">{aviso}</p>}
       <slot />
     </main>
@@ -68,19 +103,41 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
   .barra__marca { color: #fff; text-decoration: none; font-family: var(--serif); font-size: 1.4rem; font-weight: 700; }
   .barra__marca span { font-family: var(--sans); font-size: 0.85rem; font-weight: 400; opacity: 0.85; }
   .barra__usuario { font-size: 0.85rem; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .barra__salir { background: none; border: 1px solid rgba(255, 255, 255, 0.6); color: #fff; border-radius: 999px; padding: 4px 14px; font: inherit; font-size: 0.9rem; cursor: pointer; }
-  .barra__menu { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
-  .barra__menu a { color: #fff; text-decoration: none; white-space: nowrap; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 0.95rem; }
-  .barra__menu a[aria-current='page'] { background: var(--crema); color: var(--verde); }
+  .barra__salir { background: none; border: 1px solid rgba(255, 255, 255, 0.6); color: #fff; border-radius: 999px; min-height: 44px; padding: 4px 16px; font: inherit; font-size: 0.9rem; cursor: pointer; }
 
-  .panel { padding: 24px 0 64px; }
+  /* Globo con el número de pendientes de un apartado. */
+  .globo { display: inline-block; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--aviso); color: #fff; font-size: 0.75rem; font-weight: 700; line-height: 20px; text-align: center; margin-left: 6px; }
+
+  /* Escritorio: menú compacto en la barra de arriba. */
+  .menu-escritorio { display: none; }
+  .menu-movil { display: grid; }
+
+  /* Móvil: barra fija abajo con los apartados más usados y «Más». */
+  .menu-movil { position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; grid-template-columns: repeat(5, 1fr); background: var(--crema-claro); border-top: 1px solid var(--borde); box-shadow: 0 -4px 16px rgba(36, 51, 47, 0.08); padding-bottom: env(safe-area-inset-bottom); }
+  .menu-movil a, .menu-movil__mas { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 60px; padding: 6px 2px; color: var(--tinta-suave); text-decoration: none; font: inherit; font-size: 0.75rem; font-weight: 700; background: none; border: 0; cursor: pointer; }
+  .menu-movil a[aria-current='page'], .menu-movil__mas--actual { color: var(--verde); box-shadow: inset 0 3px 0 var(--verde); }
+  .menu-movil__icono { position: relative; display: inline-flex; }
+  .menu-movil svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .menu-movil__mas svg { stroke-width: 3.2; }
+  .menu-movil .globo { position: absolute; top: -6px; left: 14px; margin: 0; min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px; font-size: 0.7rem; }
+  .menu-movil__lista { position: fixed; inset: auto 8px calc(68px + env(safe-area-inset-bottom)) auto; margin: 0; width: min(280px, calc(100% - 16px)); padding: 6px; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); box-shadow: var(--sombra); }
+  .menu-movil__lista:not(:popover-open) { display: none; }
+  .menu-movil__lista a { flex-direction: row; justify-content: flex-start; gap: 0; min-height: 52px; padding: 8px 14px; font-size: 1rem; color: var(--tinta); border-radius: 12px; }
+  .menu-movil__lista a[aria-current='page'] { background: var(--salvia-suave); box-shadow: none; }
+  .menu-movil__lista .globo { position: static; }
+
+  @media (min-width: 960px) {
+    .menu-movil { display: none; }
+    .menu-escritorio { display: flex; gap: 2px; flex: 1; justify-content: center; }
+    .menu-escritorio a { display: inline-flex; align-items: center; min-height: 44px; color: #fff; text-decoration: none; white-space: nowrap; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.95rem; }
+    .menu-escritorio a[aria-current='page'] { background: var(--crema); color: var(--verde); }
+    .menu-escritorio .globo { margin-left: 6px; }
+  }
+
+  .panel { padding: 20px 0 calc(88px + env(safe-area-inset-bottom)); }
+  @media (min-width: 960px) { .panel { padding: 24px 0 48px; } }
   .panel h1 { font-size: 1.9rem; }
   .panel h2 { font-size: 1.35rem; margin-top: 32px; }
-
-  .cifras { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-bottom: 8px; }
-  .cifra { background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 16px; text-decoration: none; color: var(--tinta); }
-  .cifra strong { display: block; font-family: var(--serif); font-size: 2rem; color: var(--verde); line-height: 1.1; }
-  .cifra.alerta strong { color: var(--aviso); }
 
   .filtros { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
   .filtros a { text-decoration: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--borde); color: var(--tinta); background: var(--crema-claro); font-size: 0.95rem; }

@@ -171,6 +171,10 @@ export const clases: Clase[] = [
 
 export const publicosVisibles = (c: Clase) => c.publicos.filter((p) => MOSTRAR_NINOS || p.para === 'Adultos');
 
+// TEXTO PROVISIONAL (genérico): pendiente de que Iris lo redacte. Se ve en la ficha de un taller
+// que ya no se puede reservar porque es hoy o ya ha pasado (se reserva hasta el día antes).
+export const textoReservasCerradas = 'Las reservas para este taller ya están cerradas.';
+
 export const politicaTalleres = [
   'Para reservar plaza en cualquiera de los talleres es necesario el pago del mismo.',
   'Si cancelas por causa de fuerza mayor con más de 7 días de antelación, podrás elegir entre el reembolso o guardar la reserva para el próximo taller.',

@@ -2,9 +2,9 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
-import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres } from '../../data/yutori';
+import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres, textoReservasCerradas } from '../../data/yutori';
 import { euros } from '../../lib/db';
-import { MAX_PLAZAS_RESERVA, PLAZO_PAGO_HORAS, reservarTaller, tallerPublicado } from '../../lib/reservas';
+import { MAX_PLAZAS_RESERVA, PLAZO_PAGO_HORAS, reservarTaller, tallerPublicado, tallerReservable } from '../../lib/reservas';
 import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
 import { esEmail } from '../../lib/util';
 
@@ -14,10 +14,12 @@ if (!taller) return new Response(null, { status: 404 });
 const libres = Math.max(0, taller.plazas - taller.ocupadas);
 // Sin precio todavía (taller importado a medias): se enseña, pero aún no se puede reservar.
 const sinPrecio = taller.precio_cent == null;
+// Se reserva hasta el día antes: el mismo día del taller ya no se pinta el formulario.
+const cerrado = sinPrecio || !tallerReservable(taller.fecha);
 const errores: string[] = [];
 let v = { nombre: '', telefono: '', email: '', plazas: '1' };
 
-if (Astro.request.method === 'POST' && !sinPrecio) {
+if (Astro.request.method === 'POST' && !cerrado) {
   const datos = await Astro.request.formData();
   const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
   v = { nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), plazas: campo('plazas', 2) };
@@ -48,7 +50,7 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
 ---
 <Base titulo={taller.titulo} descripcion={`${taller.titulo} con ${taller.imparte} en Yutori Espacio Creativo, A Coruña. ${fechaLarga(taller.fecha)}.`}>
   <Fragment slot="head">
-    {turnstileActivo() && libres > 0 && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+    {turnstileActivo() && libres > 0 && !cerrado && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
   </Fragment>
   <section class="seccion">
     <div class="contenedor ficha">
@@ -75,6 +77,10 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
           <div class="tarjeta">
             <h2>Reservas muy pronto</h2>
             <p>Estamos terminando de preparar este taller. Si quieres reservar plaza, escríbenos por <a href={emailUrl(`Reserva: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
+          </div>
+        ) : cerrado ? (
+          <div class="tarjeta">
+            <p>{textoReservasCerradas}</p>
           </div>
         ) : libres === 0 ? (
           <div class="tarjeta">

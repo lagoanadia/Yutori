@@ -1,0 +1,36 @@
+[estado] 200
+[título] Talleres · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Talleres
+Nuevo hueco de taller
+Todos
+Hueco creado
+Enviado por la tallerista
+Publicado
+Desactivado
+FECHA	TALLER	QUIÉN	PLAZAS	PRECIO	25 €	ESTADO
+sáb, 17 oct
+Sábado mañana · 10:30-13:00	Grabado y estampación en tote bags	Slowly Atelier
+3/8	45,00 €	Recibidos	Publicado
+dom, 25 oct
+Domingo tarde · 16:00-18:00	Lámparas de origami	Papel Lento
+8/8	40,00 €	Recibidos	Publicado
+sáb, 31 oct
+Sábado mañana · 11:00-13:00	Taller de Halloween Evento	Tú (Yutori)
+0/8	30,00 €	—	Publicado
+dom, 8 nov
+Domingo mañana	Hueco sin rellenar
+Pendiente de que la tallerista lo envíe	Slowly Atelier
+0/8	—	Pendiente · antes del mié, 14 oct	Hueco creado
+sáb, 14 nov
+Sábado tarde · 17:00-19:00	Cuadernos cosidos a mano	Papel Lento
+0/6	35,00 €	Pendiente · antes del mié, 14 oct	Enviado por la tallerista

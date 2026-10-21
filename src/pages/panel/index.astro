@@ -1,63 +1,182 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
-import { todos, uno, fecha, ESTADOS_RESERVA, TIPOS_RESERVA } from '../../lib/db';
-import { liberarCaducadas } from '../../lib/reservas';
+import { hoyEspana } from '../../lib/reservas';
+import {
+  agendaSemana, contarPendientes, contarUrgentes, diaLargo, ejecutarAccion, mensajeHecho, repartir, tareasDeHoy,
+  BLOQUES, type Accion, type Tarea,
+} from '../../lib/tareas';
 
-await liberarCaducadas();
+// Errores de una acción que no se ha podido hacer (p. ej. publicar sin los 25 €), por tarea.
+const errores: Record<string, string[]> = {};
 
-const cifras = await uno<Record<string, number>>(`
-  SELECT
-    (SELECT count(*) FROM talleristas WHERE estado = 'nueva') AS talleristas_nuevas,
-    (SELECT count(*) FROM talleres WHERE estado = 'enviado') AS talleres_por_revisar,
-    (SELECT count(*) FROM talleres WHERE estado IN ('hueco', 'enviado') AND pago_reserva_recibido = 0 AND tallerista_id IS NOT NULL) AS pagos_25_pendientes,
-    (SELECT count(*) FROM reservas WHERE estado = 'pendiente') AS reservas_pendientes,
-    (SELECT count(*) FROM solicitudes WHERE estado = 'nueva') AS solicitudes_nuevas,
-    (SELECT count(*) FROM talleres WHERE estado = 'publicado' AND fecha >= date('now')) AS talleres_proximos
-`);
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
+  const bloque = BLOQUES.some((b) => b.clave === datos.get('bloque')) ? String(datos.get('bloque')) : 'urgente';
+  const resultado = await ejecutarAccion(accion, Number(datos.get('id')));
+  if (resultado.ok) {
+    const vuelta = new URLSearchParams({ hecho: resultado.hecho, de: resultado.de.slice(0, 60) });
+    return Astro.redirect(`/panel?${vuelta}#${bloque}`, 303);
+  }
+  errores[String(datos.get('clave') ?? '')] = resultado.errores;
+}
 
-const ultimas = await todos<{ id: number; tipo: string; nombre: string; estado: string; creado_en: string; que: string | null }>(`
-  SELECT r.id, r.tipo, r.nombre, r.estado, r.creado_en,
-         COALESCE(t.titulo, c.nombre) AS que
-  FROM reservas r
-  LEFT JOIN talleres t ON t.id = r.taller_id
-  LEFT JOIN grupos g ON g.id = r.grupo_id
-  LEFT JOIN clases c ON c.id = g.clase_id
-  ORDER BY r.creado_en DESC LIMIT 5
-`);
+const hoy = hoyEspana();
+const tareas = await tareasDeHoy(Astro.url.origin);
+const agenda = await agendaSemana(hoy);
 
-const tarjetas = [
-  { n: cifras?.reservas_pendientes ?? 0, texto: 'reservas pendientes de pago', href: '/panel/reservas?estado=pendiente' },
-  { n: cifras?.talleristas_nuevas ?? 0, texto: 'talleristas nuevas', href: '/panel/talleristas?estado=nueva' },
-  { n: cifras?.talleres_por_revisar ?? 0, texto: 'talleres por revisar', href: '/panel/talleres?estado=enviado' },
-  { n: cifras?.pagos_25_pendientes ?? 0, texto: 'pagos de 25 € sin recibir', href: '/panel/talleres' },
-  { n: cifras?.solicitudes_nuevas ?? 0, texto: 'privados y bonos nuevos', href: '/panel/solicitudes?estado=nueva' },
-  { n: cifras?.talleres_proximos ?? 0, texto: 'talleres publicados próximos', href: '/panel/talleres?estado=publicado', neutra: true },
-];
+// «Ver las N» despliega ese bloque entero en esta misma página.
+const ver = BLOQUES.find((b) => b.clave === Astro.url.searchParams.get('ver'))?.clave;
+const resumen = repartir(tareas);
+const ocultasResumen = new Map(resumen.map((r) => [r.clave, r.ocultas]));
+const completo = ver ? repartir(tareas, Infinity) : [];
+const bloques = resumen.map((b) => (b.clave === ver ? completo.find((c) => c.clave === ver) ?? b : b));
+
+const hecho = mensajeHecho(Astro.url.searchParams.get('hecho') ?? '', (Astro.url.searchParams.get('de') ?? '').slice(0, 60));
+const pendientes = contarPendientes(tareas);
+const urgentes = contarUrgentes(tareas);
+const mayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+const resumenTexto = [
+  mayuscula(diaLargo(hoy)),
+  pendientes > 0 ? `${pendientes} ${pendientes === 1 ? 'cosa pendiente' : 'cosas pendientes'}` : null,
+  urgentes > 0 ? `${urgentes} ${urgentes === 1 ? 'urgente' : 'urgentes'}` : null,
+].filter(Boolean).join(' · ');
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 ---
-<Panel titulo="Resumen">
-  <div class="cifras">
-    {tarjetas.map((t) => (
-      <a class:list={['cifra', { alerta: !t.neutra && t.n > 0 }]} href={t.href}>
-        <strong>{t.n}</strong>{t.texto}
-      </a>
-    ))}
-  </div>
+<Panel titulo="Hoy" ocultarTitulo>
+  <div class="hoy">
+    <div class="hoy__tareas">
+      <header class="hoy__cabecera">
+        <h1>Hoy</h1>
+        <p class="hoy__resumen">{resumenTexto}</p>
+      </header>
 
-  <h2>Últimas reservas</h2>
-  {ultimas.length === 0 ? <p class="vacio">Todavía no hay reservas.</p> : (
-    <table class="tabla">
-      <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Estado</th></tr></thead>
-      <tbody>
-        {ultimas.map((r) => (
-          <tr>
-            <td data-label="Cuándo">{fecha(r.creado_en)}</td>
-            <td data-label="Quién">{r.nombre}</td>
-            <td data-label="Qué">{r.que} <small>· {TIPOS_RESERVA[r.tipo]}</small></td>
-            <td><span class={`estado estado--${r.estado}`}>{ESTADOS_RESERVA[r.estado]}</span></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )}
+      {hecho && <p class="aviso-ok" role="status">{hecho}</p>}
+
+      {bloques.length === 0 && <p class="todo-al-dia">Todo al día. Disfruta del café ☕</p>}
+
+      {bloques.map((b) => (
+        <section class={`bloque bloque--${b.clave}`} id={b.clave} aria-labelledby={`titulo-${b.clave}`}>
+          <h2 id={`titulo-${b.clave}`}>{b.titulo} <span class="bloque__cuenta">{b.total}</span></h2>
+          <ul class="tareas">
+            {b.grupos.map((g) => (
+              <>
+                {g.titulo && <li class="grupo-titulo">{g.titulo}</li>}
+                {g.tareas.map((t: Tarea) => (
+                  <li class:list={['tarea', { 'tarea--agrupada': Boolean(g.titulo), 'tarea--informativa': t.informativa }]} id={t.clave}>
+                    <div class="tarea__texto">
+                      <a href={t.href}>{g.titulo ? t.textoCorto : t.texto}</a>
+                    </div>
+                    <div class="tarea__acciones">
+                      {[t.principal, t.secundaria].filter((a): a is Accion => Boolean(a)).map((a) => (
+                        a.tipo === 'post' ? (
+                          <form method="post" action={ver ? `/panel?ver=${ver}` : '/panel'}>
+                            <input type="hidden" name="accion" value={a.accion} />
+                            <input type="hidden" name="bloque" value={b.clave} />
+                            <input type="hidden" name="clave" value={t.clave} />
+                            {Object.entries(a.campos).map(([k, v]) => <input type="hidden" name={k} value={v} />)}
+                            <button class="boton" type="submit">{a.etiqueta}</button>
+                          </form>
+                        ) : (
+                          <a class="boton boton--borde" href={a.href} target={a.externo ? '_blank' : undefined} rel={a.externo ? 'noopener' : undefined}>{a.etiqueta}</a>
+                        )
+                      ))}
+                    </div>
+                    {errores[t.clave] && <p class="tarea__error" role="alert">{errores[t.clave].join(' ')}</p>}
+                  </li>
+                ))}
+              </>
+            ))}
+          </ul>
+          {b.ocultas > 0 && <a class="ver-mas" href={`/panel?ver=${b.clave}#${b.clave}`}>Ver las {b.lineas}</a>}
+          {b.ocultas === 0 && b.clave === ver && (ocultasResumen.get(b.clave) ?? 0) > 0 && (
+            <a class="ver-mas" href={`/panel#${b.clave}`}>Ver menos</a>
+          )}
+        </section>
+      ))}
+    </div>
+
+    <aside class="agenda" aria-labelledby="titulo-agenda">
+      <h2 id="titulo-agenda">Esta semana en Yutori</h2>
+      {agenda.length === 0 ? <p class="vacio">No hay talleres ni clases en los próximos 7 días.</p> : agenda.map((d) => (
+        <section class:list={['agenda__dia', { 'agenda__dia--hoy': d.hoy, 'agenda__dia--manana': d.manana }]}>
+          <h3>{d.etiqueta} <small>{d.hoy || d.manana ? ` · ${d.fecha.slice(8)}/${d.fecha.slice(5, 7)}` : ''}</small></h3>
+          <ul>
+            {d.eventos.map((e) => (
+              <li>
+                <a href={e.href}><span class="agenda__hora">{e.hora}</span> {e.titulo}</a>
+                <small class="agenda__detalle">
+                  {e.tipo === 'taller' ? (
+                    <>
+                      <span class="ocupacion__barra"><span style={`width:${Math.min(100, (e.ocupadas / e.plazas) * 100)}%`}></span></span>
+                      {e.ocupadas}/{e.plazas} plazas
+                    </>
+                  ) : (
+                    <>{plural(e.ocupadas, 'alumna', 'alumnas')}{e.sueltas > 0 && ` · ${plural(e.sueltas, 'suelta', 'sueltas')}`}</>
+                  )}
+                  {e.sinPagar > 0 && <strong class="agenda__sin-pagar"> · {e.sinPagar} sin pagar</strong>}
+                </small>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </aside>
+  </div>
 </Panel>
+
+<style>
+  .hoy { display: grid; gap: 20px; }
+  @media (min-width: 960px) {
+    .hoy { grid-template-columns: 2fr 1fr; gap: 28px; align-items: start; }
+    .agenda { position: sticky; top: 72px; }
+  }
+
+  .hoy__cabecera { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px; margin-bottom: 10px; }
+  .hoy__cabecera h1 { font-size: 1.7rem; line-height: 1.2; margin: 0; }
+  .hoy__resumen { margin: 0; color: var(--tinta-suave); font-weight: 700; }
+  .todo-al-dia { font-family: var(--serif); font-size: 1.5rem; color: var(--verde); text-align: center; padding: 40px 16px; background: var(--crema-claro); border: 1px dashed var(--borde); border-radius: var(--radio); }
+
+  .bloque { margin-bottom: 12px; scroll-margin-top: 72px; }
+  :global(.panel) .bloque h2 { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 1rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--tinta-suave); margin: 0 0 6px; }
+  .bloque__cuenta { background: var(--salvia-suave); color: var(--verde); border-radius: 999px; padding: 0 9px; font-size: 0.85rem; line-height: 22px; }
+  .bloque--urgente h2 { color: var(--aviso); }
+  .bloque--urgente .bloque__cuenta { background: var(--aviso); color: #fff; }
+
+  .tareas { list-style: none; margin: 0; padding: 0; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); overflow: hidden; }
+  .bloque--urgente .tareas { border-color: var(--aviso); border-left-width: 5px; }
+
+  .grupo-titulo { padding: 8px 14px 0; font-size: 0.8rem; font-weight: 800; color: var(--verde); border-top: 1px solid var(--borde); }
+  .grupo-titulo:first-child { border-top: 0; }
+  .tarea { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 5px 12px 5px 14px; border-top: 1px solid var(--borde); }
+  .tarea:first-child, .grupo-titulo + .tarea { border-top: 0; }
+  .tarea--agrupada { padding-top: 2px; }
+  .tarea__texto { line-height: 1.3; font-size: 0.95rem; }
+  .tarea__texto a { color: var(--tinta); text-decoration: none; overflow-wrap: anywhere; }
+  .tarea__texto a:hover { text-decoration: underline; }
+  .tarea--informativa .tarea__texto a { color: var(--tinta-suave); }
+  .tarea__error { grid-column: 1 / -1; margin: 0; padding: 6px 10px; background: #fbe9e4; border: 1px solid var(--aviso); border-radius: 10px; font-size: 0.9rem; }
+  .tarea__acciones { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .tarea__acciones form { margin: 0; display: contents; }
+  .tarea .boton { padding: 4px 14px; font-size: 0.9rem; line-height: 1.15; text-align: center; min-width: 96px; max-width: 132px; }
+
+  .ver-mas { display: inline-flex; align-items: center; min-height: 48px; padding: 0 4px; font-weight: 700; }
+
+  .agenda { background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 14px 16px; }
+  :global(.panel) .agenda h2 { font-size: 1.2rem; margin: 0 0 8px; }
+  .agenda__dia { padding: 6px 10px; border-radius: 12px; margin-bottom: 2px; }
+  .agenda__dia--hoy { background: var(--salvia-suave); }
+  .agenda__dia--manana { background: #f6efdb; }
+  .agenda h3 { font-family: var(--sans); font-size: 0.9rem; font-weight: 800; margin: 0 0 4px; color: var(--verde); }
+  .agenda h3 small { font-weight: 400; color: var(--tinta-suave); }
+  .agenda ul { list-style: none; margin: 0; padding: 0; }
+  .agenda li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 10px; padding: 2px 0; line-height: 1.3; }
+  .agenda li a { color: var(--tinta); text-decoration: none; font-weight: 700; font-size: 0.95rem; }
+  .agenda__hora { font-weight: 400; color: var(--tinta-suave); }
+  .agenda__detalle { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--tinta-suave); }
+  .agenda__sin-pagar { color: var(--aviso); }
+  .agenda .ocupacion__barra { width: 56px; height: 6px; border-radius: 999px; background: var(--salvia-suave); overflow: hidden; display: inline-block; }
+  .agenda .ocupacion__barra span { display: block; height: 100%; background: var(--verde); }
+  .agenda__dia--hoy .ocupacion__barra { background: #fff; }
+</style>

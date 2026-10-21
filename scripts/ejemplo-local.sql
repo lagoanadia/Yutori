@@ -32,3 +32,7 @@ INSERT INTO solicitudes (tipo, nombre, email, telefono, motivo, categoria_id, fe
   ('privado', 'Julia Grupo', 'julia@ejemplo.com', '633333331', 'Despedida', 4, '2026-11-21', 10, 'Despedida de soltera, nos gustaría hacer velas.', 'nueva', '2026-10-12T22:10:00');
 INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, mensaje, estado, creado_en) VALUES
   ('bono', 'Kike Regalo', 'kike@ejemplo.com', '633333332', 'importe', '50 €', 'Mi madre', '¡Feliz cumpleaños!', 'en_curso', '2026-10-10T08:45:00');
+
+-- Códigos de enlace privado para poder abrir /reserva/... en local (un taller y una clase mensual).
+UPDATE reservas SET codigo = 'ejemplo-reserva-taller-local-abc' WHERE nombre = 'Ana Cliente';
+UPDATE reservas SET codigo = 'ejemplo-reserva-clase-local-abc' WHERE nombre = 'Flor Alumna';

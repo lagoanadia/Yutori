@@ -1,0 +1,59 @@
+[estado] 200
+[título] Reservas · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Reservas
+Todos los estados
+Pendiente de pago
+Confirmada
+Liberada
+Cancelada
+Todos los tipos
+Taller
+Clase mensual
+Clase suelta
+QUIÉN	QUÉ	PLAZAS	RESERVÓ	ESTADO
+ACCIONES
+Carla Cliente
+611111113 · carla@ejemplo.com	Grabado y estampación en tote bags · sáb, 17 oct	2	mar, 13 oct, 21:00	Liberada
+Eva Cliente
+611111115 · eva@ejemplo.com	Taller de Halloween · sáb, 31 oct	3	mar, 13 oct, 14:00	Liberada
+Inés Puntual
+622222224 · ines@ejemplo.com	Aguadas · Martes 18:00 · mar, 20 oct	1	mar, 13 oct, 11:00	Pendiente de pago
+Pago recibido
+Cancelar
+Editar
+Gala Alumna
+622222222 · gala@ejemplo.com	Punto por punto · Lunes 18:00 · mes 2026-11	1	lun, 12 oct, 12:00	Pendiente de pago
+Pago recibido
+Cancelar
+Editar
+Bea Cliente
+611111112 · bea@ejemplo.com	Grabado y estampación en tote bags · sáb, 17 oct	1	mar, 6 oct, 13:00	Confirmada
+Cancelar
+Editar
+Ana Cliente
+611111111 · ana@ejemplo.com	Grabado y estampación en tote bags · sáb, 17 oct	2	lun, 5 oct, 21:00	Confirmada
+Cancelar
+Editar
+Hana Alumna
+622222223 · hana@ejemplo.com	Atelier textil · Jueves 18:00 · mes 2026-11
+Con máquina	1	sáb, 3 oct, 12:00	Confirmada
+Cancelar
+Editar
+Diana Cliente
+611111114 · diana@ejemplo.com	Lámparas de origami · dom, 25 oct	8	vie, 2 oct, 12:00	Confirmada
+Cancelar
+Editar
+Flor Alumna
+622222221 · flor@ejemplo.com	Punto por punto · Lunes 18:00 · mes 2026-11	1	jue, 1 oct, 12:00	Confirmada
+Cancelar
+Editar

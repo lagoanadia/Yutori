@@ -1,0 +1,33 @@
+[estado] 200
+[título] Editar horario · Punto por punto · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Editar horario · Punto por punto
+← Clases
+Día
+Lunes
+Martes
+Miércoles
+Jueves
+Viernes
+Sábado
+Domingo
+Para
+Adultos
+Niños
+Empieza
+Termina
+Plazas
+Precio al mes (€)
+Precio máximo (€) (solo si cambia según la modalidad, p. ej. con máquina)
+Activo (se ve en la web y se puede reservar)
+Guardar cambios
+Cancelar

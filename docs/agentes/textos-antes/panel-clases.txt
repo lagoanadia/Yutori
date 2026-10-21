@@ -1,0 +1,81 @@
+[estado] 200
+[título] Clases semanales · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Clases semanales
++ Añadir alumna
++ Añadir horario
+octubre de 2026
+noviembre de 2026
+Prioridad para tus alumnas
+Reserva su plaza de noviembre de 2026 a las 0 alumnas confirmadas de octubre de 2026, antes de abrir las plazas libres. Quedan pendientes de pago hasta que te paguen.
+Renovar alumnas
+Lunes 18:00-19:30 · Punto por punto
+Editar horario
+2 de 8 plazas mensuales · 55 €/mes
+Gala Alumna
+622222222 · gala@ejemplo.com
+Pendiente de pago
+Pago recibido
+Cancelar
+Editar
+Flor Alumna
+622222221 · flor@ejemplo.com
+Confirmada
+Cancelar
+Editar
+Lunes 19:30-21:00 · Punto por punto
+Editar horario
+0 de 8 plazas mensuales · 55 €/mes
+Nadie apuntado en noviembre de 2026.
+Viernes 10:30-12:00 · Punto por punto
+Editar horario
+0 de 8 plazas mensuales · 55 €/mes
+Nadie apuntado en noviembre de 2026.
+Lunes 17:00-18:00 · Punto por punto
+Niños
+Editar horario
+0 de 8 plazas mensuales · 40 €/mes
+Nadie apuntado en noviembre de 2026.
+Martes 18:00-19:30 · Aguadas
+Editar horario
+0 de 8 plazas mensuales · 55 €/mes
+Nadie apuntado en noviembre de 2026.
+Martes 19:30-21:00 · Aguadas
+Editar horario
+0 de 8 plazas mensuales · 55 €/mes
+Nadie apuntado en noviembre de 2026.
+Martes 17:00-18:00 · Aguadas
+Niños
+Editar horario
+0 de 8 plazas mensuales · 40 €/mes
+Nadie apuntado en noviembre de 2026.
+Miércoles 10:00-12:00 · Atelier textil
+Editar horario
+0 de 8 plazas mensuales · 50 €-60 €/mes
+Nadie apuntado en noviembre de 2026.
+Jueves 18:00-20:00 · Atelier textil
+Editar horario
+1 de 8 plazas mensuales · 50 €-60 €/mes
+Hana Alumna · Con máquina
+622222223 · hana@ejemplo.com
+Confirmada
+Cancelar
+Editar
+Jueves 20:00-22:00 · Atelier textil
+Editar horario
+0 de 8 plazas mensuales · 50 €-60 €/mes
+Nadie apuntado en noviembre de 2026.
+Jueves 16:30-18:00 · Atelier textil
+Niños
+Editar horario
+0 de 8 plazas mensuales · 45 €/mes
+Nadie apuntado en noviembre de 2026.

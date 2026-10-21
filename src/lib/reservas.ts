@@ -21,6 +21,9 @@ const OCUPADAS = `(SELECT COALESCE(sum(r.plazas), 0) FROM reservas r WHERE r.tal
 /** Fecha de hoy en España (AAAA-MM-DD). */
 export const hoyEspana = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(new Date());
 
+/** Se puede reservar hasta el día antes: un taller de hoy o ya pasado no admite reservas. */
+export const tallerReservable = (fecha: string, hoy = hoyEspana()) => fecha > hoy;
+
 /** Libera las reservas pendientes cuyo plazo de pago ya pasó. Se llama antes de contar plazas. */
 export async function liberarCaducadas() {
   const { results } = await db()
@@ -70,8 +73,8 @@ export async function reservarTaller(tallerId: number, d: { nombre: string; tele
              strftime('%Y-%m-%dT%H:%M:%S', 'now', ?6), ?7,
              strftime('%Y-%m-%dT%H:%M:%S', 'now'), strftime('%Y-%m-%dT%H:%M:%S', 'now')
       FROM talleres t
-      WHERE t.id = ?1 AND t.estado = 'publicado' AND t.plazas - ${OCUPADAS} >= ?5`)
-    .bind(tallerId, d.nombre, d.telefono, d.email, d.plazas, `+${PLAZO_PAGO_HORAS} hours`, codigo)
+      WHERE t.id = ?1 AND t.estado = 'publicado' AND t.fecha > ?8 AND t.plazas - ${OCUPADAS} >= ?5`)
+    .bind(tallerId, d.nombre, d.telefono, d.email, d.plazas, `+${PLAZO_PAGO_HORAS} hours`, codigo, hoyEspana())
     .run();
   if (resultado.meta.changes !== 1) return null;
   await avisoReservaHecha(codigo);

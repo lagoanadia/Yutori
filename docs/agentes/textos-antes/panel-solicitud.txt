@@ -1,0 +1,44 @@
+[estado] 200
+[título] Editar · Julia Grupo · Panel de Yutori
+[descripción]
+Yutori panel
+Modo local
+Resumen
+Asistente
+Talleristas
+Talleres
+Reservas
+Clases
+Privados y bonos
+Editar · Julia Grupo
+← Privados y bonos
+Llegó el mar, 13 oct, 00:10
+Qué es
+Taller privado
+Bono regalo
+Nombre
+Teléfono
+Email
+Qué celebran
+Tipo de taller (los que les interesan; vacío si aún no lo saben)
+Pintura y Dibujo
+Costura
+Bordado
+Ganchillo
+Velas y Aromas
+Joyería
+Naturaleza y Botánica
+Autocuidado
+Arcilla y Cerámica
+Encuadernación
+Fecha
+Personas
+Su mensaje
+Estado
+Nueva
+En curso
+Cerrada
+Notas privadas
+Guardar cambios
+Cancelar
+Eliminar
