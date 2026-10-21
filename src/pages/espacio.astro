@@ -3,30 +3,93 @@ import Base from '../layouts/Base.astro';
 import { negocio } from '../data/yutori';
 ---
 <Base titulo="El espacio" descripcion="Yutori Espacio Creativo, en Plaza Pontevedra 14, en el centro de A Coruña.">
-  <section class="seccion">
+  <section class="seccion espacio">
     <div class="contenedor">
-      <p class="script">Nuestro espacio</p>
-      <h1>Un rincón tranquilo en el centro de Coruña</h1>
+      <div class="cabecera-pagina">
+        <p class="script">Nuestro espacio</p>
+        <h1>Un rincón tranquilo en el centro de Coruña</h1>
+      </div>
+      {/* Mosaico: la foto grande en arco y dos más pequeñas que se montan encima, con un bloque de color detrás */}
       <div class="galeria">
-        <div class="foto-hueco">Foto del espacio</div>
-        <div class="foto-hueco">Foto de un taller</div>
-        <div class="foto-hueco">Foto de trabajos de alumnas</div>
+        <div class="foto-hueco galeria__foto galeria__foto--grande">Foto del espacio</div>
+        <div class="foto-hueco galeria__foto galeria__foto--taller">Foto de un taller</div>
+        <div class="foto-hueco galeria__foto galeria__foto--trabajos">Foto de trabajos de alumnas</div>
       </div>
     </div>
   </section>
 
-  <section class="seccion seccion--salvia">
-    <div class="contenedor dos-bloques">
-      <div>
-        <h2>Dónde estamos</h2>
-        <p>{negocio.direccion}<br />{negocio.ciudad}</p>
+  <section class="donde">
+    <div class="contenedor">
+      <div class="donde__hoja aparece">
+        <span class="donde__pin" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg>
+        </span>
+        <div>
+          <h2>Dónde estamos</h2>
+          <p>{negocio.direccion}<br />{negocio.ciudad}</p>
+        </div>
         <a class="boton" href={negocio.mapsUrl} rel="noopener" target="_blank">Abrir en Google Maps</a>
+        <span class="mariposa-marca donde__mariposa" aria-hidden="true"></span>
       </div>
     </div>
   </section>
 </Base>
 
 <style>
-  .galeria { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 24px; }
-  .dos-bloques { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .espacio { padding-bottom: 0; }
+  .galeria {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 'grande grande' 'taller trabajos';
+  }
+  /* Bloque de color detrás del mosaico: la capa que le da fondo */
+  .galeria::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 22% 0 -24px 18%;
+    border-radius: var(--radio-grande);
+    background: var(--salvia-suave);
+  }
+  .galeria__foto { box-shadow: var(--sombra); margin: 0; }
+  .galeria__foto--grande { grid-area: grande; aspect-ratio: 16 / 10; border-radius: var(--arco-foto); }
+  .galeria__foto--taller { grid-area: taller; aspect-ratio: 4 / 5; }
+  .galeria__foto--trabajos { grid-area: trabajos; aspect-ratio: 4 / 5; margin-top: 28px; }
+
+  @media (min-width: 768px) {
+    .galeria { grid-template-columns: 1.6fr 1fr; grid-template-rows: auto auto; grid-template-areas: 'grande taller' 'grande trabajos'; gap: 20px; }
+    .galeria__foto--grande { aspect-ratio: auto; min-height: 100%; }
+    .galeria__foto--taller, .galeria__foto--trabajos { aspect-ratio: 16 / 10; margin-top: 0; }
+    .galeria__foto--trabajos { margin-left: -56px; position: relative; }
+    .galeria::before { inset: 30% 0 -32px 30%; }
+  }
+  @media (min-width: 1000px) {
+    .galeria__foto--grande { min-height: 400px; }
+  }
+
+  /* Dónde estamos: una hoja que flota sobre la banda arena */
+  .donde { background: var(--arena); margin-top: -40px; padding: 96px 0 72px; }
+  .donde__hoja {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    gap: 16px;
+    justify-items: start;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-alta);
+    padding: 32px 24px;
+  }
+  .donde__hoja h2 { margin-bottom: 0.2em; }
+  .donde__hoja p { margin: 0; font-size: 1.1rem; color: var(--tinta-suave); }
+  .donde__pin { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-profundo); }
+  .donde__mariposa { position: absolute; right: -40px; bottom: -50px; width: 240px; color: var(--salvia); opacity: 0.22; }
+  .donde__hoja > :not(.donde__mariposa) { position: relative; }
+  @media (min-width: 768px) {
+    .donde__hoja { grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; padding: 40px 48px; }
+    .donde__mariposa { right: 30%; }
+  }
 </style>

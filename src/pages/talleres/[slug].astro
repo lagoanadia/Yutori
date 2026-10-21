@@ -52,29 +52,35 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
   <Fragment slot="head">
     {turnstileActivo() && libres > 0 && !cerrado && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
   </Fragment>
-  <section class="seccion">
-    <div class="contenedor ficha">
-      <div>
+  <section class="seccion ficha-seccion">
+    {/* Orden visual: información, reserva y foto en móvil; en escritorio, información y foto a la izquierda y la reserva fija a la derecha */}
+    <div class="contenedor-amplio ficha">
+      <div class="ficha__media arco-capas">
         {taller.foto
-          ? <img class="ficha__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} />
+          ? <img class="ficha__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} style={`view-transition-name: foto-${taller.slug}`} />
           : <div class="foto-hueco ficha__foto">Foto del taller</div>}
       </div>
-      <div>
-        <a href="/talleres">← Todos los talleres</a>
-        {taller.es_evento ? <p><span class="etiqueta">Evento especial</span></p> : null}
+
+      <div class="ficha__info">
+        <a class="ficha__volver" href="/talleres">← Todos los talleres</a>
+        {taller.es_evento ? <p class="ficha__evento"><span class="etiqueta">Evento especial</span></p> : null}
         <h1>{taller.titulo}</h1>
         <p class="ficha__quien">con {taller.imparte}</p>
+        {/* Resumen de un vistazo: mismos textos, en fichas */}
         <ul class="ficha__datos">
-          <li><strong>Cuándo:</strong> {fechaLarga(taller.fecha)}, {taller.hora_fin ? `de ${taller.hora_inicio} a ${taller.hora_fin}` : `a las ${taller.hora_inicio}`}</li>
-          {taller.hora_fin && <li><strong>Duración:</strong> {duracion(taller.hora_inicio, taller.hora_fin)}</li>}
-          {taller.materiales && <li><strong>Materiales:</strong> {taller.materiales}</li>}
-          <li><strong>Precio:</strong> {sinPrecio ? 'por confirmar' : `${euros(taller.precio_cent)} por persona`}</li>
-          <li><strong>Plazas:</strong> {libres === 0 ? 'Completo' : `quedan ${libres} de ${taller.plazas}`}</li>
+          <li class="dato dato--cuando"><strong><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>Cuándo:</strong> {fechaLarga(taller.fecha)}, {taller.hora_fin ? `de ${taller.hora_inicio} a ${taller.hora_fin}` : `a las ${taller.hora_inicio}`}</li>
+          {taller.hora_fin && <li class="dato"><strong><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>Duración:</strong> {duracion(taller.hora_inicio, taller.hora_fin)}</li>}
+          {taller.materiales && <li class="dato dato--ancho"><strong><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 15.5 8.5M14 5l5 5M4 20l2.5-.5L5 18Z" /><path d="m13 6 2-2 5 5-2 2" /></svg>Materiales:</strong> {taller.materiales}</li>}
+          <li class="dato dato--precio"><strong><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12.5V5a1.5 1.5 0 0 1 1.5-1.5h7.5l8 8a1.5 1.5 0 0 1 0 2.1l-6.4 6.4a1.5 1.5 0 0 1-2.1 0Z" /><circle cx="8.5" cy="8.5" r="1.5" /></svg>Precio:</strong> {sinPrecio ? 'por confirmar' : `${euros(taller.precio_cent)} por persona`}</li>
+          <li class:list={['dato', 'dato--plazas', { 'dato--completo': libres === 0 }]}><strong><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3 19.5c.6-3.3 3-5 6-5s5.4 1.7 6 5" /><path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.5 14.8c1.9.6 3.1 2.2 3.5 4.7" /></svg>Plazas:</strong> {libres === 0 ? 'Completo' : `quedan ${libres} de ${taller.plazas}`}</li>
         </ul>
         <p class="ficha__texto">{taller.texto}</p>
+      </div>
 
+      <div class="ficha__reserva">
         {sinPrecio ? (
-          <div class="tarjeta">
+          <div class="reserva reserva--aviso" id="reserva">
+            <span class="mariposa-marca reserva__mariposa" aria-hidden="true"></span>
             <h2>Reservas muy pronto</h2>
             <p>Estamos terminando de preparar este taller. Si quieres reservar plaza, escríbenos por <a href={emailUrl(`Reserva: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
           </div>
@@ -83,55 +89,253 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
             <p>{textoReservasCerradas}</p>
           </div>
         ) : libres === 0 ? (
-          <div class="tarjeta">
+          <div class="reserva reserva--aviso" id="reserva">
+            <span class="mariposa-marca reserva__mariposa" aria-hidden="true"></span>
             <h2>Taller completo</h2>
             <p>Si quieres que te avisemos si se libera una plaza, escríbenos por <a href={emailUrl(`Lista de espera: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
           </div>
         ) : (
-          <>
+          <div class="reserva" id="reserva">
             <h2>Reserva tu plaza</h2>
-            <p class="intro">Tu plaza queda apartada {PLAZO_PAGO_HORAS} horas. Para confirmarla, paga a {taller.imparte} con los datos que verás al reservar.</p>
+            <p class="reserva__intro">Tu plaza queda apartada {PLAZO_PAGO_HORAS} horas. Para confirmarla, paga a {taller.imparte} con los datos que verás al reservar.</p>
             {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
-            <form class="formulario" method="post">
-              <div class="dos-col">
-                <div class="campo"><label for="nombre">Nombre y apellido</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
-                <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+            <form class="formulario formulario-grande reserva__form" method="post" id="form-reserva">
+              {/* Progreso y flechas: solo con JavaScript (los textos accesibles están pendientes de aprobar por Iris) */}
+              <div class="pasos-progreso" role="progressbar" aria-label="Progreso de la reserva" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" hidden>
+                <span></span><span></span><span></span>
               </div>
-              <div class="dos-col">
-                <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
-                <div class="campo">
-                  <label for="plazas">Plazas</label>
-                  <select id="plazas" name="plazas">
-                    {Array.from({ length: maxPlazas }, (_, i) => <option value={i + 1} selected={String(i + 1) === v.plazas}>{i + 1}</option>)}
-                  </select>
+
+              <div class="pasos-ventana">
+                <div class="pasos-pista">
+                  <div data-paso>
+                    <div class="campo"><label for="nombre">Nombre y apellido</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+                    <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+                  </div>
+
+                  <div data-paso>
+                    <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+                  </div>
+
+                  <div data-paso>
+                    <fieldset class="campo">
+                      <legend>Plazas</legend>
+                      <div class="opciones opciones--plazas">
+                        {Array.from({ length: maxPlazas }, (_, i) => (
+                          <label class="opcion opcion--plaza">
+                            <input type="radio" name="plazas" value={i + 1} checked={String(i + 1) === v.plazas} required />
+                            <span>{i + 1}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+                    <label class="casilla"><input type="checkbox" name="condiciones" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
+                    <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que mi nombre y teléfono se compartan con quien imparte el taller.</label>
+                    {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
+                    <button class="boton" type="submit">Reservar plaza</button>
+                  </div>
                 </div>
               </div>
-              <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
-              <label class="casilla"><input type="checkbox" name="condiciones" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
-              <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a> y que mi nombre y teléfono se compartan con quien imparte el taller.</label>
-              {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
-              <button class="boton" type="submit">Reservar plaza</button>
+
+              <div class="pasos-nav" hidden>
+                <button type="button" class="pasos-flecha pasos-flecha--atras" aria-label="Paso anterior">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+                </button>
+                <button type="button" class="pasos-flecha pasos-flecha--siguiente" aria-label="Paso siguiente">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </button>
+              </div>
             </form>
-          </>
+          </div>
         )}
 
         <details class="politica">
-          <summary>Condiciones de reserva y cancelación</summary>
+          <summary>Condiciones de reserva y cancelación<svg class="politica__chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
           <ul class="lista-politica">{politicaTalleres.map((p) => <li>{p}</li>)}</ul>
         </details>
       </div>
     </div>
+
+    {/* Móvil: atajo a la reserva mientras queda por debajo (solo con JavaScript; texto accesible pendiente de Iris) */}
+    {!sinPrecio && libres > 0 && (
+      <a class="ir-reserva" href="#reserva" aria-label="Ir a la reserva" hidden>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+      </a>
+    )}
   </section>
 </Base>
 
+<script>
+  import { formularioPorPasos } from '../../scripts/pasos';
+
+  // Sin JavaScript se ve y se envía el formulario completo; el servidor valida igual.
+  const form = document.getElementById('form-reserva') as HTMLFormElement | null;
+  if (form) formularioPorPasos(form);
+
+  // Botón flotante (solo móvil): aparece mientras la reserva queda por debajo de la pantalla.
+  const atajo = document.querySelector<HTMLElement>('.ir-reserva');
+  const reserva = document.getElementById('reserva');
+  if (atajo && reserva && 'IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) => {
+      atajo.hidden = e.isIntersecting || e.boundingClientRect.top < 0;
+    }).observe(reserva);
+  }
+</script>
+
 <style>
-  .ficha { display: grid; gap: 32px; }
-  @media (min-width: 860px) { .ficha { grid-template-columns: 1fr 1.2fr; align-items: start; } .ficha__foto { position: sticky; top: 96px; } }
-  .ficha__foto { aspect-ratio: 1; object-fit: cover; border-radius: var(--radio); width: 100%; }
-  .ficha__quien { color: var(--tinta-suave); }
-  .ficha__datos { list-style: none; padding: 0; }
-  .ficha__datos li { padding: 6px 0; border-bottom: 1px dashed var(--borde); }
-  .ficha__texto { white-space: pre-line; }
-  .politica { margin-top: 24px; }
-  .politica summary { cursor: pointer; font-weight: 700; color: var(--verde); }
+  .ficha-seccion { padding-bottom: 56px; }
+  .ficha {
+    display: grid;
+    gap: 28px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'info' 'reserva' 'media';
+  }
+  .ficha__info { grid-area: info; }
+  .ficha__reserva { grid-area: reserva; display: grid; gap: 12px; align-content: start; }
+  .ficha__media { grid-area: media; }
+
+  /* Cabecera de la ficha */
+  .ficha__volver {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--tinta-suave);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .ficha__volver:hover { color: var(--verde); text-decoration: underline; }
+  .ficha__evento { margin: 0; }
+  .ficha h1 { font-size: clamp(2.3rem, 1.5rem + 3vw, 4.2rem); margin-bottom: 0.2em; }
+  .ficha__quien { color: var(--tinta-suave); font-size: 1.1rem; margin-bottom: 20px; }
+
+  /* Datos clave en fichas: lo importante se lee de un vistazo */
+  .ficha__datos { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .dato {
+    flex: 1 1 92px;
+    min-width: 0;
+    background: var(--crema-claro);
+    border-radius: 18px;
+    box-shadow: var(--sombra-suave);
+    padding: 10px 12px 12px;
+    font-family: var(--serif);
+    font-size: 1.02rem;
+    line-height: 1.25;
+    font-variant-numeric: lining-nums;
+    color: var(--verde-profundo);
+  }
+  .dato strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--tinta-suave);
+  }
+  .dato svg { flex: none; color: var(--verde); }
+  .dato--cuando, .dato--ancho { flex-basis: 100%; }
+  .dato--cuando { background: var(--verde-profundo); color: var(--crema-claro); font-size: 1.3rem; box-shadow: var(--sombra); }
+  .dato--cuando strong, .dato--cuando svg { color: var(--salvia-suave); }
+  .dato--precio { background: var(--salvia-suave); box-shadow: none; }
+  .dato--precio strong { color: var(--verde-oscuro); }
+  .dato--completo { color: var(--aviso); box-shadow: inset 0 0 0 1px var(--aviso); }
+  .ficha__texto { white-space: pre-line; font-size: 1.1rem; max-width: 62ch; margin: 0; }
+
+  /* Tarjeta de reserva */
+  .reserva {
+    position: relative;
+    scroll-margin-top: 88px;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-alta);
+    padding: 24px 20px 20px;
+  }
+  .reserva h2 { font-size: clamp(1.8rem, 5vw, 2.2rem); margin-bottom: 0.3em; }
+  .reserva__intro { color: var(--tinta-suave); font-size: 0.98rem; margin-bottom: 20px; }
+  .reserva .errores { max-width: none; }
+  /* El formulario vive dentro de la tarjeta: sin segunda caja */
+  .reserva__form { background: none; box-shadow: none; padding: 0; border-radius: 0; }
+  .opciones--plazas { grid-template-columns: repeat(4, minmax(0, 64px)); gap: 10px; }
+  .opcion--plaza { justify-content: center; padding: 0; min-height: 56px; font-family: var(--serif); font-weight: 400; font-size: 1.45rem; font-variant-numeric: lining-nums; border-radius: 999px 999px 18px 18px; }
+
+  /* Completo o sin precio: misma tarjeta, con la mariposa en lugar del formulario */
+  .reserva--aviso { background: var(--salvia-suave); box-shadow: var(--sombra-suave); padding-top: 28px; overflow: hidden; }
+  .reserva--aviso p { margin: 0; max-width: 46ch; }
+  .reserva__mariposa { position: absolute; right: -18px; top: -14px; width: 120px; color: var(--salvia); opacity: 0.55; }
+  .reserva--aviso h2 { position: relative; padding-right: 72px; }
+
+  /* Condiciones plegadas, con zona de toque amplia y flecha que gira */
+  .politica { border-radius: 18px; background: color-mix(in srgb, var(--crema-claro) 60%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--borde) 80%, transparent); }
+  .politica summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 56px;
+    padding: 8px 18px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--verde-profundo);
+    list-style: none;
+    border-radius: 18px;
+  }
+  .politica summary::-webkit-details-marker { display: none; }
+  .politica__chevron { flex: none; }
+  .politica[open] .politica__chevron { transform: rotate(180deg); }
+  .politica .lista-politica { margin: 0; padding: 0 20px 16px 38px; font-size: 0.95rem; }
+
+  /* Foto en arco */
+  .ficha__foto {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: min(70svh, 440px);
+    object-fit: cover;
+    margin: 0;
+    border-radius: 50% 50% var(--radio-grande) var(--radio-grande) / 32% 32% var(--radio-grande) var(--radio-grande);
+  }
+
+  /* Atajo flotante a la reserva (solo en móvil y con JavaScript) */
+  .ir-reserva {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--verde);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(36, 51, 47, 0.25);
+  }
+  .ir-reserva:hover { background: var(--verde-oscuro); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .politica__chevron { transition: transform var(--duracion-media) var(--curva-salida); }
+    .ir-reserva { transition: background-color var(--duracion-corta); }
+    @starting-style { .ir-reserva { opacity: 0; transform: translateY(16px); } }
+    .ir-reserva { transition: opacity var(--duracion-media) var(--curva-salida), transform var(--duracion-media) var(--curva-salida), background-color var(--duracion-corta); }
+  }
+
+  @media (min-width: 640px) {
+    .reserva { padding: 32px 32px 28px; }
+    .dato { padding: 12px 14px 14px; font-size: 1.12rem; }
+    .dato--cuando { font-size: 1.4rem; }
+    .ficha__foto { aspect-ratio: 16 / 10; }
+  }
+
+  /* Escritorio: información y foto a la izquierda; la reserva, fija a la derecha */
+  @media (min-width: 960px) {
+    .ficha {
+      grid-template-columns: minmax(0, 1fr) minmax(380px, 440px);
+      grid-template-areas: 'info reserva' 'media reserva';
+      column-gap: clamp(40px, 5vw, 72px);
+      row-gap: 32px;
+    }
+    .ficha__reserva { position: sticky; top: 96px; align-self: start; }
+    .ir-reserva { display: none; }
+  }
 </style>

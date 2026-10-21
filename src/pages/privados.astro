@@ -52,9 +52,15 @@ if (Astro.request.method === 'POST') {
 ---
 <Base titulo="Talleres privados" descripcion="Talleres privados en A Coruña para despedidas, cumpleaños, grupos y empresas.">
   <section class="seccion">
-    <div class="contenedor">
-      <p class="script">Solo para vosotras</p>
-      <h1>Talleres privados</h1>
+    <div class="contenedor pagina-formulario">
+      <div class="pagina-formulario__lado">
+        <div class="cabecera-pagina cabecera-pagina--columna">
+          <p class="script">Solo para vosotras</p>
+          <h1>Talleres privados</h1>
+          {!enviado && <p class="intro">Despedidas, cumpleaños, grupos de amigas o empresas. Cada taller privado es distinto: cuéntanos qué buscáis y os proponemos fecha, taller y precio.</p>}
+        </div>
+        <div class="lamina" aria-hidden="true"><span class="mariposa-marca"></span></div>
+      </div>
 
       {enviado ? (
         <div class="tarjeta gracias" role="status">
@@ -63,8 +69,7 @@ if (Astro.request.method === 'POST') {
           <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
         </div>
       ) : (
-        <>
-          <p class="intro">Despedidas, cumpleaños, grupos de amigas o empresas. Cada taller privado es distinto: cuéntanos qué buscáis y os proponemos fecha, taller y precio.</p>
+        <div class="hoja">
           {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
           <form class="formulario" method="post">
@@ -93,7 +98,7 @@ if (Astro.request.method === 'POST') {
             <Turnstile />
             <button class="boton" type="submit">Pedir información</button>
           </form>
-        </>
+        </div>
       )}
     </div>
   </section>
@@ -101,6 +106,7 @@ if (Astro.request.method === 'POST') {
 
 <style>
   .gracias { max-width: 640px; }
+  .formulario [type='submit'] { justify-self: start; }
   .tipos { display: grid; gap: 8px 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   .gracias h2 { font-size: 1.5rem; }
 </style>

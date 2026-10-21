@@ -1,27 +1,68 @@
+/* Yutori · sistema visual
+   Dos familias: Fraunces (títulos, con carácter y cursiva propia) y Figtree (lectura). Se cargan en components/Fuentes.astro.
+   Profundidad: papel con grano, sombras de varias capas, fotos en arco que se montan sobre bloques de color. */
 :root {
-  --verde: #4a6f66;        /* botones, títulos */
-  --verde-oscuro: #3b5952; /* hover */
-  --salvia: #8bb9ad;       /* fondos y detalles (nunca texto blanco encima) */
-  --salvia-suave: #dce9e4;
-  --crema: #f3ecda;        /* fondo principal */
-  --crema-claro: #fbf7ee;  /* tarjetas */
-  --tinta: #24332f;        /* texto */
-  --tinta-suave: #52625d;
-  --borde: #d9cfb8;
-  --aviso: #a8553f;
+  --verde: #4a6f66;          /* botones secundarios, enlaces (5:1 sobre crema) */
+  --verde-oscuro: #3b5952;   /* hover */
+  --verde-profundo: #2f4a44; /* títulos, botones, paneles oscuros (crema encima 8,6:1) */
+  --salvia: #8bb9ad;         /* fondos y detalles (nunca texto blanco encima) */
+  --salvia-suave: #dfeae5;
+  --crema: #f6f0e4;          /* fondo de la web: papel */
+  --crema-claro: #fdfaf4;    /* superficies que flotan */
+  --arena: #ede3cf;          /* bandas alternas */
+  --tinta: #26332f;          /* texto */
+  --tinta-suave: #56645f;    /* texto secundario (5,4:1 sobre crema) */
+  --borde: #e2d7c1;
+  --aviso: #a3503b;
+  --oro: #9c7330;            /* estrellas de las reseñas */
+  --foco: var(--verde-profundo);
 
-  --serif: 'Playfair Display', Georgia, serif;
-  --sans: 'Nunito Sans', system-ui, sans-serif;
-  --script: 'Parisienne', cursive; /* TODO: cambiar por Handsome si Iris tiene licencia web */
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Figtree', system-ui, sans-serif;
+  --script: var(--serif); /* antes Parisienne: los antetítulos van ahora en Fraunces cursiva */
+
+  /* Escala tipográfica (fluida, pocos pasos) */
+  --t-portada: clamp(2.15rem, 1.4rem + 3.6vw, 4.5rem);
+  --t-titulo: clamp(2.2rem, 1.6rem + 2.4vw, 3.6rem);
+  --t-seccion: clamp(1.75rem, 1.35rem + 1.5vw, 2.6rem);
+  --t-sub: 1.35rem;
+  --t-pequena: 0.9rem;
 
   --radio: 16px;
-  --sombra: 0 6px 24px rgba(36, 51, 47, 0.08);
-  --ancho: 1080px;
+  --radio-grande: 28px;
+  /* Arco de la marca: medio punto arriba y esquinas suaves abajo */
+  --radio-arco: 999px 999px var(--radio) var(--radio);
+  --arco-foto: 50% 50% var(--radio-grande) var(--radio-grande) / 30% 30% var(--radio-grande) var(--radio-grande);
+
+  /* Sombras de varias capas: contacto, cuerpo y ambiente */
+  --sombra-suave: 0 1px 1px rgba(38, 51, 47, 0.04), 0 4px 10px -2px rgba(38, 51, 47, 0.05), 0 14px 32px -12px rgba(38, 51, 47, 0.12);
+  --sombra: 0 1px 2px rgba(38, 51, 47, 0.05), 0 8px 18px -6px rgba(38, 51, 47, 0.10), 0 28px 56px -20px rgba(38, 51, 47, 0.20);
+  --sombra-alta: 0 2px 4px rgba(38, 51, 47, 0.05), 0 18px 36px -12px rgba(38, 51, 47, 0.18), 0 50px 90px -30px rgba(38, 51, 47, 0.28);
+
+  --ancho: 1200px;
+  --margen: 16px;
+  --ancho-amplio: var(--ancho);
+
+  /* Movimiento (skill movimiento-web): lento y suave, como el nombre */
+  --duracion-corta: 160ms;
+  --duracion-media: 380ms;
+  --duracion-larga: 700ms;
+  --curva-salida: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --curva-entrada: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Grano de papel (decorativo) */
+  --grano: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
 }
+@media (min-width: 768px) { :root { --margen: 32px; } }
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  /* Cambio de página con fundido (las fotos de los talleres viajan de la tarjeta a la ficha) */
+  @view-transition { navigation: auto; }
+}
 
 body {
   margin: 0;
@@ -29,141 +70,234 @@ body {
   color: var(--tinta);
   font-family: var(--sans);
   font-size: 1.0625rem;
-  line-height: 1.6;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* Papel: grano muy fino por encima de todo, sin tapar clics */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background-image: var(--grano);
+  opacity: 0.07;
+  mix-blend-mode: multiply;
 }
 
 img { max-width: 100%; display: block; }
 
-a { color: var(--verde); }
+a { color: var(--verde); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { color: var(--verde-profundo); }
+strong, b { font-weight: 600; }
 
 h1, h2, h3 {
   font-family: var(--serif);
-  color: var(--verde);
-  line-height: 1.2;
-  margin: 0 0 0.5em;
+  font-weight: 400;
+  font-optical-sizing: auto;
+  color: var(--verde-profundo);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.45em;
 }
-h1 { font-size: clamp(2.1rem, 6vw, 3.4rem); }
-h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); }
-h3 { font-size: 1.3rem; }
+h1 { font-size: var(--t-titulo); line-height: 1.04; letter-spacing: -0.025em; }
+h2 { font-size: var(--t-seccion); }
+h3 { font-size: var(--t-sub); letter-spacing: -0.01em; }
+h1 em, h2 em { font-style: italic; color: var(--verde); }
+/* Solo cambia por dónde se parte la línea: sin palabras sueltas en los titulares */
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
 
 p { margin: 0 0 1em; }
 
-.contenedor {
-  width: min(var(--ancho), 100% - 32px);
+.contenedor, .contenedor-amplio {
+  width: min(var(--ancho), 100% - 2 * var(--margen));
   margin-inline: auto;
 }
 
-.seccion { padding: 56px 0; }
+.seccion { padding: clamp(48px, 7vw, 96px) 0; }
+/* Primera sección de cada página: título compacto y el contenido enseguida */
+main > .seccion:first-child { padding-top: clamp(20px, 3.5vw, 44px); }
 .seccion--salvia { background: var(--salvia-suave); }
+.seccion--arena { background: var(--arena); }
 
+/* Antetítulo: cursiva de Fraunces con un trazo fino delante (antes, letra manuscrita) */
 .script {
-  font-family: var(--script);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
   color: var(--verde);
-  font-size: 1.6em;
-  line-height: 1;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  margin: 0 0 10px;
 }
+.script::before { content: ''; flex: none; width: 28px; height: 1px; background: currentColor; opacity: 0.6; }
 
-.intro { color: var(--tinta-suave); max-width: 60ch; }
+.intro { color: var(--tinta-suave); max-width: 60ch; font-size: 1.08rem; }
 
-/* Botones */
+/* Botones: píldora con flecha en los enlaces */
 .boton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 12px 24px;
+  gap: 10px;
+  min-height: 52px;
+  padding: 12px 26px;
   border-radius: 999px;
-  border: 2px solid var(--verde);
-  background: var(--verde);
-  color: #fff;
-  font-weight: 700;
+  border: 1.5px solid var(--verde-profundo);
+  background: var(--verde-profundo);
+  color: var(--crema-claro);
   text-decoration: none;
   cursor: pointer;
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(38, 51, 47, 0.1), 0 8px 18px -8px rgba(47, 74, 68, 0.45);
 }
-.boton:hover { background: var(--verde-oscuro); border-color: var(--verde-oscuro); }
-.boton--borde { background: transparent; color: var(--verde); }
-.boton--borde:hover { background: var(--verde); color: #fff; }
+a.boton::after {
+  content: '';
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  background: currentColor;
+  -webkit-mask: var(--flecha) center / contain no-repeat;
+  mask: var(--flecha) center / contain no-repeat;
+}
+.boton:hover { background: var(--tinta); border-color: var(--tinta); color: var(--crema-claro); }
+@media (prefers-reduced-motion: no-preference) {
+  .boton { transition: transform var(--duracion-corta) var(--curva-salida), background-color var(--duracion-corta), color var(--duracion-corta), box-shadow var(--duracion-media) var(--curva-salida); }
+  .boton:hover { transform: translateY(-1px); }
+  .boton:active { transform: scale(0.98); }
+  a.boton::after { transition: transform var(--duracion-corta) var(--curva-salida); }
+  a.boton:hover::after { transform: translateX(3px); }
+}
+.boton--borde { background: transparent; color: var(--verde-profundo); box-shadow: none; }
+.boton--borde:hover { background: var(--verde-profundo); border-color: var(--verde-profundo); color: var(--crema-claro); }
 .boton[disabled], .boton[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
 
 .botones { display: flex; flex-wrap: wrap; gap: 12px; }
 
-/* Tarjetas */
+/* Tarjetas: flotan sobre el papel, sin borde */
 .rejilla {
   display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
 }
 
 .tarjeta {
   background: var(--crema-claro);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio);
-  padding: 24px;
-  box-shadow: var(--sombra);
+  border-radius: var(--radio-grande);
+  padding: 28px;
+  box-shadow: var(--sombra-suave);
 }
 .tarjeta h3 { margin-bottom: 0.25em; }
 
 .etiqueta {
   display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--verde);
+  color: var(--verde-profundo);
   background: var(--salvia-suave);
   border-radius: 999px;
-  padding: 2px 12px;
+  padding: 4px 12px;
   margin-bottom: 8px;
 }
 
 .ejemplo {
   display: inline-block;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--aviso);
   border: 1px dashed var(--aviso);
   border-radius: 6px;
   padding: 1px 8px;
 }
 
+/* Hueco de foto mientras no hay fotos reales: papel salvia con la mariposa de la marca */
 .foto-hueco {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   aspect-ratio: 4 / 3;
-  border-radius: 12px;
-  background: var(--salvia-suave);
+  border-radius: var(--radio-grande);
+  background:
+    radial-gradient(120% 90% at 20% 0%, color-mix(in srgb, var(--crema-claro) 70%, transparent), transparent 60%),
+    linear-gradient(160deg, var(--salvia-suave), color-mix(in srgb, var(--salvia) 60%, var(--salvia-suave)));
   display: grid;
-  place-items: center;
-  color: var(--verde);
-  font-size: 0.9rem;
-  text-align: center;
-  padding: 8px;
-  margin-bottom: 16px;
+  place-items: end start;
+  padding: 16px 18px;
+  color: var(--verde-profundo);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  text-align: left;
+}
+.foto-hueco::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 62%;
+  max-width: 340px;
+  aspect-ratio: 2372 / 1834;
+  right: -6%;
+  top: 50%;
+  translate: 0 -55%;
+  background: var(--verde-profundo);
+  opacity: 0.16;
+  -webkit-mask: url(/logo.svg) center / contain no-repeat;
+  mask: url(/logo.svg) center / contain no-repeat;
+}
+.foto-hueco::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--grano);
+  opacity: 0.18;
+  mix-blend-mode: multiply;
 }
 
 /* Formularios */
-.formulario { display: grid; gap: 16px; max-width: 640px; }
+.formulario { display: grid; gap: 18px; max-width: 680px; }
 .campo { display: grid; gap: 6px; }
-.campo label, .campo legend { font-weight: 700; }
+.campo label, .campo legend { font-weight: 600; }
 .campo small { color: var(--tinta-suave); }
 input, select, textarea {
   font: inherit;
   color: var(--tinta);
   background: #fff;
   border: 1px solid var(--borde);
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 14px;
+  padding: 12px 16px;
   width: 100%;
+  box-shadow: inset 0 1px 2px rgba(38, 51, 47, 0.04);
 }
-input:focus, select:focus, textarea:focus, .boton:focus-visible, a:focus-visible {
-  outline: 3px solid var(--salvia);
+input:not([type='radio']):not([type='checkbox']):not([type='file']), select { min-height: 52px; }
+input:hover, select:hover, textarea:hover { border-color: color-mix(in srgb, var(--verde) 40%, var(--borde)); }
+input[type='radio'], input[type='checkbox'] { accent-color: var(--verde-profundo); box-shadow: none; }
+input:focus, select:focus, textarea:focus, .boton:focus-visible, a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--foco);
   outline-offset: 2px;
 }
-.casilla { display: block; position: relative; padding-left: 32px; font-weight: 400; }
-.casilla input { position: absolute; left: 0; top: 3px; width: 20px; height: 20px; margin: 0; }
-fieldset { border: 0; padding: 0; margin: 0; }
-.dos-col { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.casilla { display: block; position: relative; padding-left: 34px; font-weight: 400; }
+.casilla input { position: absolute; left: 0; top: 2px; width: 22px; height: 22px; margin: 0; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.dos-col { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+/* Formulario sobre una hoja que flota (privados, colabora…) */
+.hoja {
+  background: var(--crema-claro);
+  border-radius: var(--radio-grande);
+  box-shadow: var(--sombra);
+  padding: 24px 20px;
+}
+@media (min-width: 768px) { .hoja { padding: 40px; } }
 
 .aviso-prototipo {
   background: #fff4e5;
@@ -175,11 +309,12 @@ fieldset { border: 0; padding: 0; margin: 0; }
 
 .lista-politica { padding-left: 1.2em; color: var(--tinta-suave); }
 .lista-politica li { margin-bottom: 6px; }
+.lista-politica li::marker { color: var(--salvia); }
 
 /* Mensajes de formularios */
-.errores { background: #fbe9e4; border: 1px solid var(--aviso); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; max-width: 640px; }
+.errores { background: #fbebe5; border-left: 4px solid var(--aviso); border-radius: 14px; padding: 14px 18px; margin-bottom: 18px; max-width: 680px; }
 .errores ul { margin: 0; padding-left: 1.2em; }
-.aviso-ok { background: #e3f1e6; border: 1px solid #8cc19a; color: #23613a; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-weight: 700; }
+.aviso-ok { background: #e3f1e6; border: 1px solid #8cc19a; color: #23613a; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-weight: 600; }
 .trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 /* Botón con aspecto de enlace (acciones secundarias como "Cancelar") */
@@ -193,3 +328,186 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .boton-texto--peligro { color: var(--aviso); }
 [hidden] { display: none !important; }
 .campo .casilla { font-weight: 400; }
+
+/* Aparición suave al entrar en pantalla. Visible por defecto: solo se anima si el navegador lo admite. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .aparece {
+      animation: aparecer linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+}
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Mariposa del logo pintada en cualquier color (decorativa, con aria-hidden) */
+.mariposa-marca {
+  display: block;
+  aspect-ratio: 2372 / 1834;
+  background: currentColor;
+  -webkit-mask: url(/logo.svg) center / contain no-repeat;
+  mask: url(/logo.svg) center / contain no-repeat;
+  pointer-events: none;
+}
+
+/* Foto en arco con un bloque de color detrás, desplazado: la capa que da profundidad */
+.arco-capas { position: relative; isolation: isolate; padding: 0 20px 20px 0; }
+.arco-capas::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 16% 0 0 14%;
+  border-radius: var(--radio-grande);
+  background: var(--salvia-suave);
+}
+.arco-capas > img, .arco-capas > .foto-hueco { border-radius: var(--arco-foto); box-shadow: var(--sombra); }
+
+/* ----- Formulario grande (bonos y reserva de talleres): una pregunta cada vez, campos cómodos de tocar ----- */
+.formulario-grande {
+  max-width: none;
+  background: var(--crema-claro);
+  border-radius: var(--radio-grande);
+  box-shadow: var(--sombra-alta);
+  padding: 24px 20px;
+  gap: 20px;
+}
+.formulario-grande .campo { gap: 10px; }
+.formulario-grande legend, .formulario-grande .campo > label { font-family: var(--serif); font-weight: 400; font-size: 1.4rem; color: var(--verde-profundo); line-height: 1.25; margin-bottom: 12px; padding: 0; letter-spacing: -0.01em; }
+.formulario-grande .campo > label { margin-bottom: 0; }
+.formulario-grande input:not([type='radio']):not([type='checkbox']) { min-height: 56px; font-size: 1.1rem; border-radius: 16px; }
+.formulario-grande input:not([type='radio']):not([type='checkbox']):focus { border-color: var(--verde); }
+.formulario-grande .casilla { padding-left: 36px; min-height: 28px; }
+.formulario-grande .casilla input { width: 24px; height: 24px; top: 1px; }
+.formulario-grande [type='submit'] { width: 100%; min-height: 56px; font-size: 1.1rem; }
+
+/* Opciones como tarjetas grandes que se tocan (son radios de verdad) */
+.opciones { display: grid; gap: 10px; }
+.opcion {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(38, 51, 47, 0.04);
+}
+.opcion input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
+.opcion__marca {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tinta-suave);
+  background: #fff;
+}
+.opcion__marca::after { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--crema-claro); transform: scale(0); }
+.opcion input:checked + .opcion__marca { border-color: var(--verde-profundo); background: var(--verde-profundo); }
+.opcion input:checked + .opcion__marca::after { transform: scale(1); }
+.opcion:hover { border-color: var(--verde); }
+.opcion:has(input:checked) { border-color: var(--verde-profundo); background: var(--salvia-suave); box-shadow: inset 0 0 0 1px var(--verde-profundo); }
+.opcion:has(input:focus-visible) { outline: 3px solid var(--foco); outline-offset: 2px; }
+
+/* ----- Por pasos (src/scripts/pasos.ts). Sin la clase .con-pasos todo se ve seguido. ----- */
+[data-paso] { display: grid; gap: 20px; min-width: 0; }
+.pasos-pista { display: grid; gap: 32px; }
+
+.pasos-progreso { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.pasos-progreso span { height: 4px; border-radius: 4px; background: var(--salvia-suave); overflow: hidden; position: relative; }
+.pasos-progreso span::after { content: ''; position: absolute; inset: 0; background: var(--verde-profundo); transform: scaleX(0); transform-origin: left; }
+.pasos-progreso span.hecho::after { transform: scaleX(1); }
+
+.con-pasos .pasos-ventana { overflow: hidden; margin: -6px; padding: 6px; box-sizing: content-box; }
+.con-pasos .pasos-pista { display: flex; align-items: flex-start; gap: 0; }
+.con-pasos [data-paso] { flex: 0 0 100%; padding: 4px; }
+.con-pasos [data-paso]:not(.paso--actual) { opacity: 0; }
+
+.pasos-nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.pasos-flecha {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1.5px solid var(--verde-profundo);
+  background: transparent;
+  color: var(--verde-profundo);
+  cursor: pointer;
+}
+.pasos-flecha--siguiente { margin-left: auto; background: var(--verde-profundo); color: var(--crema-claro); width: 76px; border-radius: 999px; box-shadow: 0 8px 18px -8px rgba(47, 74, 68, 0.5); }
+.pasos-flecha:hover { background: var(--tinta); border-color: var(--tinta); color: var(--crema-claro); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .con-pasos .pasos-pista { transition: transform 450ms var(--curva-salida); }
+  .con-pasos [data-paso] { transition: opacity 450ms var(--curva-salida); }
+  .pasos-progreso span::after { transition: transform var(--duracion-media) var(--curva-salida); }
+  .opcion { transition: border-color var(--duracion-corta), background-color var(--duracion-corta), transform var(--duracion-corta) var(--curva-salida); }
+  .opcion:active { transform: scale(0.98); }
+  .opcion__marca::after { transition: transform var(--duracion-corta) var(--curva-salida); }
+  .pasos-flecha { transition: transform var(--duracion-corta) var(--curva-salida), background-color var(--duracion-corta); }
+  .pasos-flecha svg { transition: transform var(--duracion-corta) var(--curva-salida); }
+  .pasos-flecha--siguiente:hover svg { transform: translateX(3px); }
+}
+@media (min-width: 900px) {
+  .formulario-grande { padding: 36px 36px 28px; }
+}
+
+/* ----- Cabecera de las páginas interiores: compacta, para que el contenido se vea al abrir ----- */
+.cabecera-pagina { display: grid; gap: 0 56px; margin-bottom: clamp(20px, 3vw, 40px); }
+.cabecera-pagina h1 { margin-bottom: 0.25em; }
+.cabecera-pagina .intro { margin: 0; }
+@media (min-width: 900px) {
+  .cabecera-pagina:not(.cabecera-pagina--columna) { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: end; }
+  .cabecera-pagina:not(.cabecera-pagina--columna) > .script { grid-row: 1; grid-column: 1; }
+  .cabecera-pagina:not(.cabecera-pagina--columna) > h1 { grid-row: 2; grid-column: 1; margin-bottom: 0; }
+  .cabecera-pagina:not(.cabecera-pagina--columna) > .intro { grid-row: 1 / span 2; grid-column: 2; padding-bottom: 0.4em; }
+}
+
+/* ----- Página con formulario: el texto a la izquierda y la hoja del formulario a la derecha ----- */
+.pagina-formulario { display: grid; gap: 24px; align-items: start; }
+.pagina-formulario__lado { display: grid; gap: 20px; }
+/* Ilustración en arco (decorativa) bajo el texto, solo en escritorio */
+.lamina {
+  display: none;
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 4 / 3.2;
+  max-width: 420px;
+  margin-top: 12px;
+}
+.lamina::before {
+  content: '';
+  position: absolute;
+  inset: 0 18% 0 0;
+  border-radius: var(--arco-foto);
+  background:
+    radial-gradient(90% 70% at 30% 10%, color-mix(in srgb, var(--crema-claro) 60%, transparent), transparent 60%),
+    linear-gradient(170deg, var(--salvia-suave), color-mix(in srgb, var(--salvia) 55%, var(--salvia-suave)));
+  box-shadow: var(--sombra);
+}
+.lamina::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 16% 0 -6% 26%;
+  border-radius: var(--radio-grande);
+  background: var(--arena);
+}
+.lamina .mariposa-marca { position: absolute; width: 62%; left: 10%; top: 26%; color: var(--verde-profundo); opacity: 0.55; }
+@media (min-width: 960px) {
+  .pagina-formulario { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr); gap: 72px; }
+  .pagina-formulario__lado { position: sticky; top: 100px; }
+  .pagina-formulario .cabecera-pagina { margin-bottom: 0; }
+  .lamina { display: block; }
+}
+.pagina-formulario .formulario { max-width: none; }

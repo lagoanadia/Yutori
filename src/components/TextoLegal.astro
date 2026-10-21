@@ -15,7 +15,8 @@ const faltanDatos = !titular.nombre || !titular.nif;
 
 <style>
   .texto-legal { max-width: 760px; }
-  .texto-legal :global(h2) { font-size: 1.35rem; margin-top: 32px; }
+  .texto-legal :global(p), .texto-legal :global(li) { color: var(--tinta); }
+  .texto-legal :global(h2) { font-size: 1.5rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid color-mix(in srgb, var(--borde) 70%, transparent); }
   .texto-legal :global(li) { margin-bottom: 6px; }
   .texto-legal :global(table) { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.95rem; display: block; overflow-x: auto; }
   @media (min-width: 700px) { .texto-legal :global(table) { display: table; } }

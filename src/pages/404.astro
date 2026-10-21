@@ -3,7 +3,8 @@ import Base from '../layouts/Base.astro';
 ---
 <Base titulo="Página no encontrada">
   <section class="seccion">
-    <div class="contenedor">
+    <div class="contenedor perdida">
+      <span class="mariposa-marca perdida__mariposa" aria-hidden="true"></span>
       <h1>No encontramos esta página</h1>
       <p class="intro">Puede que el enlace haya cambiado. Mira el calendario de talleres o vuelve al inicio.</p>
       <div class="botones">
@@ -13,3 +14,14 @@ import Base from '../layouts/Base.astro';
     </div>
   </section>
 </Base>
+
+<style>
+  .perdida { display: grid; justify-items: center; text-align: center; padding-block: 24px 40px; }
+  .perdida .intro { margin-inline: auto; }
+  .perdida .botones { justify-content: center; }
+  .perdida__mariposa { width: min(220px, 50vw); color: var(--salvia); margin-bottom: 20px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .perdida__mariposa { animation: revolotear 4s ease-in-out infinite alternate; }
+  }
+  @keyframes revolotear { to { transform: translateY(-10px) rotate(-3deg); } }
+</style>

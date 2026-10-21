@@ -1,0 +1,20 @@
+---
+// Las dos familias de la web, solo con los caracteres latinos (español, €, comillas «»).
+// Fraunces: títulos (con su cursiva para los antetítulos). Figtree: texto de lectura.
+// Se precargan las dos que se ven al abrir cualquier página; la cursiva llega cuando hace falta.
+import fraunces from '@fontsource-variable/fraunces/files/fraunces-latin-standard-normal.woff2?url';
+import frauncesCursiva from '@fontsource-variable/fraunces/files/fraunces-latin-standard-italic.woff2?url';
+import figtree from '@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2?url';
+
+const latin = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
+const cara = (familia: string, estilo: string, url: string, ejes: string) =>
+  `@font-face{font-family:'${familia}';font-style:${estilo};font-display:swap;font-weight:${ejes};src:url(${url}) format('woff2');unicode-range:${latin}}`;
+const css = [
+  cara('Fraunces', 'normal', fraunces, '100 900'),
+  cara('Fraunces', 'italic', frauncesCursiva, '100 900'),
+  cara('Figtree', 'normal', figtree, '300 900'),
+].join('');
+---
+<link rel="preload" href={fraunces} as="font" type="font/woff2" crossorigin />
+<link rel="preload" href={figtree} as="font" type="font/woff2" crossorigin />
+<style is:inline set:html={css}></style>

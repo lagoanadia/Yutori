@@ -1,7 +1,6 @@
 ---
 export const prerender = false;
 import Base from '../layouts/Base.astro';
-import Mariposa from '../components/Mariposa.astro';
 import TallerCard from '../components/TallerCard.astro';
 import Resenas from '../components/Resenas.astro';
 import { negocio } from '../data/yutori';
@@ -9,61 +8,78 @@ import { talleresPublicados } from '../lib/reservas';
 
 const proximos = await talleresPublicados(3);
 const servicios = [
-  { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario' },
-  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y atelier textil, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases' },
-  { titulo: 'Talleres privados', texto: 'Despedidas, cumpleaños, grupos de amigas o empresas: un taller solo para vosotras.', href: '/privados', boton: 'Pedir información' },
-  { titulo: 'Bonos regalo', texto: 'No hay nada como regalar experiencias y momentos de desconexión.', href: '/bonos', boton: 'Regalar un bono' },
+  { titulo: 'Talleres del mes', texto: 'Cada mes, talleres distintos de la mano de artesanas y artistas.', href: '/talleres', boton: 'Ver calendario', icono: 'calendario' },
+  { titulo: 'Clases semanales', texto: 'Ganchillo, acuarela y atelier textil, para adultos y peques, en grupos de 8 personas como máximo.', href: '/clases', boton: 'Ver clases', icono: 'ovillo' },
+  { titulo: 'Talleres privados', texto: 'Despedidas, cumpleaños, grupos de amigas o empresas: un taller solo para vosotras.', href: '/privados', boton: 'Pedir información', icono: 'grupo' },
+  { titulo: 'Bonos regalo', texto: 'No hay nada como regalar experiencias y momentos de desconexión.', href: '/bonos', boton: 'Regalar un bono', icono: 'regalo' },
 ];
+// Iconos de trazo fino, como el dibujo del logo. Decorativos: el título ya lo dice.
+const iconos: Record<string, string> = {
+  calendario: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M12 13.2c-1.6 0-2.4 1.6-1 3.3l1 1 1-1c1.4-1.7.6-3.3-1-3.3Z"/>',
+  ovillo: '<circle cx="12" cy="12" r="8.5"/><path d="M5.2 7.5c4 .3 8.3 3.6 9.6 12.2M8.6 4.2c3.7 1.8 7.4 6.6 7 13.9M3.6 12.6c4.4-.6 9.7 1 13.9 5.6M20.5 13.5c1.2 2.5 1.2 4.5 0 6"/>',
+  grupo: '<circle cx="8" cy="8.5" r="3"/><circle cx="16.5" cy="8.5" r="3"/><path d="M2.5 19.5c.6-3.4 2.8-5.4 5.5-5.4s4.9 2 5.5 5.4M11.4 15c.9-.9 2.6-1.4 5.1-1.4 2.7 0 4.9 2 5.5 5.4"/>',
+  regalo: '<rect x="3.5" y="9" width="17" height="11.5" rx="2"/><path d="M2.5 9h19M12 9v11.5M12 9c-1.8-4.5-6.5-4.8-6.5-2.2C5.5 9 12 9 12 9Zm0 0c1.8-4.5 6.5-4.8 6.5-2.2C18.5 9 12 9 12 9Z"/>',
+};
 ---
 <Base titulo="Inicio">
+  {/* Portada: lienzo verde con el titular y, montado encima, lo que se puede hacer. Todo en la primera pantalla. */}
   <section class="portada">
-    <div class="contenedor portada__fila">
-      <div>
-        <h1>Talleres creativos en el centro de A Coruña</h1>
-        <p class="intro">{negocio.lema}</p>
-      </div>
-      <div class="portada__imagen">
+    <div class="contenedor portada__escena">
+      <div class="portada__lienzo">
+        <div class="portada__texto">
+          <h1 class="portada__titulo">Talleres creativos en el centro de <em>A Coruña</em></h1>
+          <p class="portada__lema">{negocio.lema}</p>
+        </div>
+        {/* Cuando haya foto del espacio irá aquí, a sangre, con un velo verde para que se lea el titular */}
         <div class="foto-hueco portada__foto">Foto del espacio</div>
-        <Mariposa size={150} class="portada__mariposa" />
+        <div class="portada__arcos" aria-hidden="true"><span></span><span></span><span></span></div>
+        <span class="mariposa-marca portada__mariposa" aria-hidden="true"></span>
+      </div>
+
+      <div class="servicios" id="que-hacer">
+        <h2 class="servicios__titulo">Qué puedes hacer en Yutori</h2>
+        <div class="servicios__lista">
+          {servicios.map((s, i) => (
+            <article class={`servicio servicio--${i + 1}`}>
+              <span class="servicio__icono" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" set:html={iconos[s.icono]} />
+              </span>
+              <div class="servicio__cuerpo">
+                <h3>{s.titulo}</h3>
+                <p>{s.texto}</p>
+                <a class="servicio__enlace" href={s.href}>{s.boton}</a>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="seccion">
+  <section class="seccion proximos">
     <div class="contenedor">
-      <h2>Qué puedes hacer en Yutori</h2>
-      <div class="rejilla">
-        {servicios.map((s) => (
-          <article class="tarjeta">
-            <h3>{s.titulo}</h3>
-            <p>{s.texto}</p>
-            <a class="boton boton--borde" href={s.href}>{s.boton}</a>
-          </article>
-        ))}
-      </div>
-    </div>
-  </section>
-
-  <section class="seccion seccion--salvia">
-    <div class="contenedor">
-      <div class="titulo-con-enlace">
+      <div class="titulo-con-enlace aparece">
         <h2>Próximos talleres</h2>
-        <a href="/talleres">Ver todo el calendario →</a>
+        <a class="enlace-flecha" href="/talleres">Ver todo el calendario →</a>
       </div>
       {proximos.length > 0
-        ? <div class="rejilla">{proximos.map((t) => <TallerCard taller={t} />)}</div>
+        ? <div class="proximos__rejilla">{proximos.map((t, i) => <div class="aparece" style={`--i: ${i}`}><TallerCard taller={t} /></div>)}</div>
         : <p class="intro">Estamos preparando el calendario de talleres. Síguenos en <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a> para enterarte la primera.</p>}
     </div>
   </section>
 
-  <section class="seccion">
-    <div class="contenedor dos-bloques">
-      <div>
+  <section class="seccion encuentro-seccion">
+    <div class="contenedor encuentro">
+      <div class="encuentro__bloque encuentro__bloque--oscuro aparece">
+        <span class="mariposa-marca encuentro__mariposa" aria-hidden="true"></span>
         <h2>¿Quieres impartir un taller en Yutori?</h2>
         <p class="intro">Nos encanta recibir nuevas ideas, proyectos y personas con ganas de compartir, crear e inspirar.</p>
-        <a class="boton" href="/colabora">Proponer un taller</a>
+        <a class="boton boton--crema" href="/colabora">Proponer un taller</a>
       </div>
-      <div>
+      <div class="encuentro__bloque encuentro__bloque--arco aparece">
+        <span class="encuentro__pin" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><circle cx="12" cy="10" r="2.3" /></svg>
+        </span>
         <h2>Dónde nos encontramos</h2>
         <p class="intro">{negocio.direccion}, {negocio.ciudad}.</p>
         <a class="boton boton--borde" href="/espacio">Cómo llegar</a>
@@ -75,15 +91,207 @@ const servicios = [
 </Base>
 
 <style>
-  .portada { padding: 48px 0 32px; }
-  .portada__fila { display: grid; gap: 32px; align-items: center; }
-  .portada__imagen { position: relative; }
-  .portada__foto { aspect-ratio: 4 / 5; border-radius: 200px 200px var(--radio) var(--radio); margin: 0; }
-  .portada__imagen :global(.portada__mariposa) { position: absolute; right: 12px; bottom: -16px; background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px; box-shadow: var(--sombra); width: 150px; height: auto; box-sizing: content-box; }
-  @media (min-width: 860px) {
-    .portada { padding: 72px 0 56px; }
-    .portada__fila { grid-template-columns: 1.2fr 1fr; }
+  /* ---------- Portada ---------- */
+  .portada { padding: 12px 0 0; }
+  .portada__escena { display: grid; }
+  .portada__lienzo {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--radio-grande);
+    background: var(--verde-profundo);
+    color: var(--crema);
+    padding: 26px 20px 54px;
+    box-shadow: var(--sombra);
   }
-  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .dos-bloques { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .portada__texto { position: relative; z-index: 2; max-width: 34rem; }
+  .portada__titulo {
+    font-size: var(--t-portada);
+    font-weight: 350;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    color: var(--crema-claro);
+    margin-bottom: 0.35em;
+  }
+  .portada__titulo em { font-style: italic; color: var(--salvia); font-weight: 300; }
+  .portada__lema { color: color-mix(in srgb, var(--crema-claro) 88%, transparent); font-size: clamp(1rem, 0.95rem + 0.3vw, 1.18rem); max-width: 32em; margin: 0; }
+
+  /* La foto (o su hueco) ocupa todo el lienzo, por detrás del texto */
+  .portada__foto {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    aspect-ratio: auto;
+    border-radius: 0;
+    background: radial-gradient(90% 70% at 85% 30%, color-mix(in srgb, var(--salvia) 28%, transparent), transparent 70%), var(--verde-profundo);
+    color: color-mix(in srgb, var(--crema) 70%, transparent);
+    place-items: start end;
+    padding: 14px 18px;
+    font-size: 0.85rem;
+  }
+  .portada__foto::before { display: none; }
+  .portada__foto::after { opacity: 0.22; mix-blend-mode: soft-light; }
+  /* Velo para que el titular se lea sobre una foto real */
+  .portada__lienzo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(100deg, rgba(36, 55, 50, 0.72), rgba(36, 55, 50, 0.15) 70%);
+    pointer-events: none;
+  }
+  .portada__arcos { position: absolute; z-index: 1; right: -12%; bottom: -30%; width: 72%; aspect-ratio: 1; pointer-events: none; }
+  .portada__arcos span { position: absolute; inset: 0; border: 1px solid color-mix(in srgb, var(--salvia) 45%, transparent); border-radius: 50%; }
+  .portada__arcos span:nth-child(2) { inset: 12%; }
+  .portada__arcos span:nth-child(3) { inset: 24%; border-color: color-mix(in srgb, var(--salvia) 25%, transparent); }
+  .portada__mariposa { position: absolute; z-index: 1; right: -18px; bottom: 26px; width: 46%; max-width: 380px; color: var(--salvia); opacity: 0.5; }
+
+  /* Lo que se puede hacer: una hoja de papel que se monta sobre el lienzo */
+  .servicios {
+    position: relative;
+    z-index: 3;
+    margin: -38px 8px 0;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-alta);
+    padding: 14px 16px 4px;
+    scroll-margin-top: 90px;
+  }
+  .servicios__titulo { font-size: 1.05rem; font-family: var(--sans); font-weight: 600; letter-spacing: 0; color: var(--tinta-suave); margin: 0 0 4px; }
+  .servicios__lista { display: grid; }
+  .servicio {
+    position: relative;
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    padding: 9px 0;
+    border-top: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
+  }
+  .servicio:first-child { border-top: 0; }
+  .servicio__icono { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-profundo); }
+  .servicio h3 { font-size: 1.2rem; margin: 0 0 2px; line-height: 1.2; }
+  .servicio p { color: var(--tinta-suave); font-size: 0.9rem; line-height: 1.42; margin: 0 0 2px; }
+  .servicio__cuerpo { display: flex; flex-direction: column; align-items: flex-start; height: 100%; }
+  .servicio__enlace { margin-top: auto; }
+  .servicio__enlace { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.92rem; color: var(--verde-profundo); text-decoration: none; }
+  .servicio__enlace::after {
+    content: '';
+    width: 1em;
+    height: 1em;
+    background: currentColor;
+    -webkit-mask: var(--flecha) center / contain no-repeat;
+    mask: var(--flecha) center / contain no-repeat;
+  }
+  /* Toda la fila se puede pulsar */
+  .servicio__enlace::before { content: ''; position: absolute; inset: 0; border-radius: 16px; }
+  .servicio:has(.servicio__enlace:focus-visible) { outline: 3px solid var(--foco); outline-offset: 2px; border-radius: 16px; }
+  .servicio__enlace:focus-visible { outline: none; }
+
+  @media (min-width: 640px) {
+    .portada__lienzo { padding: 48px 44px 104px; }
+    .servicios { margin: -72px 24px 0; padding: 24px 28px 12px; }
+    .servicios__lista { grid-template-columns: 1fr 1fr; column-gap: 28px; }
+    .servicio:nth-child(2) { border-top: 0; }
+  }
+  @media (min-width: 1000px) {
+    .portada { padding-top: 16px; }
+    .portada__lienzo { padding: 64px 64px 128px; min-height: min(56svh, 520px); display: flex; align-items: center; }
+    .portada__texto { max-width: 40rem; }
+    .portada__mariposa { right: 6%; bottom: 40px; width: 30%; }
+    .portada__arcos { right: 2%; bottom: -55%; width: 44%; }
+    .servicios { margin: -96px 40px 0; padding: 26px 32px 22px; }
+    .servicios__lista { grid-template-columns: repeat(4, 1fr); column-gap: 0; }
+    .servicio { display: flex; flex-direction: column; gap: 12px; border-top: 0; padding: 6px 26px 0; }
+    .servicio__cuerpo { flex: 1; }
+    .servicio:first-child { padding-left: 0; }
+    .servicio:last-child { padding-right: 0; }
+    .servicio + .servicio { border-left: 1px solid color-mix(in srgb, var(--borde) 70%, transparent); }
+    .servicio__icono { width: 44px; height: 44px; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .portada__texto > * { animation: subir var(--duracion-larga) var(--curva-salida) both; }
+    .portada__lema { animation-delay: 120ms !important; }
+    .servicios { animation: subir 900ms var(--curva-salida) 200ms both; }
+    .portada__mariposa { animation: posarse 1400ms var(--curva-salida) 350ms both; }
+    .portada__arcos span { animation: respirar 1600ms var(--curva-salida) both; }
+    .portada__arcos span:nth-child(2) { animation-delay: 120ms; }
+    .portada__arcos span:nth-child(3) { animation-delay: 240ms; }
+    .servicio__enlace::after { transition: transform var(--duracion-corta) var(--curva-salida); }
+    .servicio:hover .servicio__enlace::after { transform: translateX(4px); }
+    .servicio__icono { transition: transform var(--duracion-media) var(--curva-salida), background-color var(--duracion-corta); }
+    .servicio:hover .servicio__icono { transform: translateY(-3px) rotate(-6deg); background: var(--salvia); }
+    /* Parallax suave: al bajar, la mariposa y los arcos se quedan un poco atrás */
+    @supports (animation-timeline: scroll()) {
+      .portada__mariposa {
+        animation: posarse 1400ms var(--curva-salida) 350ms both, flotar linear both;
+        animation-timeline: auto, scroll();
+        animation-range: normal, 0 600px;
+      }
+      .portada__arcos { animation: flotar linear both; animation-timeline: scroll(); animation-range: 0 600px; }
+    }
+  }
+  @keyframes subir { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes respirar { from { opacity: 0; transform: scale(0.9); } }
+  @keyframes posarse { from { opacity: 0; transform: translate(24px, 18px) rotate(-8deg) scale(0.92); } to { opacity: 1; transform: none; } }
+  @keyframes flotar { to { translate: 0 -60px; } }
+
+  /* ---------- Próximos talleres ---------- */
+  .titulo-con-enlace { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; margin-bottom: 28px; }
+  .titulo-con-enlace h2 { margin: 0; }
+  .enlace-flecha { display: inline-flex; align-items: center; min-height: 48px; font-weight: 600; color: var(--verde-profundo); text-decoration: none; border-bottom: 1px solid currentColor; min-height: 0; padding: 6px 0 2px; }
+  .enlace-flecha:hover { color: var(--verde); }
+  /* Móvil y tablet: fila que se desliza con el dedo (se asoma la siguiente tarjeta); escritorio: tres columnas */
+  .proximos__rejilla {
+    display: grid;
+    gap: 20px;
+    grid-auto-flow: column;
+    grid-auto-columns: min(82%, 340px);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--margen);
+    margin-inline: calc(-1 * var(--margen));
+    padding: 8px var(--margen) 28px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--salvia) transparent;
+  }
+  .proximos__rejilla > * { display: flex; scroll-snap-align: start; }
+  @media (min-width: 1000px) {
+    .proximos__rejilla { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); gap: 28px; overflow: visible; margin-inline: 0; padding: 8px 0 0; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .proximos__rejilla .aparece { animation-delay: calc(var(--i, 0) * 80ms); }
+  }
+
+  /* ---------- Impartir y dónde: un bloque oscuro y una hoja en arco que se monta encima ---------- */
+  .encuentro-seccion { background: var(--arena); position: relative; }
+  .encuentro { display: grid; gap: 20px; }
+  .encuentro__bloque { position: relative; overflow: hidden; border-radius: var(--radio-grande); padding: 40px 26px; }
+  .encuentro__bloque h2 { font-size: clamp(1.8rem, 1.4rem + 1.6vw, 2.6rem); }
+  .encuentro__bloque--oscuro { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; background: var(--verde-profundo); color: var(--crema); --foco: var(--crema); box-shadow: var(--sombra); }
+  .encuentro__bloque--oscuro h2 { color: var(--crema-claro); max-width: 16ch; }
+  .encuentro__bloque--oscuro .intro { color: color-mix(in srgb, var(--crema-claro) 85%, transparent); }
+  .encuentro__bloque--oscuro > :not(.encuentro__mariposa) { position: relative; }
+  .encuentro__mariposa { position: absolute; right: -60px; top: -30px; width: 300px; color: var(--salvia); opacity: 0.18; }
+  .encuentro__bloque--arco {
+    background: var(--crema-claro);
+    border-radius: 999px 999px var(--radio-grande) var(--radio-grande);
+    text-align: center;
+    padding-top: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: var(--sombra-alta);
+  }
+  .encuentro__bloque--arco .intro { margin-inline: auto; }
+  .encuentro__pin { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--salvia-suave); color: var(--verde-profundo); margin-bottom: 16px; }
+  .boton--crema { background: var(--crema-claro); border-color: var(--crema-claro); color: var(--verde-profundo); }
+  .boton--crema:hover { background: #fff; border-color: #fff; color: var(--verde-profundo); }
+  @media (min-width: 860px) {
+    .encuentro { grid-template-columns: 1.4fr 1fr; gap: 0; align-items: center; }
+    .encuentro__bloque { padding: 64px 56px; }
+    .encuentro__bloque--oscuro { padding-right: 120px; min-height: 420px; }
+    .encuentro__bloque--arco { margin-left: -72px; padding-top: 104px; }
+  }
 </style>

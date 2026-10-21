@@ -11,14 +11,17 @@ const sinPrecio = taller.precio_cent == null;
 // El mismo día del taller ya no se reserva: el botón lleva a la ficha sin invitar a reservar.
 const cerrado = sinPrecio || !tallerReservable(taller.fecha);
 ---
-<article class="tarjeta taller">
-  {taller.foto
-    ? <img class="taller__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} loading="lazy" />
-    : <div class="foto-hueco">Foto del taller</div>}
-  {taller.es_evento ? <span class="etiqueta">Evento especial</span> : null}
+<article class:list={['taller', { 'taller--completo': libres === 0 }]}>
+  <div class="taller__media">
+    {taller.foto
+      ? <img class="taller__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} loading="lazy" style={`view-transition-name: foto-${taller.slug}`} />
+      : <div class="foto-hueco taller__hueco">Foto del taller</div>}
+  </div>
+  {taller.es_evento ? <span class="etiqueta taller__etiqueta">Evento especial</span> : null}
   <h3>{taller.titulo}</h3>
   <p class="taller__quien">con {taller.imparte}</p>
-  <p class="taller__cuando">{fechaLarga(taller.fecha)} · {taller.hora_fin ? `${taller.hora_inicio}-${taller.hora_fin}` : `${taller.hora_inicio}h`}</p>
+  {/* Mismo texto; la hora va en un bloque que no se parte por el guion */}
+  <p class="taller__cuando">{fechaLarga(taller.fecha)} · <span class="sin-cortes">{taller.hora_fin ? `${taller.hora_inicio}-${taller.hora_fin}` : `${taller.hora_inicio}h`}</span></p>
   {taller.hora_fin && <p class="taller__extra">{duracion(taller.hora_inicio, taller.hora_fin)}{taller.materiales && ` · ${taller.materiales}`}</p>}
   <div class="taller__pie">
     <span class="taller__precio">{sinPrecio ? 'Precio por confirmar' : euros(taller.precio_cent)}</span>
@@ -26,18 +29,76 @@ const cerrado = sinPrecio || !tallerReservable(taller.fecha);
       {libres === 0 ? 'Completo' : libres === 1 ? 'Queda 1 plaza' : `Quedan ${libres} plazas`}
     </span>
   </div>
-  <a class:list={['boton', { 'boton--borde': libres === 0 || cerrado }]} href={`/talleres/${taller.slug}`}>{libres === 0 || cerrado ? 'Ver taller' : 'Reservar plaza'}</a>
+  <a class:list={['boton', 'taller__boton', { 'boton--borde': libres === 0 || cerrado }]} href={`/talleres/${taller.slug}`}>{libres === 0 || cerrado ? 'Ver taller' : 'Reservar plaza'}</a>
 </article>
 
 <style>
-  .taller { display: flex; flex-direction: column; }
-  .taller .etiqueta { align-self: flex-start; }
-  .taller__foto { aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; margin-bottom: 16px; width: 100%; }
-  .taller__quien { color: var(--tinta-suave); margin-bottom: 4px; }
-  .taller__cuando { font-weight: 700; margin-bottom: 0; }
-  .taller__extra { color: var(--tinta-suave); font-size: 0.95rem; margin-bottom: 8px; }
-  .taller__pie { display: flex; justify-content: space-between; align-items: center; margin: auto 0 16px; padding-top: 8px; }
-  .taller__precio { font-family: var(--serif); font-size: 1.3rem; color: var(--verde); }
-  .taller__plazas { font-weight: 700; font-size: 0.95rem; color: var(--verde); }
-  .taller__plazas.completo { color: var(--aviso); }
+  /* La foto manda: arriba, en arco, sobre una hoja que flota. Toda la tarjeta se puede pulsar. */
+  .taller {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande, 28px);
+    padding: 10px 10px 22px;
+    box-shadow: var(--sombra-suave);
+  }
+  .taller > :not(.taller__media):not(.taller__etiqueta) { margin-inline: 14px; }
+  .taller__media {
+    overflow: hidden;
+    border-radius: var(--arco-foto);
+    margin-bottom: 18px;
+  }
+  .taller__foto, .taller__hueco { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; margin: 0; border-radius: 0; }
+  .taller__etiqueta {
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    translate: -50% 0;
+    margin: 0;
+    background: var(--crema-claro);
+    color: var(--verde-profundo);
+    white-space: nowrap;
+    box-shadow: var(--sombra-suave);
+  }
+  .taller h3 { font-size: 1.45rem; margin-bottom: 0.15em; }
+  .taller__quien { color: var(--tinta-suave); margin-bottom: 12px; font-size: 0.97rem; }
+  .taller__cuando { font-weight: 600; margin-bottom: 0; color: var(--verde-profundo); }
+  .sin-cortes { white-space: nowrap; }
+  .taller__extra { color: var(--tinta-suave); font-size: 0.93rem; margin-bottom: 8px; }
+  .taller__pie {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    margin-bottom: 16px;
+    padding-top: 14px;
+    border-top: 1px solid color-mix(in srgb, var(--borde) 70%, transparent);
+  }
+  .taller__precio { font-family: var(--serif); font-size: 1.6rem; color: var(--verde-profundo); font-variant-numeric: lining-nums; letter-spacing: -0.01em; }
+  .taller__plazas {
+    font-weight: 600;
+    font-size: 0.86rem;
+    color: var(--verde-profundo);
+    background: var(--salvia-suave);
+    border-radius: 999px;
+    padding: 4px 12px;
+  }
+  .taller__plazas.completo { color: var(--aviso); background: transparent; box-shadow: inset 0 0 0 1px var(--aviso); }
+  .taller__boton { align-self: stretch; }
+  .taller--completo .taller__foto, .taller--completo .taller__hueco { filter: grayscale(0.7); opacity: 0.8; }
+
+  /* Enlace estirado: el botón cubre toda la tarjeta para el ratón y el dedo */
+  .taller__boton::before { content: ''; position: absolute; inset: 0; border-radius: var(--radio-grande, 28px); }
+  .taller:has(.taller__boton:focus-visible) { outline: 3px solid var(--foco); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .taller { transition: translate var(--duracion-media) var(--curva-salida), box-shadow var(--duracion-media) var(--curva-salida); }
+    .taller__foto, .taller__hueco { transition: scale var(--duracion-larga) var(--curva-salida); }
+    .taller:hover { translate: 0 -6px; box-shadow: var(--sombra-alta); }
+    .taller:hover .taller__foto, .taller:hover .taller__hueco { scale: 1.04; }
+  }
 </style>

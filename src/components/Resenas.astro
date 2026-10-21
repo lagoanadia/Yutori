@@ -2,44 +2,132 @@
 import { negocio, resenas, resenasGoogle } from '../data/yutori';
 ---
 <section class="seccion resenas">
-  <div class="contenedor">
-    <h2 class="script">Lo que dicen de Yutori</h2>
-    <div class="resenas__nota">
-      <span class="resenas__estrellas" aria-hidden="true">★★★★★</span>
-      <p><strong>{resenasGoogle.nota}</strong> de 5 · {resenasGoogle.total} reseñas en Google</p>
+  <div class="contenedor-amplio">
+    <div class="resenas__cabecera aparece">
+      <h2 class="script">Lo que dicen de Yutori</h2>
+      <div class="resenas__nota">
+        <span class="resenas__estrellas" aria-hidden="true">★★★★★</span>
+        <p><strong>{resenasGoogle.nota}</strong> de 5 · {resenasGoogle.total} reseñas en Google</p>
+      </div>
     </div>
 
-    <div class="rejilla resenas__lista">
+    <div class="resenas__carrusel">
+    <div class="resenas__lista" tabindex="0" role="region" aria-label="Reseñas">
       {resenas.length > 0
         ? resenas.map((r) => (
-            <figure class="tarjeta resena">
+            <figure class="resena">
+              <svg class="resena__comillas" width="40" height="32" viewBox="0 0 40 32" aria-hidden="true"><path d="M0 32V19C0 8.6 5.3 2.3 15.8 0l1.9 4.2C11.8 6 9 9.6 8.6 15H16v17H0Zm22.3 0V19c0-10.4 5.3-16.7 15.8-19L40 4.2C34.1 6 31.3 9.6 30.9 15h7.4v17H22.3Z" /></svg>
               <span class="resenas__estrellas" aria-label="5 estrellas">★★★★★</span>
               <blockquote>{r.texto}</blockquote>
               <figcaption>{r.autora} <small>· {r.cuando}</small></figcaption>
             </figure>
           ))
         : [1, 2, 3].map(() => (
-            <figure class="tarjeta resena resena--hueco">
+            <figure class="resena resena--hueco">
               <span class="ejemplo">Pendiente</span>
               <blockquote>Aquí irá una reseña real de Google.</blockquote>
             </figure>
           ))}
     </div>
+    <div class="resenas__flechas" hidden>
+      <button type="button" class="resenas__flecha" data-dir="-1" aria-label="Reseña anterior">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+      </button>
+      <button type="button" class="resenas__flecha" data-dir="1" aria-label="Reseña siguiente">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+      </button>
+    </div>
+    </div>
 
-    <a class="boton boton--borde" href={negocio.mapsUrl} rel="noopener" target="_blank">Leer todas las reseñas en Google</a>
+    <div class="resenas__pie">
+      <a class="boton boton--borde" href={negocio.mapsUrl} rel="noopener" target="_blank">Leer todas las reseñas en Google</a>
+    </div>
   </div>
 </section>
 
 <style>
-  .resenas { text-align: center; }
-  .resenas .script { font-size: 2.4rem; font-weight: 400; margin-bottom: 8px; }
-  .resenas__nota { display: grid; justify-items: center; gap: 4px; margin-bottom: 24px; }
+  .resenas { position: relative; }
+  .resenas__cabecera { text-align: center; margin-bottom: 32px; }
+  .resenas .script { justify-content: center; font-size: var(--t-seccion); color: var(--verde-profundo); letter-spacing: -0.02em; margin-bottom: 12px; }
+  .resenas .script::before { display: none; }
+  .resenas__nota { display: grid; justify-items: center; gap: 4px; }
   .resenas__nota p { margin: 0; color: var(--tinta-suave); }
-  .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; color: var(--verde); }
-  .resenas__estrellas { color: #c8963e; letter-spacing: 4px; font-size: 1.3rem; }
-  .resenas__lista { margin-bottom: 24px; text-align: left; }
-  .resena { margin: 0; }
-  .resena blockquote { margin: 8px 0 12px; font-size: 1.05rem; }
-  .resena figcaption { font-weight: 700; color: var(--verde); }
-  .resena--hueco { border-style: dashed; box-shadow: none; color: var(--tinta-suave); }
+  .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; font-weight: 400; color: var(--verde-profundo); font-variant-numeric: lining-nums; }
+  .resenas__estrellas { color: var(--oro); letter-spacing: 4px; font-size: 1.3rem; }
+
+  /* Carrusel: se desliza con el dedo, con la rueda o con las flechas. Sin movimiento automático. */
+  .resenas__lista {
+    display: grid;
+    grid-auto-flow: column;
+    /* En móvil, una tarjeta y un trozo de la siguiente; en pantallas grandes, unas dos y media.
+       La que asoma invita a deslizar. */
+    grid-auto-columns: 86%;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 4px;
+    padding: 8px 6px 28px;
+    margin-bottom: 16px;
+    scrollbar-width: thin;
+  }
+  .resenas__lista:focus-visible { outline: 3px solid var(--foco); outline-offset: 4px; border-radius: var(--radio-grande); }
+  .resena {
+    position: relative;
+    margin: 0;
+    padding: 28px 26px 24px;
+    background: var(--crema-claro);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-suave);
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+  }
+  .resena__comillas { position: absolute; top: 22px; right: 22px; fill: var(--salvia-suave); }
+  .resena blockquote { margin: 10px 0 16px; font-size: 1.05rem; flex: 1; }
+  .resena figcaption { font-weight: 600; color: var(--verde-profundo); }
+  .resena figcaption small { color: var(--tinta-suave); font-weight: 400; }
+  .resena--hueco { border: 1px dashed var(--borde); color: var(--tinta-suave); }
+
+  .resenas__flechas { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+  .resenas__flechas[hidden] { display: none; }
+  .resenas__flecha {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 1px solid var(--verde); background: transparent; color: var(--verde); cursor: pointer;
+  }
+  .resenas__flecha:hover { background: var(--verde); color: #fff; }
+  .resenas__flecha:disabled { opacity: .35; cursor: default; background: transparent; color: var(--verde); }
+  .resenas__pie { text-align: center; }
+
+  @media (min-width: 760px) {
+    .resenas__lista { grid-auto-columns: calc((100% - 32px) / 2.4); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .resenas__lista { scroll-behavior: smooth; }
+    .resenas__flecha { transition: background-color var(--duracion-corta), color var(--duracion-corta); }
+  }
 </style>
+
+<script>
+  // Flechas del carrusel: solo aparecen si hay reseñas que no caben en pantalla.
+  for (const carrusel of document.querySelectorAll('.resenas__carrusel')) {
+    const lista = carrusel.querySelector<HTMLElement>('.resenas__lista')!;
+    const flechas = carrusel.querySelector<HTMLElement>('.resenas__flechas')!;
+    const [antes, despues] = flechas.querySelectorAll<HTMLButtonElement>('button');
+    const actualizar = () => {
+      const max = lista.scrollWidth - lista.clientWidth;
+      flechas.hidden = max <= 4;
+      antes.disabled = lista.scrollLeft <= 4;
+      despues.disabled = lista.scrollLeft >= max - 4;
+    };
+    flechas.addEventListener('click', (e) => {
+      const boton = (e.target as Element).closest<HTMLButtonElement>('button');
+      if (!boton) return;
+      const paso = (lista.firstElementChild as HTMLElement | null)?.offsetWidth ?? lista.clientWidth;
+      lista.scrollBy({ left: Number(boton.dataset.dir) * (paso + 16) });
+    });
+    lista.addEventListener('scroll', actualizar, { passive: true });
+    new ResizeObserver(actualizar).observe(lista);
+    actualizar();
+  }
+</script>
