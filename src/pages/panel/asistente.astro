@@ -2,11 +2,11 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import {
-  anadirTurno, aplicar, asistenteActivo, describir, leerHistorial, MAX_TEXTO, planear, propuestaGuardadaSchema, revisar,
-  type Propuesta, type Resultado, type Turno,
+  anadirTurno, aplicar, asistenteActivo, describir, leerHistorial, MAX_TEXTO, mensajeHecho, mensajeVistaPrevia, planear,
+  propuestaGuardadaSchema, respuestaSinAcciones, revisar, type Accion, type Propuesta, type Resultado, type Turno,
 } from '../../lib/asistente';
 
-// Ideas que se tocan para empezar la frase: quitan la sensación de plantilla.
+// Ideas que se tocan para empezar la frase: quitan la sensación de plantilla. Solo se ven con el chat vacío.
 const SUGERENCIAS = [
   { texto: 'Añadir una tallerista', frase: 'Añade a la tallerista ' },
   { texto: 'Crear un taller', frase: 'Crea un taller el sábado por la mañana de ' },
@@ -29,7 +29,7 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
 
   if (accion === 'planear') {
     texto = String(datos.get('texto') ?? '').trim().slice(0, MAX_TEXTO);
-    if (!texto) error = historial.length ? 'Escribe tu respuesta.' : 'Cuéntame primero qué quieres hacer.';
+    if (!texto) error = 'Escribe primero qué quieres hacer.';
     else {
       const conMensaje = anadirTurno(historial, 'yo', texto);
       try {
@@ -37,8 +37,10 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
         // Lo que pregunta la IA o, si sus acciones no encajan con los datos reales, lo que preguntamos nosotros.
         const revision = plan.pregunta || plan.acciones.length === 0 ? null : await revisar(plan.acciones);
         const pregunta = plan.pregunta ?? revision?.pregunta ?? null;
-        historial = anadirTurno(conMensaje, 'asistente', pregunta ?? plan.respuesta);
-        if (!pregunta && revision) propuestas = revision.propuestas;
+        if (!pregunta && revision?.propuestas.length) propuestas = revision.propuestas;
+        // Con acciones, el mensaje lo escribe el código («Voy a…»): la IA no puede decir que algo está hecho.
+        const mensaje = pregunta ?? (propuestas ? mensajeVistaPrevia(propuestas) : respuestaSinAcciones(plan.respuesta));
+        historial = anadirTurno(conMensaje, 'asistente', mensaje);
         texto = '';
       } catch (e) {
         console.error('[asistente]', e);
@@ -53,127 +55,182 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
     if (!recibido.success) error = 'La propuesta no es válida. Vuelve a escribir lo que quieres hacer.';
     else {
       const elegidas = new Set(datos.getAll('sel').map(Number));
+      const hechas: { accion: Accion; ok: boolean }[] = [];
       resultados = [];
       for (const [i, a] of recibido.data.acciones.entries()) {
         if (!elegidas.has(i)) continue;
+        let r: Resultado;
         try {
-          resultados.push(await aplicar(a));
+          r = await aplicar(a);
         } catch (e) {
           console.error('[asistente]', e);
-          resultados.push({ texto: `${describir(a)} — algo ha fallado al guardarlo.`, ok: false });
+          r = { texto: `${describir(a)} — algo ha fallado al guardarlo.`, ok: false };
         }
+        resultados.push(r);
+        hechas.push({ accion: a, ok: r.ok });
       }
+      historial = anadirTurno(historial, 'asistente', mensajeHecho(hechas));
     }
   }
+
+  if (accion === 'cancelar') historial = anadirTurno(historial, 'asistente', 'Vale, no guardo nada.');
 }
 const enConversacion = historial.length > 0;
 const historialJson = JSON.stringify(historial);
+// El último mensaje del asistente lleva dentro la vista previa o los enlaces a lo guardado.
+const conExtra = Boolean(propuestas || resultados?.length);
+const turnos = conExtra ? historial.slice(0, -1) : historial;
+const ultimo = conExtra ? historial.at(-1) : undefined;
 ---
-<Panel titulo="Asistente">
+<Panel titulo="Asistente" ocultarTitulo pantalla={asistenteActivo()}>
   {!asistenteActivo() ? (
-    <div class="tarjeta">
-      <p>El asistente todavía no está activado: falta la clave de Groq (<code>GROQ_API_KEY</code>) en Cloudflare.</p>
-    </div>
-  ) : (
     <>
-      <p class="intro">Escríbelo como lo dirías en voz alta. Si me falta algo, te pregunto. Antes de guardar nada, lo revisas tú.</p>
-
-      {resultados ? (
-        <section class="tarjeta">
-          <h2>Hecho</h2>
-          {resultados.length === 0 ? <p class="vacio">No has marcado ningún cambio.</p> : (
-            <ul class="resultados">
-              {resultados.map((r) => (
-                <li class:list={{ fallo: !r.ok }}>
-                  <span aria-hidden="true">{r.ok ? '✓' : '✗'}</span>
-                  <span>{r.texto}{r.enlace && <> · <a href={r.enlace}>Ver</a></>}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <a class="boton boton--borde" href="/panel/asistente">Hacer otra cosa</a>
-        </section>
-      ) : (
-        <>
-          {enConversacion && (
-            <ol class="hilo" aria-label="Conversación">
-              {historial.map((t) => (
-                <li class:list={['hilo__turno', `hilo__turno--${t.rol}`]}>
-                  <span class="visualmente-oculto">{t.rol === 'yo' ? 'Tú:' : 'Asistente:'}</span>{t.texto}
-                </li>
-              ))}
-            </ol>
-          )}
-
-          {propuestas && propuestas.length > 0 && (
-            <form method="post" class="tarjeta">
-              <input type="hidden" name="accion" value="aplicar" />
-              <input type="hidden" name="plan" value={JSON.stringify({ acciones: propuestas.map((p) => p.accion) })} />
-              <p><strong>Revisa y desmarca lo que no quieras:</strong></p>
-              <ul class="propuestas">
-                {propuestas.map((p, i) => (
-                  <li>
-                    <label class="casilla"><input type="checkbox" name="sel" value={i} checked={p.marcada} /> {describir(p.accion)}</label>
-                    {p.aviso && <small class="propuestas__aviso">{p.aviso}</small>}
-                  </li>
-                ))}
-              </ul>
-              <div class="botones">
-                <button class="boton" type="submit">Aplicar</button>
-                <a class="boton boton--borde" href="/panel/asistente">Cancelar</a>
-              </div>
-            </form>
-          )}
-
-          <form method="post" class="tarjeta formulario" id="form-asistente">
-            <input type="hidden" name="accion" value="planear" />
-            <input type="hidden" name="historial" value={historialJson} />
-            {error && <p class="errores" role="alert">{error}</p>}
-            <div class="campo">
-              <label for="texto">{propuestas ? '¿Quieres cambiar o añadir algo?' : enConversacion ? 'Tu respuesta' : '¿Qué quieres hacer?'}</label>
-              <textarea id="texto" name="texto" rows={enConversacion ? 3 : 5} maxlength={MAX_TEXTO} required
-                placeholder={enConversacion ? '' : 'Por ejemplo: añade a Iris como tallerista aceptada'}>{texto}</textarea>
-            </div>
-            {!enConversacion && (
-              <div class="sugerencias" id="sugerencias" hidden>
-                {SUGERENCIAS.map((s) => <button class="sugerencia" type="button" data-frase={s.frase}>{s.texto}</button>)}
-              </div>
-            )}
-            <div class="botones">
-              <button class="boton boton--borde" type="button" id="microfono" hidden>🎤 Dictar</button>
-              <button class="boton" type="submit">{enConversacion ? 'Enviar' : 'Preparar'}</button>
-              {enConversacion && <a class="boton-texto" href="/panel/asistente">Empezar de nuevo</a>}
-            </div>
-            <p class="aviso-dictado" id="aviso-dictado" role="status" hidden></p>
-          </form>
-        </>
-      )}
+      <h1>Asistente</h1>
+      <div class="tarjeta">
+        <p>El asistente todavía no está activado: falta la clave de Groq (<code>GROQ_API_KEY</code>) en Cloudflare.</p>
+      </div>
     </>
+  ) : (
+    <div class="chat">
+      <div class="chat__cabecera">
+        <h1>Asistente</h1>
+        {enConversacion && (
+          <a class="chat__nuevo" href="/panel/asistente">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" /></svg>
+            Empezar de nuevo
+          </a>
+        )}
+      </div>
+
+      <div class="chat__mensajes" id="mensajes" tabindex="-1">
+        {!enConversacion ? (
+          <div class="chat__vacio">
+            <svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+            <p>¿Qué quieres hacer?</p>
+          </div>
+        ) : (
+          <ol class="hilo" id="hilo" aria-label="Conversación">
+            {turnos.map((t) => (
+              <li class:list={['burbuja', `burbuja--${t.rol}`]}>
+                <span class="visualmente-oculto">{t.rol === 'yo' ? 'Tú:' : 'Asistente:'}</span>{t.texto}
+              </li>
+            ))}
+
+            {ultimo && propuestas && (
+              <li class="burbuja burbuja--asistente burbuja--ancha">
+                <span class="visualmente-oculto">Asistente:</span>
+                <p class="burbuja__texto">{ultimo.texto}</p>
+                <form method="post">
+                  <input type="hidden" name="historial" value={historialJson} />
+                  <input type="hidden" name="plan" value={JSON.stringify({ acciones: propuestas.map((p) => p.accion) })} />
+                  <ul class="propuestas" aria-label="Cambios que voy a guardar">
+                    {propuestas.map((p, i) => (
+                      <li>
+                        <label class="casilla"><input type="checkbox" name="sel" value={i} checked={p.marcada} /> {describir(p.accion)}</label>
+                        {p.aviso && <small class="propuestas__aviso">{p.aviso}</small>}
+                      </li>
+                    ))}
+                  </ul>
+                  <div class="burbuja__botones">
+                    <button class="boton boton--chat" type="submit" name="accion" value="aplicar">Guardar</button>
+                    <button class="boton boton--borde boton--chat" type="submit" name="accion" value="cancelar">Cancelar</button>
+                  </div>
+                </form>
+              </li>
+            )}
+
+            {ultimo && resultados && (
+              <li class="burbuja burbuja--asistente burbuja--ancha">
+                <span class="visualmente-oculto">Asistente:</span>
+                <p class="burbuja__texto">{ultimo.texto}</p>
+                <ul class="resultados">
+                  {resultados.map((r) => (
+                    <li class:list={{ fallo: !r.ok }}>
+                      <span aria-hidden="true">{r.ok ? '✓' : '✗'}</span>
+                      <span>{r.texto}{r.enlace && <> · <a href={r.enlace}>Ver</a></>}</span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            )}
+          </ol>
+        )}
+      </div>
+
+      <div class="chat__pie">
+        {!enConversacion && (
+          <div class="sugerencias" id="sugerencias" hidden>
+            {SUGERENCIAS.map((s) => <button class="sugerencia" type="button" data-frase={s.frase}>{s.texto}</button>)}
+          </div>
+        )}
+        {error && <p class="chat__error" role="alert">{error}</p>}
+        <p class="chat__error" id="aviso-dictado" role="status" hidden></p>
+        <form method="post" class="caja" id="form-asistente">
+          <input type="hidden" name="accion" value="planear" />
+          <input type="hidden" name="historial" value={historialJson} />
+          <label for="texto" class="visualmente-oculto">Mensaje para el asistente</label>
+          <textarea id="texto" name="texto" rows="1" maxlength={MAX_TEXTO} enterkeyhint="send"
+            placeholder={propuestas ? 'Cambia o añade algo…' : enConversacion ? 'Responde…' : 'Escribe o dicta aquí…'}>{texto}</textarea>
+          <button class="caja__boton caja__boton--micro" type="button" id="microfono" aria-label="Dictar" aria-pressed="false" hidden>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+          </button>
+          <button class="caja__boton caja__boton--enviar" type="submit" id="enviar" aria-label="Enviar">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+          </button>
+        </form>
+      </div>
+    </div>
   )}
 </Panel>
 
 <script>
-  // Dictado con el reconocimiento de voz del navegador (Chrome, Edge, Safari). Rellena la caja de texto.
-  type Resultado = { isFinal: boolean; 0: { transcript: string } };
-  type Reconocimiento = {
-    lang: string; continuous: boolean; interimResults: boolean;
-    onresult: ((e: { resultIndex: number; results: ArrayLike<Resultado> }) => void) | null;
-    onend: (() => void) | null; onerror: ((e: { error: string }) => void) | null; start(): void; stop(): void;
-  };
-  const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
-  const Clase = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-  const boton = document.getElementById('microfono') as HTMLButtonElement | null;
+  const mensajes = document.getElementById('mensajes');
+  const form = document.getElementById('form-asistente') as HTMLFormElement | null;
   const caja = document.getElementById('texto') as HTMLTextAreaElement | null;
+  const enviar = document.getElementById('enviar') as HTMLButtonElement | null;
+  const boton = document.getElementById('microfono') as HTMLButtonElement | null;
   const aviso = document.getElementById('aviso-dictado');
   const avisar = (texto: string) => { if (aviso) { aviso.textContent = texto; aviso.hidden = !texto; } };
-  // Si el navegador no permite dictar, se dice por qué en vez de no hacer nada.
-  const ERRORES: Record<string, string> = {
-    'not-allowed': 'El navegador no deja usar el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono.',
-    'service-not-allowed': 'Este navegador no permite dictar. Prueba con Chrome, Edge o Safari.',
-    'audio-capture': 'No se encuentra ningún micrófono.',
-    network: 'El dictado necesita internet y no ha podido conectarse. Vuelve a intentarlo.',
-    'no-speech': 'No te he oído. Pulsa Dictar y habla cerca del micrófono.',
+
+  // La conversación empieza por el final, como en cualquier chat.
+  if (mensajes) mensajes.scrollTop = mensajes.scrollHeight;
+
+  // La caja crece con el texto (hasta un tope; luego hace scroll) y el botón de enviar solo vale con algo escrito.
+  const ajustar = () => {
+    if (!caja) return;
+    caja.style.height = 'auto';
+    caja.style.height = `${Math.min(caja.scrollHeight + 2, 200)}px`;
+    if (enviar) enviar.disabled = !caja.value.trim();
   };
+  caja?.addEventListener('input', ajustar);
+  ajustar();
+
+  // Intro envía; Mayús+Intro hace salto de línea (y no se envía a medias mientras se compone un acento).
+  caja?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    e.preventDefault();
+    if (caja.value.trim()) form?.requestSubmit();
+  });
+
+  // Al enviar, el mensaje aparece al momento y el asistente «escribe» mientras responde el servidor.
+  form?.addEventListener('submit', (e) => {
+    if (!caja?.value.trim()) { e.preventDefault(); return; }
+    if (!document.getElementById('hilo') && mensajes) mensajes.innerHTML = '<ol class="hilo" id="hilo" aria-label="Conversación"></ol>';
+    const hilo = document.getElementById('hilo') as HTMLOListElement | null;
+    const mio = document.createElement('li');
+    mio.className = 'burbuja burbuja--yo';
+    mio.textContent = caja.value.trim();
+    const escribiendo = document.createElement('li');
+    escribiendo.className = 'burbuja burbuja--asistente burbuja--escribiendo';
+    escribiendo.setAttribute('aria-label', 'El asistente está escribiendo');
+    escribiendo.innerHTML = '<span></span><span></span><span></span>';
+    hilo?.appendChild(mio);
+    hilo?.appendChild(escribiendo);
+    document.getElementById('sugerencias')?.remove();
+    if (mensajes) mensajes.scrollTop = mensajes.scrollHeight;
+    // Se desactiva después de que el navegador recoja los datos del formulario.
+    setTimeout(() => { caja.value = ''; ajustar(); caja.readOnly = true; });
+  });
 
   // Sugerencias: rellenan la caja con el principio de la frase y dejan el cursor al final para seguir escribiendo.
   const sugerencias = document.getElementById('sugerencias');
@@ -183,16 +240,39 @@ const historialJson = JSON.stringify(historial);
       const frase = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-frase]')?.dataset.frase;
       if (!frase) return;
       caja.value = frase;
+      ajustar();
       caja.focus();
       caja.setSelectionRange(frase.length, frase.length);
     });
   }
 
+  // Dictado con el reconocimiento de voz del navegador (Chrome, Edge, Safari). Rellena la caja de texto.
+  type Resultado = { isFinal: boolean; 0: { transcript: string } };
+  type Reconocimiento = {
+    lang: string; continuous: boolean; interimResults: boolean;
+    onresult: ((e: { resultIndex: number; results: ArrayLike<Resultado> }) => void) | null;
+    onend: (() => void) | null; onerror: ((e: { error: string }) => void) | null; start(): void; stop(): void;
+  };
+  const w = window as unknown as { SpeechRecognition?: new () => Reconocimiento; webkitSpeechRecognition?: new () => Reconocimiento };
+  const Clase = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  // Si el navegador no permite dictar, se dice por qué en vez de no hacer nada.
+  const ERRORES: Record<string, string> = {
+    'not-allowed': 'El navegador no deja usar el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono.',
+    'service-not-allowed': 'Este navegador no permite dictar. Prueba con Chrome, Edge o Safari.',
+    'audio-capture': 'No se encuentra ningún micrófono.',
+    network: 'El dictado necesita internet y no ha podido conectarse. Vuelve a intentarlo.',
+    'no-speech': 'No te he oído. Pulsa el micrófono y habla cerca.',
+  };
+
   if (Clase && boton && caja) {
     boton.hidden = false;
     let rec: Reconocimiento | null = null;
     let base = '';
-    const parar = () => { rec?.stop(); rec = null; boton.textContent = '🎤 Dictar'; };
+    const marcar = (dictando: boolean) => {
+      boton.setAttribute('aria-pressed', String(dictando));
+      boton.setAttribute('aria-label', dictando ? 'Parar el dictado' : 'Dictar');
+    };
+    const parar = () => { rec?.stop(); rec = null; marcar(false); };
     boton.addEventListener('click', () => {
       if (rec) return parar();
       rec = new Clase();
@@ -208,8 +288,9 @@ const historialJson = JSON.stringify(historial);
           else provisional += e.results[i][0].transcript;
         }
         caja.value = [base, final, provisional].filter(Boolean).join(' ').trim();
+        ajustar();
       };
-      rec.onend = () => { rec = null; boton.textContent = '🎤 Dictar'; };
+      rec.onend = () => { rec = null; marcar(false); };
       rec.onerror = (e) => { if (e.error !== 'aborted') avisar(ERRORES[e.error] ?? 'No se ha podido dictar. Vuelve a intentarlo.'); };
       avisar('');
       try {
@@ -219,30 +300,105 @@ const historialJson = JSON.stringify(historial);
         rec = null;
         return;
       }
-      boton.textContent = '■ Parar';
+      marcar(true);
     });
   }
 </script>
 
-<style>
+<!-- Global: el script añade burbujas al enviar y no llevan la marca de estilos de Astro. Solo se carga en esta página. -->
+<style is:global>
   .visualmente-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .hilo { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; max-width: 680px; }
-  .hilo__turno { padding: 10px 14px; border-radius: 16px; max-width: 85%; white-space: pre-line; }
-  .hilo__turno--yo { justify-self: end; background: var(--verde-profundo); color: var(--crema-claro); border-bottom-right-radius: 4px; }
-  .hilo__turno--asistente { justify-self: start; background: var(--crema-claro); border: 1px solid var(--borde); border-bottom-left-radius: 4px; }
-  .sugerencias { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sugerencias[hidden] { display: none; }
-  .sugerencia {
-    min-height: 48px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--borde);
-    background: var(--crema-claro); color: var(--verde-profundo); font: inherit; cursor: pointer;
+
+  /* El chat ocupa todo el alto bajo la barra: cabecera fina, mensajes con scroll propio y la caja fija abajo. */
+  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .chat__cabecera, .hilo, .chat__vacio, .chat__pie { width: min(820px, 100% - 2 * var(--margen)); margin-inline: auto; }
+  .chat__cabecera { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 8px 0 4px; }
+  .chat__cabecera h1 { font-size: 1.5rem; margin: 0; }
+  .chat__nuevo {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px;
+    color: var(--tinta-suave); font-size: 0.9rem; text-decoration: none;
   }
-  .sugerencia:hover { border-color: var(--verde); }
+  .chat__nuevo:hover { color: var(--verde-profundo); text-decoration: underline; }
+  .chat__nuevo svg, .chat__vacio svg, .caja__boton svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .chat__mensajes {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; outline: none;
+    scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--tinta) 18%, transparent) transparent;
+    /* Los mensajes se funden al pasar bajo la cabecera en vez de cortarse en seco. */
+    mask-image: linear-gradient(to bottom, transparent, #000 12px);
+  }
+  .chat__mensajes::-webkit-scrollbar { width: 8px; }
+  .chat__mensajes::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--tinta) 18%, transparent); border-radius: 8px; }
+  .chat__vacio { height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; color: var(--tinta-suave); }
+  .chat__vacio svg { color: var(--salvia); }
+  .chat__vacio p { margin: 0; font-family: var(--serif); font-size: 1.5rem; color: var(--verde-profundo); }
+
+  .hilo { list-style: none; padding: 12px 0 16px; margin-block: 0; display: flex; flex-direction: column; gap: 10px; }
+  .burbuja { text-wrap: wrap; padding: 10px 14px; border-radius: 18px; max-width: min(85%, 620px); white-space: pre-line; line-height: 1.5; overflow-wrap: anywhere; }
+  .burbuja--yo { align-self: flex-end; background: var(--verde-profundo); color: var(--crema-claro); border-bottom-right-radius: 6px; }
+  .burbuja--asistente { align-self: flex-start; background: var(--crema-claro); border: 1px solid var(--borde); border-bottom-left-radius: 6px; }
+  .burbuja--ancha { width: min(92%, 620px); white-space: normal; padding: 14px 16px; }
+  .burbuja__texto { margin: 0 0 10px; }
+  .burbuja__botones { display: flex; flex-wrap: wrap; gap: 8px; }
+  .boton--chat { min-height: 48px; padding: 8px 22px; font-size: 0.95rem; }
+
+  .propuestas, .resultados { list-style: none; padding: 0; display: grid; gap: 6px; margin: 0 0 12px; }
+  .propuestas li { background: var(--crema); border-radius: 12px; padding: 10px 12px; font-size: 0.95rem; }
   .propuestas__aviso { display: block; margin-top: 4px; padding-left: 34px; color: var(--aviso); }
-  .propuestas, .resultados { list-style: none; padding: 0; display: grid; gap: 10px; margin: 12px 0 16px; }
-  .propuestas li { background: var(--crema); border-radius: 12px; padding: 10px 12px; }
-  .resultados li { display: flex; gap: 10px; }
+  .resultados { margin: 0; font-size: 0.95rem; }
+  .resultados li { display: flex; gap: 8px; }
   .resultados li > span:first-child { color: #23613a; font-weight: 700; }
   .resultados li.fallo > span:first-child { color: var(--aviso); }
-  .aviso-dictado { margin: 0; color: var(--aviso); }
-  .errores { margin: 0; }
+
+  /* «Escribiendo…»: tres puntos que laten mientras responde el servidor. */
+  .burbuja--escribiendo { display: inline-flex; gap: 5px; padding: 14px 16px; }
+  .burbuja--escribiendo span { width: 7px; height: 7px; border-radius: 50%; background: var(--tinta-suave); opacity: 0.5; }
+  @media (prefers-reduced-motion: no-preference) {
+    .burbuja--escribiendo span { animation: latido 1.2s infinite ease-in-out; }
+    .burbuja--escribiendo span:nth-child(2) { animation-delay: 0.15s; }
+    .burbuja--escribiendo span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes latido { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 0.9; transform: translateY(-3px); } }
+  }
+
+  .chat__pie { flex: none; padding: 8px 0 12px; display: grid; gap: 8px; }
+  .chat__error { margin: 0; padding: 8px 14px; border-radius: 12px; background: #fbebe5; color: var(--aviso); font-size: 0.95rem; }
+  .chat__error[hidden] { display: none; }
+
+  /* Sugerencias: una fila que se desliza en el móvil y se reparte en varias en escritorio. */
+  .sugerencias { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--margen)); padding-inline: var(--margen); }
+  .sugerencias[hidden] { display: none; }
+  @media (min-width: 768px) { .sugerencias { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; } }
+  .sugerencia {
+    flex: none; min-height: 48px; padding: 6px 16px; border-radius: 999px; border: 1px solid var(--borde);
+    background: var(--crema-claro); color: var(--verde-profundo); font: inherit; font-size: 0.95rem; cursor: pointer; white-space: nowrap;
+  }
+  .sugerencia:hover { border-color: var(--verde); }
+
+  /* Caja de escribir: una línea que crece, con micrófono y enviar dentro. */
+  .caja {
+    display: flex; align-items: flex-end; gap: 4px; padding: 5px 5px 5px 4px;
+    background: #fff; border: 1px solid var(--borde); border-radius: 26px; box-shadow: var(--sombra-suave);
+  }
+  .caja:focus-within { border-color: var(--verde); }
+  .caja textarea {
+    flex: 1; min-width: 0; border: 0; box-shadow: none; background: transparent; resize: none;
+    min-height: 48px; max-height: 200px; padding: 11px 12px; line-height: 1.5; border-radius: 20px;
+  }
+  .caja textarea:focus { outline: none; }
+  .caja__boton {
+    flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 0;
+    background: transparent; color: var(--tinta-suave); cursor: pointer;
+  }
+  .caja__boton[hidden] { display: none; }
+  .caja__boton:hover { background: var(--crema); color: var(--verde-profundo); }
+  .caja__boton--micro[aria-pressed='true'] { background: var(--aviso); color: #fff; }
+  .caja__boton--enviar { background: var(--verde-profundo); color: var(--crema-claro); }
+  .caja__boton--enviar svg { stroke-width: 2.2; }
+  .caja__boton--enviar:hover { background: var(--tinta); color: var(--crema-claro); }
+  .caja__boton--enviar:disabled { background: var(--salvia-suave); color: var(--tinta-suave); cursor: default; }
+  @media (prefers-reduced-motion: no-preference) {
+    .caja__boton { transition: background-color var(--duracion-corta), color var(--duracion-corta); }
+    .caja__boton--micro[aria-pressed='true'] { animation: grabando 1.4s infinite ease-in-out; }
+    @keyframes grabando { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--aviso) 25%, transparent); } }
+  }
 </style>

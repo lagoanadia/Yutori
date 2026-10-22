@@ -4,8 +4,9 @@ import Fuentes from '../components/Fuentes.astro';
 
 import { pendientesDelMenu, type Pendientes } from '../lib/pendientes';
 
-interface Props { titulo: string; ocultarTitulo?: boolean }
-const { titulo, ocultarTitulo = false } = Astro.props;
+// pantalla: la página ocupa justo el alto de la ventana y solo hace scroll por dentro (el chat del asistente).
+interface Props { titulo: string; ocultarTitulo?: boolean; pantalla?: boolean }
+const { titulo, ocultarTitulo = false, pantalla = false } = Astro.props;
 
 const menu: { href: string; texto: string; globo?: keyof Pendientes; icono: string }[] = [
   { href: '/panel', texto: 'Hoy', icono: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z' },
@@ -51,7 +52,7 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{titulo} · Panel de Yutori</title>
   </head>
-  <body>
+  <body class:list={{ 'cuerpo-pantalla': pantalla }}>
     <header class="barra">
       <div class="contenedor barra__fila">
         <a class="barra__marca" href="/panel">Yutori <span>panel</span></a>
@@ -136,6 +137,12 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
   .panel { padding: 20px 0 calc(88px + env(safe-area-inset-bottom)); }
   @media (min-width: 960px) { .panel { padding: 24px 0 48px; } }
   .panel h1 { font-size: 1.9rem; }
+
+  /* Página a pantalla completa: sin scroll del navegador; el hueco de abajo deja sitio a la barra del móvil. */
+  .cuerpo-pantalla { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+  .cuerpo-pantalla > .barra { flex: none; }
+  .cuerpo-pantalla > .panel { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; padding: 0 0 calc(61px + env(safe-area-inset-bottom)); }
+  @media (min-width: 960px) { .cuerpo-pantalla > .panel { padding-bottom: 0; } }
   .panel h2 { font-size: 1.35rem; margin-top: 32px; }
 
   .filtros { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }

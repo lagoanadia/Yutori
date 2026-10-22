@@ -260,6 +260,32 @@ export function describir(a: Accion): string {
   }
 }
 
+/** Cada acción contada en el chat: verbo en infinitivo y el resto («añadir» + «a la tallerista Ana (aceptada)»). */
+export function frase(a: Accion): { verbo: string; resto: string } {
+  const taller = (t: string) => `el taller «${t}»`;
+  switch (a.tipo) {
+    case 'crear_tallerista':
+      return { verbo: 'añadir', resto: `a la tallerista ${a.nombre} (${ESTADOS_TALLERISTA[a.estado ?? 'aceptada'].toLowerCase()})` };
+    case 'crear_hueco':
+      return { verbo: 'reservar', resto: `un hueco el ${DIA(a.fecha)} por la ${POR_LA(a.momento)} para ${a.tallerista ?? 'ti'}` };
+    case 'crear_taller':
+      return { verbo: 'crear', resto: `${a.titulo ? `el taller «${a.titulo}»` : 'un taller'} el ${DIA(a.fecha)} por la ${POR_LA(a.momento)}${a.tallerista ? ` con ${a.tallerista}` : ''}` };
+    case 'editar_taller': return { verbo: 'cambiar', resto: `${taller(a.taller)} (${detalles(a) || 'sin cambios'})` };
+    case 'publicar_taller': return { verbo: 'publicar', resto: taller(a.taller) };
+    case 'desactivar_taller': return { verbo: 'desactivar', resto: taller(a.taller) };
+    case 'pago_tallerista': return { verbo: 'marcar', resto: `como pagados los 25 € del espacio de ${taller(a.taller)}` };
+    case 'estado_tallerista': return { verbo: 'poner', resto: `a ${a.tallerista} como ${ESTADOS_TALLERISTA[a.estado].toLowerCase()}` };
+    case 'crear_peticion':
+      return { verbo: 'apuntar', resto: `la petición de ${a.peticion === 'privado' ? 'taller privado' : 'bono regalo'} de ${a.nombre}` };
+    case 'estado_solicitud': return { verbo: 'poner', resto: `la petición de ${a.persona} como ${ESTADOS_SOLICITUD[a.estado].toLowerCase()}` };
+    case 'apuntar_alumna': {
+      const quien = a.nombre_menor ? `${a.nombre_menor} (${a.nombre})` : a.nombre;
+      return { verbo: 'apuntar', resto: `a ${quien} a ${juntar([a.clase, a.dia && a.hora ? `${a.dia} ${a.hora}` : a.dia ?? a.hora]).replace(/ · /g, ', ') || 'clase'}` };
+    }
+    case 'pago_alumna': return { verbo: 'marcar', resto: `como pagada la reserva de ${a.persona}${a.que ? ` (${a.que})` : ''}` };
+  }
+}
+
 // ——— Comprobar los datos (las mismas reglas que los formularios del panel) ———
 
 // mapearTallerista() y mapearSolicitud() exigen email (y propuesta): aquí son opcionales. Se les pasa un valor de relleno

@@ -3,7 +3,9 @@ import { env } from './apoyo/cloudflare-workers';
 import {
   aplicar, buscarNombre, buscarTallerista, describir, propuestaGuardadaSchema, revisar, type Accion,
 } from '../src/lib/asistente-acciones';
-import { anadirTurno, INSTRUCCIONES, leerHistorial, leerPlan, MAX_TURNOS, mensajesParaIA, planSchema } from '../src/lib/asistente';
+import {
+  anadirTurno, INSTRUCCIONES, leerHistorial, leerPlan, MAX_TURNOS, mensajeHecho, mensajesParaIA, mensajeVistaPrevia, planSchema, respuestaSinAcciones,
+} from '../src/lib/asistente';
 
 vi.mock('../src/lib/email', () => ({ enviar: vi.fn() }));
 
@@ -384,5 +386,44 @@ describe('describir', () => {
     expect(describir(nuevaTallerista('Rosa'))).toBe('Añadir la tallerista Rosa: Aceptada');
     expect(describir(alumna({ clase: 'Cerámica', dia: 'martes', hora: '18:00', mes: '2099-10' })))
       .toBe('Apuntar a Lucía Pérez a Cerámica · martes 18:00 · octubre de 2099 · 600111222 · mes pagado');
+  });
+});
+
+// ---------- Lo que dice el asistente: nunca «hecho» antes de guardar ----------
+
+describe('mensajes del chat', () => {
+  it('la vista previa dice lo que VA a hacer y pregunta si lo guarda', async () => {
+    const r = await revisar([nuevaTallerista('Ana')]);
+    expect(mensajeVistaPrevia(r.propuestas)).toBe('Voy a añadir a la tallerista Ana (aceptada). ¿Lo guardo?');
+  });
+  it('con varias acciones las junta y pregunta por todo', async () => {
+    const r = await revisar([tallerDe('Iris')]);
+    expect(r.propuestas).toHaveLength(2);
+    expect(mensajeVistaPrevia(r.propuestas)).toMatch(/^Voy a añadir a la tallerista Iris \(aceptada\) y crear .+\. ¿Lo guardo todo\?$/);
+  });
+  it('avisa si ha dejado algo sin marcar', async () => {
+    tallerista('Ana');
+    const r = await revisar([nuevaTallerista('Ana')]);
+    expect(mensajeVistaPrevia(r.propuestas)).toContain('sin marcar');
+  });
+  it('después de guardar dice «Hecho» solo con lo que se ha guardado de verdad', () => {
+    const a = nuevaTallerista('Ana');
+    const b: Accion = { tipo: 'publicar_taller', taller: 'Velas' };
+    expect(mensajeHecho([{ accion: a, ok: true }])).toBe('Hecho: he añadido a la tallerista Ana (aceptada).');
+    expect(mensajeHecho([{ accion: a, ok: true }, { accion: b, ok: false }]))
+      .toBe('Hecho: he añadido a la tallerista Ana (aceptada). No he podido publicar el taller «Velas».');
+    expect(mensajeHecho([{ accion: b, ok: false }])).not.toMatch(/Hecho/);
+    expect(mensajeHecho([])).toBe('Vale, no he guardado nada.');
+  });
+  it('si la IA dice que ha hecho algo sin traer acciones, no se le cree', () => {
+    expect(respuestaSinAcciones('He añadido a la tallerista Ana con estado aceptada.')).not.toMatch(/añadido/);
+    expect(respuestaSinAcciones('Hecho, ya está.')).not.toMatch(/Hecho/);
+    expect(respuestaSinAcciones('Ya está guardada.')).not.toMatch(/guardada/);
+    expect(respuestaSinAcciones('¡Hola! Puedo añadir talleristas, crear talleres…')).toBe('¡Hola! Puedo añadir talleristas, crear talleres…');
+  });
+  it('el prompt prohíbe decir que algo está hecho y pide preguntas concretas', () => {
+    expect(INSTRUCCIONES).toMatch(/NO GUARDAS NADA/);
+    expect(INSTRUCCIONES).toMatch(/¿Cómo se llama la tallerista\?/);
+    expect(INSTRUCCIONES).toMatch(/"Hecho:" ya están guardados/);
   });
 });

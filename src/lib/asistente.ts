@@ -6,9 +6,9 @@ import { z } from 'zod';
 import { todos, ESTADOS_SOLICITUD, ESTADOS_TALLERISTA, FRANJAS } from './db';
 import { hoyEspana } from './reservas';
 import { horariosActivos, horarioTexto } from './importar';
-import { accionSchema } from './asistente-acciones';
+import { accionSchema, frase, type Accion, type Propuesta } from './asistente-acciones';
 
-export { aplicar, describir, propuestaGuardadaSchema, revisar, type Accion, type Propuesta, type Resultado } from './asistente-acciones';
+export { aplicar, describir, frase, propuestaGuardadaSchema, revisar, type Accion, type Propuesta, type Resultado } from './asistente-acciones';
 
 export const asistenteActivo = () => Boolean(env.GROQ_API_KEY);
 
@@ -16,7 +16,7 @@ export const asistenteActivo = () => Boolean(env.GROQ_API_KEY);
 const MODELO = 'openai/gpt-oss-120b';
 
 export const planSchema = z.object({
-  respuesta: z.string().describe('Una o dos frases cortas y cercanas, en castellano, resumiendo lo que has preparado'),
+  respuesta: z.string().describe('Una o dos frases cortas y cercanas, en castellano. Nunca digas que algo está hecho o guardado: tú no guardas nada'),
   pregunta: z.string().nullable().describe('UNA pregunta corta si falta un dato obligatorio o algo es ambiguo; null si ya puedes preparar las acciones'),
   acciones: z.array(accionSchema),
 });
@@ -42,7 +42,10 @@ Qué sabes hacer (tipo de acción):
 
 Cómo trabajas:
 - Si falta un dato OBLIGATORIO o algo es ambiguo (dos personas o talleres que encajan, no sabes qué horario…), no inventes ni falles: pon UNA pregunta corta en "pregunta" y deja "acciones" vacía. Los datos opcionales no se preguntan.
-- Lee todo el hilo: si ya te ha contestado, usa la respuesta y no vuelvas a preguntar lo mismo. Cuando tengas lo necesario, pregunta = null y devuelve todas las acciones pedidas en el hilo.
+- La pregunta es concreta y dice qué dato falta ("¿Cómo se llama la tallerista?", "¿Qué día es el taller?"), nunca "no sé a qué te refieres".
+- TÚ NO GUARDAS NADA: solo preparas acciones y ella las revisa y pulsa Guardar. Nunca digas "he añadido", "he creado", "hecho" ni "guardado".
+- Los mensajes del asistente que empiezan por "Voy a" son vistas previas que aún NO se han guardado. Los que empiezan por "Hecho:" ya están guardados: no los vuelvas a proponer.
+- Lee todo el hilo: si ya te ha contestado, usa la respuesta y no vuelvas a preguntar lo mismo. Cuando tengas lo necesario, pregunta = null y devuelve todas las acciones pedidas en el hilo que no estén ya hechas.
 - "Añade/nueva tallerista" es crear_tallerista, aunque diga un estado ("añade a Iris como aceptada"). estado_tallerista es solo para talleristas que ya existen.
 - Si pide un taller o un hueco para una tallerista que no está en la lista, pon antes crear_tallerista (estado aceptada) y después el taller. Si está pero no aceptada, pon antes estado_tallerista con aceptada.
 - Usa los nombres como aparecen en las listas (puede escribirlos sin tildes o en minúsculas).
@@ -83,6 +86,42 @@ async function contexto() {
     `Categorías: ${categorias.map((c) => c.nombre).join(', ') || 'ninguna'}`,
     `Reservas pendientes de pago: ${pendientes.map((p) => `${p.nombre_menor ? `${p.nombre_menor} (${p.nombre})` : p.nombre} · ${p.que}`).join('; ') || 'ninguna'}`,
   ].join('\n');
+}
+
+// ——— Lo que dice el asistente (lo escribe el código, no la IA, para que nunca diga que algo está hecho sin estarlo) ———
+
+/** «a, b y c» */
+const lista = (partes: string[]) => (partes.length < 2 ? partes.join('') : `${partes.slice(0, -1).join(', ')} y ${partes.at(-1)}`);
+
+const PARTICIPIOS: Record<string, string> = {
+  añadir: 'añadido', reservar: 'reservado', crear: 'creado', cambiar: 'cambiado', publicar: 'publicado',
+  desactivar: 'desactivado', marcar: 'marcado', poner: 'puesto', apuntar: 'apuntado',
+};
+
+/** Mensaje de la vista previa: lo que se VA a hacer y la pregunta de si se guarda. */
+export function mensajeVistaPrevia(propuestas: Propuesta[]): string {
+  const partes = propuestas.map((p) => { const f = frase(p.accion); return `${f.verbo} ${f.resto}`; });
+  const avisos = propuestas.some((p) => !p.marcada) ? ' He dejado sin marcar lo que tiene un aviso.' : '';
+  return `Voy a ${lista(partes)}.${avisos} ${propuestas.length > 1 ? '¿Lo guardo todo?' : '¿Lo guardo?'}`;
+}
+
+/** Mensaje después de guardar: lo que se ha hecho de verdad y lo que ha fallado. */
+export function mensajeHecho(resultados: { accion: Accion; ok: boolean }[]): string {
+  if (resultados.length === 0) return 'Vale, no he guardado nada.';
+  const hechas = resultados.filter((r) => r.ok).map((r) => { const f = frase(r.accion); return `he ${PARTICIPIOS[f.verbo] ?? f.verbo} ${f.resto}`; });
+  const fallos = resultados.filter((r) => !r.ok).map((r) => { const f = frase(r.accion); return `${f.verbo} ${f.resto}`; });
+  return [
+    hechas.length && `Hecho: ${lista(hechas)}.`,
+    fallos.length && `No he podido ${lista(fallos)}.`,
+  ].filter(Boolean).join(' ');
+}
+
+/** Respuesta de la IA cuando no trae acciones: si dice que ha hecho algo (no puede), se cambia por algo honesto. */
+export function respuestaSinAcciones(texto: string): string {
+  const limpio = texto.trim();
+  if (!limpio || /\b(he|hemos|ya est[áa]n?)\s+(añadid|cread|guardad|apuntad|cambiad|marcad|publicad|reservad|desactivad|hech)/i.test(limpio) || /^hecho\b/i.test(limpio))
+    return 'No he preparado ningún cambio. ¿Me dices qué quieres hacer, con nombres y fechas?';
+  return limpio;
 }
 
 // ——— El hilo de la conversación (viaja en un campo oculto del formulario) ———
