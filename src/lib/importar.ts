@@ -45,7 +45,7 @@ function siNo(valor: string, campo: string, errores: string[]): number | null {
 }
 
 /** Busca un código (p. ej. "aceptada") aceptando también su nombre visible ("Aceptada"). */
-function codigoDe(texto: string, opciones: Record<string, string>) {
+export function codigoDe(texto: string, opciones: Record<string, string>) {
   const t = normalizar(texto);
   return Object.keys(opciones).find((k) => k === t || normalizar(opciones[k]) === t) ?? null;
 }
@@ -130,7 +130,7 @@ export function mapearSolicitud(f: Fila, categorias: Map<string, number>): Mapeo
 }
 
 /** Día de la semana: "lunes" o "1" → 1. */
-function diaDe(valor: string): number | null {
+export function diaDe(valor: string): number | null {
   const n = Number(valor);
   if (Number.isInteger(n) && n >= 1 && n <= 7) return n;
   const i = DIAS.findIndex((d) => d && normalizar(d) === normalizar(valor));
@@ -174,7 +174,7 @@ function mapearClase(f: Fila, existentes: Set<string>, tipoDeNueva: Map<string, 
 }
 
 /** "18" o "9:30" → "18:00" / "09:30". */
-function horaDe(valor: string) {
+export function horaDe(valor: string) {
   const m = /^(\d{1,2})(?:[:.h](\d{2}))?h?$/.exec(valor.trim());
   return m ? `${m[1].padStart(2, '0')}:${m[2] ?? '00'}` : valor.trim();
 }

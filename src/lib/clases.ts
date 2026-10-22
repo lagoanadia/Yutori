@@ -175,3 +175,24 @@ export async function renovarMes(origen: string, destino: string) {
     .run();
   return r.meta.changes;
 }
+
+/**
+ * Apunta a mano (desde el panel) a una alumna mensual: sin emails ni plazo de pago, como las importadas.
+ * La plaza se comprueba en la misma sentencia que inserta, y no se apunta dos veces a la misma persona en el mismo grupo y mes.
+ */
+export async function apuntarAlumnaMes(grupoId: number, mes: string, d: DatosAlumna, estado: 'confirmada' | 'pendiente') {
+  await liberarCaducadas();
+  const r = await db()
+    .prepare(`
+      INSERT INTO reservas (tipo, grupo_id, mes, nombre, telefono, email, modalidad, nombre_menor, estado, codigo)
+      SELECT 'clase_mensual', g.id, ?2, ?3, ?4, ?5, ?6, ?7, ?8, lower(hex(randomblob(12)))
+      FROM grupos g
+      WHERE g.id = ?1 AND g.activo = 1 AND g.plazas - ${MENSUALES('g.id', '?2')} >= 1
+        AND NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.grupo_id = g.id AND x.mes = ?2
+                        AND lower(x.nombre) = lower(?3) AND COALESCE(lower(x.nombre_menor), '') = COALESCE(lower(?7), '')
+                        AND x.estado IN ('pendiente', 'confirmada'))
+      RETURNING id`)
+    .bind(grupoId, mes, d.nombre, d.telefono, d.email, d.modalidad, d.menor, estado)
+    .first<{ id: number }>();
+  return r?.id ?? null;
+}
