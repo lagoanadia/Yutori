@@ -2,14 +2,19 @@
 [título] Añadir tallerista · Panel de Yutori
 [descripción]
 Yutori panel
-Modo local
-Resumen
+Hoy
 Asistente
 Talleristas
+1
 Talleres
+2
 Reservas
+2
 Clases
+2
 Privados y bonos
+1
+Modo local
 Añadir tallerista
 ← Todas las talleristas
 Nombre

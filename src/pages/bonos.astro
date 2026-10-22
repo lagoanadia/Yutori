@@ -3,12 +3,13 @@ export const prerender = false;
 import Base from '../layouts/Base.astro';
 import Turnstile from '../components/Turnstile.astro';
 import { db } from '../lib/db';
-import { talleresPublicados } from '../lib/reservas';
+import { talleresPublicados, tallerReservable } from '../lib/reservas';
 import { verificarTurnstile } from '../lib/turnstile';
 import { avisoSolicitud } from '../lib/avisos';
 import { esEmail } from '../lib/util';
 
-const talleres = await talleresPublicados();
+// Solo los talleres que siguen a la venta: con plazas libres, con precio y que aún se pueden reservar.
+const talleres = (await talleresPublicados()).filter((t) => t.plazas > t.ocupadas && t.precio_cent != null && tallerReservable(t.fecha));
 const enviado = Astro.url.searchParams.has('enviado');
 const errores: string[] = [];
 // Importe: de 30 a 100 €, de 5 en 5.

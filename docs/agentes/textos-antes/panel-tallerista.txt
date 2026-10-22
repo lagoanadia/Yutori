@@ -2,14 +2,19 @@
 [título] Lucía Prueba · Slowly Atelier · Panel de Yutori
 [descripción]
 Yutori panel
-Modo local
-Resumen
+Hoy
 Asistente
 Talleristas
+1
 Talleres
+2
 Reservas
+2
 Clases
+2
 Privados y bonos
+1
+Modo local
 Lucía Prueba · Slowly Atelier
 ← Todas las talleristas
 Propuesta

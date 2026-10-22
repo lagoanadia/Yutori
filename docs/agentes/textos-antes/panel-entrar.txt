@@ -1,32 +1,73 @@
 [estado] 200
-[título] Resumen · Panel de Yutori
+[título] Hoy · Panel de Yutori
 [descripción]
 Yutori panel
-Modo local
-Resumen
+Hoy
 Asistente
 Talleristas
+1
 Talleres
+2
 Reservas
+2
 Clases
+2
 Privados y bonos
-Resumen
+1
+Modo local
+Hoy
+Jueves, 22 de octubre · 8 cosas pendientes · 2 urgentes
+URGENTE
 2
-reservas pendientes de pago
-1
-talleristas nuevas
-1
-talleres por revisar
-2
-pagos de 25 € sin recibir
-1
-privados y bonos nuevos
+Slowly Atelier aún no ha rellenado su taller del dom 8 nov · fuera de plazo desde el 14 oct
+Recordar por WhatsApp
+Taller privado de Julia · despedida, 10 personas · llegó hace 9 días
+Pasar a en curso
+ESTA SEMANA
 3
-talleres publicados próximos
-Últimas reservas
-CUÁNDO	QUIÉN	QUÉ	ESTADO
-mar, 13 oct, 21:00	Carla Cliente	Grabado y estampación en tote bags · Taller	Liberada
-mar, 13 oct, 14:00	Eva Cliente	Taller de Halloween · Taller	Liberada
-mar, 13 oct, 11:00	Inés Puntual	Aguadas · Clase suelta	Pendiente de pago
-lun, 12 oct, 12:00	Gala Alumna	Punto por punto · Clase mensual	Pendiente de pago
-mar, 6 oct, 13:00	Bea Cliente	Grabado y estampación en tote bags · Taller	Confirmada
+Cuadernos cosidos a mano · sáb 14 nov
+Papel Lento lo ha enviado
+Publicar en la web
+25 € de la reserva sin recibir
+25 € recibidos
+25 € de Slowly Atelier · taller del dom 8 nov
+25 € recibidos
+CUANDO PUEDAS
+3
+Nueva tallerista: Elena · Otra
+En revisión
+Gala Alumna · Punto por punto, noviembre · 55 € · sin pagar
+Pago recibido
+Inés Puntual · Aguadas, clase del mar 20 · 20 € · sin pagar · ya pasó
+Pago recibido
+Esta semana en Yutori
+Hoy · 22/10
+16:30 Atelier textil
+0 alumnas
+18:00 Atelier textil
+0 alumnas
+20:00 Atelier textil
+0 alumnas
+Mañana · 23/10
+10:30 Punto por punto
+0 alumnas
+Dom 25
+16:00 Lámparas de origami
+8/8 plazas
+Lun 26
+17:00 Punto por punto
+0 alumnas
+18:00 Punto por punto
+0 alumnas
+19:30 Punto por punto
+0 alumnas
+Mar 27
+17:00 Aguadas
+0 alumnas
+18:00 Aguadas
+0 alumnas
+19:30 Aguadas
+0 alumnas
+Mié 28
+10:00 Atelier textil
+0 alumnas

@@ -2,14 +2,19 @@
 [título] Añadir alumna · Panel de Yutori
 [descripción]
 Yutori panel
-Modo local
-Resumen
+Hoy
 Asistente
 Talleristas
+1
 Talleres
+2
 Reservas
+2
 Clases
+2
 Privados y bonos
+1
+Modo local
 Añadir alumna
 ← Clases
 Para las alumnas que ya venían antes de la web. Así entran en la renovación de cada mes.

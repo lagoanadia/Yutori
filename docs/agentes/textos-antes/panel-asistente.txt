@@ -2,13 +2,18 @@
 [título] Asistente · Panel de Yutori
 [descripción]
 Yutori panel
-Modo local
-Resumen
+Hoy
 Asistente
 Talleristas
+1
 Talleres
+2
 Reservas
+2
 Clases
+2
 Privados y bonos
+1
+Modo local
 Asistente
 El asistente todavía no está activado: falta la clave de Groq (GROQ_API_KEY) en Cloudflare.

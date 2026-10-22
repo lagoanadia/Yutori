@@ -2,14 +2,19 @@
 [título] Talleres · Panel de Yutori
 [descripción]
 Yutori panel
-Modo local
-Resumen
+Hoy
 Asistente
 Talleristas
+1
 Talleres
+2
 Reservas
+2
 Clases
+2
 Privados y bonos
+1
+Modo local
 Talleres
 Nuevo hueco de taller
 Todos
@@ -17,10 +22,8 @@ Hueco creado
 Enviado por la tallerista
 Publicado
 Desactivado
+Pasados
 FECHA	TALLER	QUIÉN	PLAZAS	PRECIO	25 €	ESTADO
-sáb, 17 oct
-Sábado mañana · 10:30-13:00	Grabado y estampación en tote bags	Slowly Atelier
-3/8	45,00 €	Recibidos	Publicado
 dom, 25 oct
 Domingo tarde · 16:00-18:00	Lámparas de origami	Papel Lento
 8/8	40,00 €	Recibidos	Publicado
