@@ -1,24 +1,45 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
-import { aplicar, asistenteActivo, describir, planear, planSchema, type Plan, type Resultado } from '../../lib/asistente';
+import {
+  anadirTurno, aplicar, asistenteActivo, describir, leerHistorial, MAX_TEXTO, planear, propuestaGuardadaSchema, revisar,
+  type Propuesta, type Resultado, type Turno,
+} from '../../lib/asistente';
 
-const MAX_TEXTO = 2000;
+// Ideas que se tocan para empezar la frase: quitan la sensación de plantilla.
+const SUGERENCIAS = [
+  { texto: 'Añadir una tallerista', frase: 'Añade a la tallerista ' },
+  { texto: 'Crear un taller', frase: 'Crea un taller el sábado por la mañana de ' },
+  { texto: 'Reservar un hueco', frase: 'Reserva un hueco el domingo por la tarde para ' },
+  { texto: 'Apuntar a una alumna', frase: 'Apunta a la clase de ' },
+  { texto: 'Marcar un pago', frase: 'Ha pagado ' },
+  { texto: 'Privado o bono', frase: 'Me han pedido un taller privado: ' },
+];
+
 let texto = '';
-let plan: Plan | null = null;
+let historial: Turno[] = [];
+let propuestas: Propuesta[] | null = null;
 let resultados: Resultado[] | null = null;
 let error = '';
 
 if (asistenteActivo() && Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const accion = String(datos.get('accion') ?? '');
+  historial = leerHistorial(datos.get('historial'));
 
   if (accion === 'planear') {
     texto = String(datos.get('texto') ?? '').trim().slice(0, MAX_TEXTO);
-    if (!texto) error = 'Cuéntame primero qué quieres cambiar.';
+    if (!texto) error = historial.length ? 'Escribe tu respuesta.' : 'Cuéntame primero qué quieres hacer.';
     else {
+      const conMensaje = anadirTurno(historial, 'yo', texto);
       try {
-        plan = await planear(texto);
+        const plan = await planear(conMensaje);
+        // Lo que pregunta la IA o, si sus acciones no encajan con los datos reales, lo que preguntamos nosotros.
+        const revision = plan.pregunta || plan.acciones.length === 0 ? null : await revisar(plan.acciones);
+        const pregunta = plan.pregunta ?? revision?.pregunta ?? null;
+        historial = anadirTurno(conMensaje, 'asistente', pregunta ?? plan.respuesta);
+        if (!pregunta && revision) propuestas = revision.propuestas;
+        texto = '';
       } catch (e) {
         console.error('[asistente]', e);
         error = 'No he podido entenderlo ahora mismo. Vuelve a intentarlo en un momento.';
@@ -27,8 +48,8 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
   }
 
   if (accion === 'aplicar') {
-    // El plan vuelve del navegador: se valida OTRA VEZ antes de tocar nada.
-    const recibido = planSchema.safeParse((() => { try { return JSON.parse(String(datos.get('plan') ?? '')); } catch { return null; } })());
+    // Las acciones vuelven del navegador: se validan OTRA VEZ antes de tocar nada, y aplicar() vuelve a buscar cada nombre.
+    const recibido = propuestaGuardadaSchema.safeParse((() => { try { return JSON.parse(String(datos.get('plan') ?? '')); } catch { return null; } })());
     if (!recibido.success) error = 'La propuesta no es válida. Vuelve a escribir lo que quieres hacer.';
     else {
       const elegidas = new Set(datos.getAll('sel').map(Number));
@@ -45,6 +66,8 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
     }
   }
 }
+const enConversacion = historial.length > 0;
+const historialJson = JSON.stringify(historial);
 ---
 <Panel titulo="Asistente">
   {!asistenteActivo() ? (
@@ -53,7 +76,7 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
     </div>
   ) : (
     <>
-      <p class="intro">Dime o escribe qué quieres hacer y yo lo preparo. Antes de guardar nada, lo revisas tú.</p>
+      <p class="intro">Escríbelo como lo dirías en voz alta. Si me falta algo, te pregunto. Antes de guardar nada, lo revisas tú.</p>
 
       {resultados ? (
         <section class="tarjeta">
@@ -70,19 +93,29 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
           )}
           <a class="boton boton--borde" href="/panel/asistente">Hacer otra cosa</a>
         </section>
-      ) : plan ? (
-        <section class="tarjeta">
-          <p class="respuesta">{plan.respuesta}</p>
-          {plan.acciones.length === 0 ? (
-            <a class="boton boton--borde" href="/panel/asistente">Probar otra vez</a>
-          ) : (
-            <form method="post">
+      ) : (
+        <>
+          {enConversacion && (
+            <ol class="hilo" aria-label="Conversación">
+              {historial.map((t) => (
+                <li class:list={['hilo__turno', `hilo__turno--${t.rol}`]}>
+                  <span class="visualmente-oculto">{t.rol === 'yo' ? 'Tú:' : 'Asistente:'}</span>{t.texto}
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {propuestas && propuestas.length > 0 && (
+            <form method="post" class="tarjeta">
               <input type="hidden" name="accion" value="aplicar" />
-              <input type="hidden" name="plan" value={JSON.stringify(plan)} />
+              <input type="hidden" name="plan" value={JSON.stringify({ acciones: propuestas.map((p) => p.accion) })} />
               <p><strong>Revisa y desmarca lo que no quieras:</strong></p>
               <ul class="propuestas">
-                {plan.acciones.map((a, i) => (
-                  <li><label class="casilla"><input type="checkbox" name="sel" value={i} checked /> {describir(a)}</label></li>
+                {propuestas.map((p, i) => (
+                  <li>
+                    <label class="casilla"><input type="checkbox" name="sel" value={i} checked={p.marcada} /> {describir(p.accion)}</label>
+                    {p.aviso && <small class="propuestas__aviso">{p.aviso}</small>}
+                  </li>
                 ))}
               </ul>
               <div class="botones">
@@ -91,24 +124,29 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
               </div>
             </form>
           )}
-          <p class="original"><small>Lo que pediste: “{texto}”</small></p>
-        </section>
-      ) : (
-        <form method="post" class="tarjeta formulario" id="form-asistente">
-          <input type="hidden" name="accion" value="planear" />
-          {error && <p class="errores" role="alert">{error}</p>}
-          <div class="campo">
-            <label for="texto">¿Qué quieres hacer?</label>
-            <textarea id="texto" name="texto" rows="5" maxlength={MAX_TEXTO} required
-              placeholder="Ej.: El sábado 14 por la mañana doy un taller de velas de soja de 11 a 13, 35 euros, 8 plazas, material incluido. Y acepta a Clara Cerámica.">{texto}</textarea>
-          </div>
-          <div class="botones">
-            <button class="boton boton--borde" type="button" id="microfono" hidden>🎤 Dictar</button>
-            <button class="boton" type="submit">Preparar</button>
-          </div>
-          <p class="aviso-dictado" id="aviso-dictado" role="status" hidden></p>
-          <small class="nota">Puedo crear talleres o huecos, cambiar sus datos, publicarlos o desactivarlos, y cambiar el estado de talleristas, privados y bonos. Los pagos se marcan siempre a mano.</small>
-        </form>
+
+          <form method="post" class="tarjeta formulario" id="form-asistente">
+            <input type="hidden" name="accion" value="planear" />
+            <input type="hidden" name="historial" value={historialJson} />
+            {error && <p class="errores" role="alert">{error}</p>}
+            <div class="campo">
+              <label for="texto">{propuestas ? '¿Quieres cambiar o añadir algo?' : enConversacion ? 'Tu respuesta' : '¿Qué quieres hacer?'}</label>
+              <textarea id="texto" name="texto" rows={enConversacion ? 3 : 5} maxlength={MAX_TEXTO} required
+                placeholder={enConversacion ? '' : 'Por ejemplo: añade a Iris como tallerista aceptada'}>{texto}</textarea>
+            </div>
+            {!enConversacion && (
+              <div class="sugerencias" id="sugerencias" hidden>
+                {SUGERENCIAS.map((s) => <button class="sugerencia" type="button" data-frase={s.frase}>{s.texto}</button>)}
+              </div>
+            )}
+            <div class="botones">
+              <button class="boton boton--borde" type="button" id="microfono" hidden>🎤 Dictar</button>
+              <button class="boton" type="submit">{enConversacion ? 'Enviar' : 'Preparar'}</button>
+              {enConversacion && <a class="boton-texto" href="/panel/asistente">Empezar de nuevo</a>}
+            </div>
+            <p class="aviso-dictado" id="aviso-dictado" role="status" hidden></p>
+          </form>
+        </>
       )}
     </>
   )}
@@ -136,6 +174,19 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
     network: 'El dictado necesita internet y no ha podido conectarse. Vuelve a intentarlo.',
     'no-speech': 'No te he oído. Pulsa Dictar y habla cerca del micrófono.',
   };
+
+  // Sugerencias: rellenan la caja con el principio de la frase y dejan el cursor al final para seguir escribiendo.
+  const sugerencias = document.getElementById('sugerencias');
+  if (sugerencias && caja) {
+    sugerencias.hidden = false;
+    sugerencias.addEventListener('click', (e) => {
+      const frase = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-frase]')?.dataset.frase;
+      if (!frase) return;
+      caja.value = frase;
+      caja.focus();
+      caja.setSelectionRange(frase.length, frase.length);
+    });
+  }
 
   if (Clase && boton && caja) {
     boton.hidden = false;
@@ -174,14 +225,24 @@ if (asistenteActivo() && Astro.request.method === 'POST') {
 </script>
 
 <style>
-  .respuesta { font-size: 1.1rem; }
+  .visualmente-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hilo { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; max-width: 680px; }
+  .hilo__turno { padding: 10px 14px; border-radius: 16px; max-width: 85%; white-space: pre-line; }
+  .hilo__turno--yo { justify-self: end; background: var(--verde-profundo); color: var(--crema-claro); border-bottom-right-radius: 4px; }
+  .hilo__turno--asistente { justify-self: start; background: var(--crema-claro); border: 1px solid var(--borde); border-bottom-left-radius: 4px; }
+  .sugerencias { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sugerencias[hidden] { display: none; }
+  .sugerencia {
+    min-height: 48px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--borde);
+    background: var(--crema-claro); color: var(--verde-profundo); font: inherit; cursor: pointer;
+  }
+  .sugerencia:hover { border-color: var(--verde); }
+  .propuestas__aviso { display: block; margin-top: 4px; padding-left: 34px; color: var(--aviso); }
   .propuestas, .resultados { list-style: none; padding: 0; display: grid; gap: 10px; margin: 12px 0 16px; }
   .propuestas li { background: var(--crema); border-radius: 12px; padding: 10px 12px; }
   .resultados li { display: flex; gap: 10px; }
   .resultados li > span:first-child { color: #23613a; font-weight: 700; }
   .resultados li.fallo > span:first-child { color: var(--aviso); }
-  .original { margin-top: 12px; color: var(--tinta-suave); }
-  .nota { color: var(--tinta-suave); }
   .aviso-dictado { margin: 0; color: var(--aviso); }
   .errores { margin: 0; }
 </style>
