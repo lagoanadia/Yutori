@@ -5,6 +5,7 @@ import { stripe, stripeActivo } from './stripe';
 import { avisoCobroFallido, avisoPagoDevuelto, avisoPagoConfirmado, avisoReservaPagada } from './avisos';
 import { actualizarCalendario } from './calendario';
 import { meses, nombreMes } from './clases';
+import { fechaLarga } from '../data/yutori';
 import { PLAZO_PAGO_TARJETA_MIN } from './reservas';
 
 const AHORA = `strftime('%Y-%m-%dT%H:%M:%S', 'now')`;
@@ -17,8 +18,8 @@ type ParaPagar = {
 /** Concepto que se ve en la página de pago y en el extracto. */
 const concepto = (r: ParaPagar) =>
   r.tipo === 'clase_mensual' ? `${r.titulo} · ${nombreMes(r.mes!)}`
-  : r.tipo === 'clase_suelta' ? `${r.titulo} · clase suelta ${r.fecha}`
-  : `${r.titulo} · ${r.fecha}${r.plazas > 1 ? ` · ${r.plazas} plazas` : ''}`;
+  : r.tipo === 'clase_suelta' ? `${r.titulo} · clase suelta · ${fechaLarga(r.fecha!)}`
+  : `${r.titulo} · ${fechaLarga(r.fecha!)}${r.plazas > 1 ? ` · ${r.plazas} plazas` : ''}`;
 
 /**
  * Abre el pago con tarjeta de una reserva pendiente y devuelve la dirección de la página de pago de Stripe.
@@ -47,6 +48,8 @@ export async function iniciarPago(codigo: string, origen: string) {
   const sesion = await stripe<{ id: string; url: string }>('POST', 'checkout/sessions', {
     mode: 'payment',
     locale: 'es',
+    // Siempre en euros: sin la conversión a la moneda del cliente (Stripe le cobraría un 4 % extra).
+    adaptive_pricing: { enabled: false },
     client_reference_id: r.codigo,
     metadata: { codigo: r.codigo },
     ...(r.stripe_cliente ? { customer: r.stripe_cliente } : { customer_email: r.email, ...(mensual ? { customer_creation: 'always' } : {}) }),

@@ -75,7 +75,7 @@ const pago = (a: Alumna) => a.metodo_pago === 'tarjeta' ? `Tarjeta${a.tarjeta ? 
 
   {cobro && (
     <p class="aviso-ok" role="status">
-      {cobro.cobradas + cobro.fallidas === 0 ? 'No había mensualidades por cobrar.' : `${cobro.cobradas} cobradas${cobro.fallidas ? ` y ${cobro.fallidas} con el cobro fallido (te salen marcadas abajo)` : ''}.`}
+      {cobro.cobradas + cobro.fallidas === 0 ? 'No había mensualidades por cobrar.' : `${cobro.cobradas} ${cobro.cobradas === 1 ? 'cobrada' : 'cobradas'}${cobro.fallidas ? ` y ${cobro.fallidas} con el cobro fallido (te salen marcadas abajo)` : ''}.`}
     </p>
   )}
 
