@@ -2,18 +2,20 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { todos, eurosCorto, fecha, DIAS, ESTADOS_RESERVA } from '../../lib/db';
-import { gruposActivos, meses, nombreMes, renovarMes } from '../../lib/clases';
+import { asegurarRenovacion, gruposActivos, meses, nombreMes, renovarMes } from '../../lib/clases';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
 
 const { actual, siguiente } = meses();
 const mes = Astro.url.searchParams.get('mes') === actual ? actual : siguiente;
 let renovadas: number | null = null;
+// Desde el día 20 las alumnas se renuevan solas; aquí también, para que Iris las vea ya renovadas.
+await asegurarRenovacion();
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const accion = String(datos.get('accion') ?? '');
   if (accion === 'renovar') {
-    renovadas = await renovarMes(actual, siguiente);
+    renovadas = (await renovarMes(actual, siguiente)).renovadas;
   } else if (accion === 'pagado' || accion === 'cancelar') {
     await cambiarEstadoReserva(Number(datos.get('reserva')), accion);
     return Astro.redirect(`/panel/clases?mes=${mes}&ok=guardado#g${datos.get('grupo')}`, 303);
