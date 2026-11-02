@@ -312,12 +312,12 @@ describe('renovar alumnas (T12)', () => {
     reserva({ id: 2, tipo: 'clase_mensual', grupo: 1, mes: '2099-10', estado: 'confirmada', nombre: 'Gala' });
   });
 
-  it('no sale antes del día 20', async () => {
+  it('no sale antes del día 26', async () => {
     expect((await calcular()).some((t) => t.codigo === 'T12')).toBe(false);
   });
-  it('desde el día 20 ofrece renovar a las que aún no tienen su plaza del mes siguiente', async () => {
+  it('desde el día 26 ofrece renovar a las que aún no tienen su plaza del mes siguiente', async () => {
     reserva({ id: 3, tipo: 'clase_mensual', grupo: 1, mes: '2099-11', estado: 'pendiente', nombre: 'Flor' }); // Flor ya renovada
-    vi.setSystemTime(new Date('2099-10-20T10:00:00Z'));
+    vi.setSystemTime(new Date('2099-10-26T10:00:00Z'));
     const t = una(await calcular(), 'T12');
     expect(t.bloque).toBe('semana');
     expect(t.texto).toBe('Renueva a tus alumnas para noviembre (2 confirmadas en octubre)');
@@ -326,7 +326,7 @@ describe('renovar alumnas (T12)', () => {
   it('si ya están todas renovadas, desaparece', async () => {
     reserva({ id: 3, tipo: 'clase_mensual', grupo: 1, mes: '2099-11', estado: 'pendiente', nombre: 'Flor' });
     reserva({ id: 4, tipo: 'clase_mensual', grupo: 1, mes: '2099-11', estado: 'confirmada', nombre: 'Gala' });
-    vi.setSystemTime(new Date('2099-10-20T10:00:00Z'));
+    vi.setSystemTime(new Date('2099-10-26T10:00:00Z'));
     expect((await calcular()).some((t) => t.codigo === 'T12')).toBe(false);
   });
 });
@@ -492,7 +492,7 @@ describe('renovar desde la portada', () => {
   it('crea las plazas pendientes del mes siguiente y dice cuántas', async () => {
     grupo(1);
     reserva({ id: 1, tipo: 'clase_mensual', grupo: 1, mes: '2099-10', estado: 'confirmada', nombre: 'Flor' });
-    vi.setSystemTime(new Date('2099-10-20T10:00:00Z'));
+    vi.setSystemTime(new Date('2099-10-26T10:00:00Z'));
     expect(await ejecutarAccion('renovar', 0)).toEqual({ ok: true, hecho: 'renovadas', de: '1' });
     expect(await ejecutarAccion('renovar', 0)).toEqual({ ok: true, hecho: 'renovadas', de: '0' });
   });

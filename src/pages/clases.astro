@@ -3,19 +3,22 @@ export const prerender = false;
 import Base from '../layouts/Base.astro';
 import { PLAZAS_CLASE, politicaClases } from '../data/yutori';
 import { DIAS, eurosCorto } from '../lib/db';
-import { gruposActivos, mesInscripcion, nombreMes, ocupacionMes, type Grupo } from '../lib/clases';
+import { gruposActivos, meses, mesInscripcion, nombreMes, ocupacionMes, type Grupo } from '../lib/clases';
+import { urlFoto } from '../lib/fotos';
 
-// Desde el día 20 se muestran ya las plazas del mes siguiente (es cuando se abren las inscripciones).
-const mesMostrado = mesInscripcion();
+// Desde el día 26 se muestran ya las plazas del mes siguiente (es cuando se abren las inscripciones); antes, las de este mes.
+const mesMostrado = mesInscripcion() ?? meses().actual;
 const [grupos, ocupacion] = await Promise.all([gruposActivos(), ocupacionMes(mesMostrado)]);
 
 type Clase = { slug: string; nombre: string; tipo: string; colabora: string | null; texto: string | null; temas: string[];
-  kit: boolean; modalidades: string[]; precioSuelta: number | null; publicos: Map<string, Grupo[]> };
+  kit: boolean; modalidades: string[]; precioSuelta: number | null; publicos: Map<string, Grupo[]>;
+  profe: { nombre: string; texto: string | null; foto: string | null } | null };
 const clases = new Map<string, Clase>();
 for (const g of grupos) {
   const c = clases.get(g.slug) ?? {
     slug: g.slug, nombre: g.nombre, tipo: g.tipo, colabora: g.colabora, texto: g.texto, temas: JSON.parse(g.temas),
     kit: !!g.kit_incluido, modalidades: JSON.parse(g.modalidades), precioSuelta: g.precio_suelta_cent, publicos: new Map(),
+    profe: g.profe_nombre ? { nombre: g.profe_nombre, texto: g.profe_texto, foto: g.profe_foto } : null,
   };
   c.publicos.set(g.publico, [...(c.publicos.get(g.publico) ?? []), g]);
   clases.set(g.slug, c);
@@ -42,6 +45,12 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
             {c.colabora && <p class="clase__colabora">{c.colabora}</p>}
             <p>{c.texto}</p>
             <ul class="temas" aria-label="Qué se trabaja">{c.temas.map((t) => <li>{t}</li>)}</ul>
+            {c.profe && (
+              <div class="profe">
+                {c.profe.foto && <img class="profe__foto" src={urlFoto(c.profe.foto)} alt={c.profe.nombre} width="64" height="64" loading="lazy" />}
+                <p><strong class="profe__nombre">{c.profe.nombre}</strong>{c.profe.texto && <span>{c.profe.texto}</span>}</p>
+              </div>
+            )}
 
             {[...c.publicos].map(([publico, lista]) => (
               <div class="publico">
@@ -109,6 +118,10 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
   .clase__colabora { font-family: var(--serif); font-style: italic; color: var(--verde); font-size: 1.3rem; margin-bottom: 8px; }
   .temas { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-wrap: wrap; gap: 6px; }
   .temas li { font-size: 0.84rem; background: var(--salvia-suave); color: var(--verde-profundo); border-radius: 999px; padding: 3px 11px; }
+  .profe { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; padding: 14px; border-radius: 16px; background: var(--crema-claro); }
+  .profe__foto { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; }
+  .profe p { margin: 0; font-size: 0.95rem; color: var(--tinta-suave); }
+  .profe__nombre { display: block; font-family: var(--serif); font-size: 1.15rem; color: var(--verde-profundo); font-weight: 600; }
   .publico { margin-top: 6px; }
   .publico h3 { font-size: 1.15rem; margin: 8px 0 4px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px; }
   .publico__precio { font-family: var(--sans); font-size: 0.92rem; font-weight: 600; color: var(--tinta); letter-spacing: 0; }

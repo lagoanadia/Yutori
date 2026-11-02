@@ -3,10 +3,11 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
 import { DIAS } from '../../lib/db';
-import { disponibilidadSueltas, gruposActivos, mesInscripcion, nombreMes, ocupacionMes, reservarMensual, reservarSuelta } from '../../lib/clases';
+import { disponibilidadSueltas, gruposActivos, meses, mesInscripcion, nombreMes, ocupacionMes, reservarMensual, reservarSuelta } from '../../lib/clases';
 import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
 import { esEmail } from '../../lib/util';
-import { fechaLarga } from '../../data/yutori';
+import { fechaLarga, textosPago } from '../../data/yutori';
+import { iniciarPago } from '../../lib/pagos';
 
 // Desde /clases se llega con ?clase=slug: solo se ven los horarios de esa clase.
 const todosGrupos = await gruposActivos();
@@ -14,14 +15,16 @@ const slug = Astro.url.searchParams.get('clase');
 const grupos = todosGrupos.some((g) => g.slug === slug) ? todosGrupos.filter((g) => g.slug === slug) : todosGrupos;
 const clase = grupos.length && grupos.every((g) => g.slug === grupos[0].slug) ? grupos[0] : null;
 
-// Plaza mensual: solo el mes en el que están abiertas las inscripciones.
+// Plaza mensual: solo el mes en el que están abiertas las inscripciones (desde el día 26, el siguiente). Del 1 al 25
+// no se entra a mitad de mes: solo clases sueltas.
 const mes = mesInscripcion();
-const [ocupacion, sueltas] = await Promise.all([ocupacionMes(mes), disponibilidadSueltas(grupos)]);
+const mesAbierto = mes !== null;
+const [ocupacion, sueltas] = await Promise.all([mes ? ocupacionMes(mes) : new Map<number, number>(), disponibilidadSueltas(grupos)]);
 const libresMes = (id: number) => Math.max(0, grupos.find((g) => g.id === id)!.plazas - (ocupacion.get(id) ?? 0));
 const hayAdultos = grupos.some((g) => g.publico === 'adultos');
 
 const errores: string[] = [];
-let v = { tipo: 'mensual', grupo: '', sesion: '', modalidad: '', nombre: '', telefono: '', email: '', menor: '' };
+let v = { tipo: mesAbierto || !hayAdultos ? 'mensual' : 'suelta', grupo: '', sesion: '', modalidad: '', nombre: '', telefono: '', email: '', menor: '' };
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
@@ -36,7 +39,7 @@ if (Astro.request.method === 'POST') {
   const [idSesion, fecha] = v.sesion.split('|');
   const g = grupos.find((x) => String(x.id) === (v.tipo === 'suelta' ? idSesion : v.grupo));
   const modalidades: string[] = g ? JSON.parse(g.modalidades) : [];
-  if (!['mensual', 'suelta'].includes(v.tipo)) errores.push('Elige la frecuencia: semanal o clase suelta.');
+  if (!['mensual', 'suelta'].includes(v.tipo) || (v.tipo === 'mensual' && !mesAbierto)) errores.push('Elige la frecuencia: semanal o clase suelta.');
   else if (!g) errores.push(v.tipo === 'suelta' ? 'Elige el día de tu clase suelta.' : 'Elige el horario.');
   if (g && v.tipo === 'suelta' && (g.publico !== 'adultos' || !(sueltas.get(g.id) ?? []).some((s) => s.fecha === fecha && s.libres > 0))) {
     errores.push('Ese día ya no tiene plazas. Elige otro.');
@@ -54,15 +57,16 @@ if (Astro.request.method === 'POST') {
 
   if (errores.length === 0 && g) {
     const alumna = { nombre: v.nombre, telefono: v.telefono, email: v.email, modalidad: v.modalidad || null, menor: g.publico === 'ninos' ? v.menor : null };
-    const codigo = v.tipo === 'mensual' ? await reservarMensual(g.id, mes, alumna) : await reservarSuelta(g.id, fecha, alumna);
-    if (codigo) return Astro.redirect(`/reserva/${codigo}`, 303);
+    const codigo = v.tipo === 'mensual' && mes ? await reservarMensual(g.id, mes, alumna) : await reservarSuelta(g.id, fecha, alumna);
+    // Con tarjeta se va directa a pagar; si Stripe falla, su página de reserva tiene el botón para reintentarlo.
+    if (codigo) return Astro.redirect((await iniciarPago(codigo, Astro.url.origin).catch(() => null)) ?? `/reserva/${codigo}`, 303);
     errores.push(v.tipo === 'mensual'
-      ? `No quedan plazas en ese horario para ${nombreMes(mes)}. Prueba otro horario o escríbenos para la lista de espera.`
+      ? `No quedan plazas en ese horario para ${nombreMes(mes!)}. Prueba otro horario o escríbenos para la lista de espera.`
       : 'Ese día ya no quedan plazas. Prueba otro día.');
   }
 }
 
-const mesCorto = nombreMes(mes).split(' ')[0];
+const mesCorto = nombreMes(mes ?? meses().siguiente).split(' ')[0];
 const Mes = mesCorto[0].toUpperCase() + mesCorto.slice(1);
 const horas = (g: (typeof grupos)[number]) => `${g.hora_inicio}-${g.hora_fin}h`;
 
@@ -92,11 +96,12 @@ const sesiones = [...sueltas].flatMap(([gid, lista]) => lista.map((s) => ({ g: g
       <form class="formulario" method="post" id="form-clase">
         <fieldset class="campo">
           <legend>Frecuencia</legend>
-          <label class="casilla"><input type="radio" name="tipo" value="mensual" checked={v.tipo !== 'suelta'} /> Semanal</label>
+          <label class="casilla"><input type="radio" name="tipo" value="mensual" checked={v.tipo !== 'suelta'} disabled={!mesAbierto} /> Semanal</label>
           {hayAdultos && <label class="casilla"><input type="radio" name="tipo" value="suelta" checked={v.tipo === 'suelta'} /> Clase suelta</label>}
         </fieldset>
 
-        <div class="campo" data-tipo="mensual">
+        {!mesAbierto && <p class="aviso-mes">{textosPago.inscripcionCerrada(nombreMes(meses().siguiente).split(' ')[0])}</p>}
+        <div class="campo" data-tipo="mensual" hidden={!mesAbierto}>
           <label for="grupo">Horario</label>
           <select id="grupo" name="grupo">
             <option value="">Elige uno</option>
@@ -170,3 +175,7 @@ const sesiones = [...sueltas].flatMap(([gid, lista]) => lista.map((s) => ({ g: g
   form.addEventListener('change', actualizar);
   actualizar();
 </script>
+
+<style>
+  .aviso-mes { background: var(--salvia-suave); color: var(--verde-profundo); border-radius: 14px; padding: 12px 16px; margin: 0; }
+</style>

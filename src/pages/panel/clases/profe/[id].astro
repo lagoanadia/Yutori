@@ -1,0 +1,70 @@
+---
+// Presentación de la profesora de una clase: sale en su tarjeta de /clases.
+export const prerender = false;
+import Panel from '../../../../layouts/Panel.astro';
+import { db, uno } from '../../../../lib/db';
+import { archivosDe, borrarFoto, errorDeFoto, guardarFoto, urlFoto } from '../../../../lib/fotos';
+
+type Clase = { id: number; nombre: string; profe_nombre: string | null; profe_texto: string | null; profe_foto: string | null };
+const id = Number(Astro.params.id);
+const c = Number.isInteger(id) ? await uno<Clase>('SELECT id, nombre, profe_nombre, profe_texto, profe_foto FROM clases WHERE id = ?1', id) : null;
+if (!c) return new Response('No encontrado', { status: 404 });
+
+const errores: string[] = [];
+let v = { nombre: c.profe_nombre ?? '', texto: c.profe_texto ?? '' };
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  v = { nombre: String(datos.get('nombre') ?? '').trim().slice(0, 80), texto: String(datos.get('texto') ?? '').trim().slice(0, 600) };
+  const [foto] = archivosDe(datos.getAll('foto'));
+  const quitarFoto = datos.get('quitar_foto') === '1';
+  if (!v.nombre && (v.texto || foto)) errores.push('Escribe el nombre de la profe.');
+  const errorFoto = foto && errorDeFoto(foto);
+  if (errorFoto) errores.push(errorFoto);
+
+  if (!errores.length) {
+    let clave = quitarFoto ? null : c.profe_foto;
+    if (foto) {
+      try {
+        // En la carpeta pública de fotos: se ve en la web sin entrar al panel.
+        clave = await guardarFoto(foto, 'talleres');
+      } catch (e) {
+        errores.push(e instanceof Error ? e.message : 'No se ha podido guardar la foto.');
+      }
+    }
+    if (!errores.length) {
+      await db().prepare('UPDATE clases SET profe_nombre = ?1, profe_texto = ?2, profe_foto = ?3 WHERE id = ?4')
+        .bind(v.nombre || null, v.texto || null, v.nombre ? clave : null, id).run();
+      if (c.profe_foto && c.profe_foto !== clave) await borrarFoto(c.profe_foto);
+      return Astro.redirect('/panel/clases?ok=guardado', 303);
+    }
+  }
+}
+---
+<Panel titulo={`Profe · ${c.nombre}`}>
+  <p><a href="/panel/clases">← Clases</a></p>
+  <p>Sale en la tarjeta de {c.nombre} en la web. Deja el nombre vacío para no enseñar ninguna presentación.</p>
+  {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
+
+  <form method="post" class="formulario tarjeta" enctype="multipart/form-data">
+    <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" maxlength="80" value={v.nombre} /></div>
+    <div class="campo">
+      <label for="texto">Presentación <small>(2 o 3 frases: quién es y cómo da la clase)</small></label>
+      <textarea id="texto" name="texto" rows="4" maxlength="600">{v.texto}</textarea>
+    </div>
+    <div class="campo">
+      <label for="foto">Foto <small>(cuadrada queda mejor; JPG, PNG o WebP)</small></label>
+      {c.profe_foto && <img class="foto-profe" src={urlFoto(c.profe_foto)} alt={`Foto de ${c.profe_nombre ?? 'la profe'}`} width="96" height="96" />}
+      <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" />
+      {c.profe_foto && <label class="casilla"><input type="checkbox" name="quitar_foto" value="1" /> Quitar la foto</label>}
+    </div>
+    <div class="botones">
+      <button class="boton" type="submit">Guardar</button>
+      <a class="boton boton--borde" href="/panel/clases">Cancelar</a>
+    </div>
+  </form>
+</Panel>
+
+<style>
+  .foto-profe { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; display: block; margin-bottom: 8px; }
+</style>

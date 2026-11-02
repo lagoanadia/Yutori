@@ -3,6 +3,10 @@
 {
   "name": "yutori",
   "compatibility_date": "2026-09-01",
+  // Punto de entrada propio: Astro para las páginas y la tarea diaria de las clases (renovación y cobros).
+  "main": "./src/worker.ts",
+  // Cada día a las 07:00 UTC (8:00 o 9:00 en España).
+  "triggers": { "crons": ["0 7 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -32,6 +36,8 @@
     // Google Calendar. La clave privada de la cuenta de servicio va como Secret: GOOGLE_SA_KEY.
     "GOOGLE_CALENDAR_ID": "",
     "GOOGLE_SA_EMAIL": "",
+    // Pagos con tarjeta (Stripe): las claves van como Secrets STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET.
+    // Sin STRIPE_SECRET_KEY la web sigue con el pago fuera de la web.
     // Cloudflare Web Analytics (sin cookies). Token público del sitio; vacío = sin analítica.
     "CF_ANALYTICS_TOKEN": ""
   }

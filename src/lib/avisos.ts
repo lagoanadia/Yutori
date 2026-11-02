@@ -147,6 +147,83 @@ export async function avisoPagoConfirmado(codigo: string) {
   });
 }
 
+/** Pago con tarjeta al reservar: confirmación a la alumna y aviso a quien imparte (la tallerista) o a Yutori. */
+export async function avisoReservaPagada(codigo: string) {
+  const r = await reserva(codigo);
+  if (!r) return;
+  await avisoPagoConfirmado(codigo);
+  const detalle = [
+    `**${r.nombre_menor ? `${r.nombre_menor} (${r.nombre})` : r.nombre}** · ${r.telefono} · ${r.plazas} ${r.plazas === 1 ? 'plaza' : 'plazas'}`,
+    `${r.titulo}, ${cuando(r)}. Pagada con tarjeta en la web.`,
+  ];
+  enviar(r.tallerista_email
+    ? {
+        para: r.tallerista_email, asunto: `Nueva reserva: ${r.titulo}`, titulo: 'Tienes una nueva reserva', parrafos: detalle,
+        ...(r.codigo_enlace ? { boton: { texto: 'Ver mis apuntadas', url: url(`/t/${r.codigo_enlace}#apuntadas`) } } : {}),
+      }
+    : paraYutori(`Nueva reserva pagada: ${r.titulo}`, 'Nueva reserva pagada', detalle, r.taller_id ? `/panel/talleres/${r.taller_id}` : '/panel/clases'));
+}
+
+/** Plazas mensuales renovadas el día 26: cuándo y cómo se cobra, y hasta cuándo se puede cambiar. */
+export async function avisoRenovadas(codigos: string[]) {
+  for (const codigo of codigos) {
+    const r = await uno<{ nombre: string; email: string; titulo: string; mes: string; importe_cent: number | null; metodo_pago: string; tarjeta: string | null }>(`
+      SELECT r.nombre, r.email, c.nombre AS titulo, r.mes, r.importe_cent, r.metodo_pago, r.tarjeta
+      FROM reservas r JOIN grupos g ON g.id = r.grupo_id JOIN clases c ON c.id = g.clase_id WHERE r.codigo = ?1`, codigo);
+    if (!r) continue;
+    const importe = r.importe_cent ? ` (${eurosCorto(r.importe_cent)})` : '';
+    enviar({
+      para: r.email, asunto: `Tu plaza de ${mesTexto(r.mes)}: ${r.titulo}`, titulo: `¡Hola, ${nombrePila(r.nombre)}! Seguimos en ${mesTexto(r.mes).split(' ')[0]}`,
+      parrafos: [
+        `Hemos renovado tu plaza de **${r.titulo}** para **${mesTexto(r.mes)}**.`,
+        r.metodo_pago === 'tarjeta'
+          ? `El día 1 te cobraremos la mensualidad${importe} en tu tarjeta${r.tarjeta ? ` ${r.tarjeta}` : ''}.`
+          : `Puedes pagar la mensualidad${importe} en efectivo en el espacio a principios de mes.`,
+        'Si prefieres cambiar la forma de pago, puedes hacerlo desde tu reserva.',
+      ],
+      boton: { texto: 'Ver mi reserva', url: url(`/reserva/${codigo}`) },
+    });
+  }
+}
+
+/** El cobro automático del día 1 no ha salido: la plaza se guarda y se avisa a la alumna y a Yutori. */
+export async function avisoCobroFallido(codigo: string) {
+  const r = await reserva(codigo);
+  if (!r) return;
+  enviar(
+    {
+      para: r.email, asunto: `No hemos podido cobrar tu plaza de ${r.titulo}`, titulo: `Hola, ${nombrePila(r.nombre)}`,
+      parrafos: [
+        `Hemos intentado cobrar tu plaza de **${r.titulo}** de ${mesTexto(r.mes!)} y el banco no lo ha aceptado.`,
+        'Tu plaza sigue guardada. Puedes pagar con otra tarjeta desde tu reserva o en efectivo en el espacio.',
+      ],
+      boton: { texto: 'Ver mi reserva', url: url(`/reserva/${codigo}`) },
+    },
+    paraYutori(`Cobro fallido: ${r.nombre} · ${r.titulo}`, 'Un cobro automático ha fallado', [
+      `**${r.nombre}** · ${r.telefono} · ${r.titulo}, ${mesTexto(r.mes!)}.`,
+      'La plaza se mantiene. Puedes reintentar el cobro o marcarlo como pagado desde el panel.',
+    ], '/panel/clases'),
+  );
+}
+
+/** Se pagó una plaza que ya no estaba disponible (o dos veces): el dinero se ha devuelto. */
+export async function avisoPagoDevuelto(codigo: string) {
+  const r = await reserva(codigo);
+  if (!r) return;
+  enviar(
+    {
+      para: r.email, asunto: `Te hemos devuelto el pago: ${r.titulo}`, titulo: `Hola, ${nombrePila(r.nombre)}`,
+      parrafos: [
+        `Hemos recibido un pago para **${r.titulo}** cuando la plaza ya no estaba disponible, así que te lo hemos devuelto entero.`,
+        'El banco puede tardar unos días en mostrarlo. Si tienes cualquier duda, escríbenos.',
+      ],
+    },
+    paraYutori(`Pago devuelto: ${r.nombre} · ${r.titulo}`, 'Pago devuelto automáticamente', [
+      `**${r.nombre}** · ${r.telefono} pagó ${r.titulo} cuando su plaza ya no estaba pendiente. Se le ha devuelto el dinero.`,
+    ], '/panel/reservas'),
+  );
+}
+
 export function avisoPlazasLiberadas(lista: { codigo: string; nombre: string; email: string; titulo: string }[]) {
   enviar(...lista.map((l) => ({
     para: l.email, asunto: `Tu plaza se ha liberado: ${l.titulo}`, titulo: 'Tu plaza se ha liberado',

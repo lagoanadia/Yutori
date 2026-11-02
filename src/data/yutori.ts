@@ -174,6 +174,27 @@ export const publicosVisibles = (c: Clase) => c.publicos.filter((p) => MOSTRAR_N
 // que ya no se puede reservar porque es hoy o ya ha pasado (se reserva hasta el día antes).
 export const textoReservasCerradas = 'Las reservas para este taller ya están cerradas.';
 
+// TEXTOS PROVISIONALES del pago con tarjeta y la renovación de clases (reunión del 22/10/2026), pendientes de que Iris los
+// revise. Solo se ven cuando Stripe está activo; sin Stripe la web enseña los textos de antes.
+export const textosPago = {
+  tallerIntro: 'Pagas con tarjeta al reservar y tu plaza queda confirmada al momento.',
+  pagarTarjeta: 'Pagar con tarjeta',
+  pendienteTarjeta: 'Paga con tarjeta para confirmar tu plaza.',
+  pagoProcesando: 'Estamos confirmando tu pago. Si no se actualiza en unos minutos, vuelve a cargar esta página.',
+  inscripcionCerrada: (mes: string) => `Las plazas mensuales de ${mes} se abren el día 26. Mientras tanto puedes reservar una clase suelta.`,
+  renovadaTarjeta: (tarjeta: string | null) => `Te cobraremos la mensualidad el día 1 en tu tarjeta${tarjeta ? ` ${tarjeta}` : ''}.`,
+  renovadaEfectivo: 'Pagas la mensualidad en efectivo en el espacio a principios de mes.',
+  cobroFallido: 'No hemos podido cobrar la mensualidad en tu tarjeta. Tu plaza sigue guardada: puedes pagar con otra tarjeta o en efectivo en el espacio.',
+  formaPago: 'Forma de pago',
+  tarjeta: 'Tarjeta (cobro automático el día 1)',
+  efectivo: 'Efectivo en el espacio',
+  guardar: 'Guardar',
+  noRenovar: 'No seguiré el mes que viene',
+  noRenovarAyuda: (mes: string) => `Puedes avisarnos hasta el día 25. Si no, tu plaza de ${mes} se renueva sola.`,
+  noRenovarHecho: (mes: string) => `Nos has avisado de que no sigues en ${mes}. Si cambias de idea antes del día 25, puedes deshacerlo.`,
+  siRenovar: 'Sí seguiré',
+};
+
 export const politicaTalleres = [
   'Para reservar plaza en cualquiera de los talleres es necesario el pago del mismo.',
   'Si cancelas por causa de fuerza mayor con más de 7 días de antelación, podrás elegir entre el reembolso o guardar la reserva para el próximo taller.',

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { asegurarRenovacion, caducidadRenovacion, ocupacionMes, renovarMes, reservarMensual, reservarSuelta } from '../src/lib/clases';
+import { asegurarRenovacion, ocupacionMes, renovarMes, reservarMensual, reservarSuelta } from '../src/lib/clases';
 import { liberarCaducadas } from '../src/lib/reservas';
 import { alumna, crearGrupo, crearGrupoExtra, desactivarClaseDe, insertarReserva, mensualesDe } from './apoyo/datos';
 
@@ -104,7 +104,7 @@ describe('renovarMes', () => {
     for (const [n, creado] of [[11, '2026-12-01T10:00:00'], [12, '2026-12-02T10:00:00'], [13, '2026-12-03T10:00:00'], [14, '2026-12-04T10:00:00']] as const) {
       insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: ORIGEN, n, creado });
     }
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 3, sinPlaza: 1 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 3, sinPlaza: 1 });
     expect(mensualesDe(g, DESTINO)).toBe(8);
     const emails = (await import('./apoyo/cloudflare-workers')).env.DB.base
       .prepare(`SELECT email FROM reservas WHERE mes = ?1 AND estado = 'pendiente' ORDER BY email`).all(DESTINO) as { email: string }[];
@@ -116,20 +116,20 @@ describe('renovarMes', () => {
     insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: DIA1, n: 60 });
     insertarReserva({ grupo: g, tipo: 'clase_suelta', fecha: DIA1, n: 61 });
     for (let n = 1; n <= 3; n++) origen(g, n);
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 2, sinPlaza: 1 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 2, sinPlaza: 1 });
   });
 
   it('respeta las mensuales ya apuntadas en el destino (otras alumnas)', async () => {
     const g = crearGrupo(4);
     llenar(g, 3);
     for (let n = 11; n <= 13; n++) origen(g, n);
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 1, sinPlaza: 2 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 1, sinPlaza: 2 });
   });
 
   it('no renueva en horarios desactivados (activo = 0) y tampoco los cuenta como sin plaza', async () => {
     const g = crearGrupo(8, 0);
     origen(g, 1);
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 0, sinPlaza: 0 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 0, sinPlaza: 0 });
     expect(mensualesDe(g, DESTINO)).toBe(0);
   });
 
@@ -138,7 +138,7 @@ describe('renovarMes', () => {
     origen(g, 1, 'pendiente');
     origen(g, 2, 'liberada');
     origen(g, 3, 'cancelada');
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 0, sinPlaza: 0 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 0, sinPlaza: 0 });
   });
 
   it('no duplica a quien ya está apuntada en el destino, y una segunda llamada renueva 0', async () => {
@@ -146,21 +146,20 @@ describe('renovarMes', () => {
     origen(g, 1);
     origen(g, 2);
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: DESTINO, n: 1, estado: 'pendiente' }); // la 1 ya está
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 1, sinPlaza: 0 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 1, sinPlaza: 0 });
     expect(mensualesDe(g, DESTINO)).toBe(2);
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 0, sinPlaza: 0 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 0, sinPlaza: 0 });
     expect(mensualesDe(g, DESTINO)).toBe(2);
   });
 
-  it('las renovadas quedan pendientes de pago y caducan al empezar el día 6 del mes destino (Madrid)', async () => {
+  it('las renovadas quedan pendientes de cobro, sin caducidad (la plaza se guarda) y en efectivo si no hay tarjeta guardada', async () => {
     const g = crearGrupo(8);
     origen(g, 1);
     await renovarMes(ORIGEN, DESTINO);
     const { env } = await import('./apoyo/cloudflare-workers');
-    const r = env.DB.base.prepare(`SELECT estado, caduca_en, codigo FROM reservas WHERE mes = ?1`).get(DESTINO) as { estado: string; caduca_en: string | null; codigo: string };
-    expect(r.estado).toBe('pendiente');
-    expect(r.caduca_en).toBe(caducidadRenovacion(DESTINO));
-    expect(r.caduca_en).toBe('2027-03-05T23:00:00');
+    const r = env.DB.base.prepare(`SELECT estado, caduca_en, codigo, metodo_pago, renovada_de, primera_vez FROM reservas WHERE mes = ?1`).get(DESTINO) as Record<string, unknown>;
+    expect(r).toMatchObject({ estado: 'pendiente', caduca_en: null, metodo_pago: 'efectivo', primera_vez: 0 });
+    expect(r.renovada_de).not.toBeNull();
     expect(r.codigo).toMatch(/^[0-9a-f]{24}$/);
   });
 
@@ -169,7 +168,7 @@ describe('renovarMes', () => {
     const g2 = crearGrupoExtra(5, 1, 'otra');
     for (let n = 1; n <= 3; n++) origen(g1, n);
     for (let n = 4; n <= 6; n++) origen(g2, n);
-    expect(await renovarMes(ORIGEN, DESTINO)).toEqual({ renovadas: 5, sinPlaza: 1 });
+    expect(await renovarMes(ORIGEN, DESTINO)).toMatchObject({ renovadas: 5, sinPlaza: 1 });
     expect(mensualesDe(g1, DESTINO)).toBe(2);
     expect(mensualesDe(g2, DESTINO)).toBe(3);
   });
@@ -287,7 +286,7 @@ describe('sueltas de días pasados y caducadas (cambios nuevos)', () => {
     for (let n = 1; n <= 3; n++) insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n, estado: 'confirmada' });
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 4, estado: 'pendiente', caduca: '2026-01-01T00:00:00' });
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2027-02', n: 11 });
-    expect(await renovarMes('2027-02', MES)).toEqual({ renovadas: 1, sinPlaza: 0 });
+    expect(await renovarMes('2027-02', MES)).toMatchObject({ renovadas: 1, sinPlaza: 0 });
     expect(mensualesDe(g, MES, 'liberada')).toBe(1);
     expect(mensualesDe(g, MES, 'pendiente')).toBe(1); // la renovada
   });
@@ -297,7 +296,7 @@ describe('sueltas de días pasados y caducadas (cambios nuevos)', () => {
     for (let n = 1; n <= 3; n++) insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n, estado: 'confirmada' });
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: MES, n: 4, estado: 'pendiente', caduca: '2099-01-01T00:00:00' });
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2027-02', n: 11 });
-    expect(await renovarMes('2027-02', MES)).toEqual({ renovadas: 0, sinPlaza: 1 });
+    expect(await renovarMes('2027-02', MES)).toMatchObject({ renovadas: 0, sinPlaza: 1 });
   });
 
   it('renovarMes no renueva alumnas de una clase con activa = 0 aunque el grupo esté activo, ni las cuenta como sin plaza', async () => {
@@ -306,7 +305,7 @@ describe('sueltas de días pasados y caducadas (cambios nuevos)', () => {
     desactivarClaseDe(g);
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2027-02', n: 1 });
     insertarReserva({ grupo: activo, tipo: 'clase_mensual', mes: '2027-02', n: 2 });
-    expect(await renovarMes('2027-02', MES)).toEqual({ renovadas: 1, sinPlaza: 0 });
+    expect(await renovarMes('2027-02', MES)).toMatchObject({ renovadas: 1, sinPlaza: 0 });
     expect(mensualesDe(g, MES)).toBe(0);
     expect(mensualesDe(activo, MES)).toBe(1);
   });
@@ -315,10 +314,10 @@ describe('sueltas de días pasados y caducadas (cambios nuevos)', () => {
 describe('renovación automática (asegurarRenovacion y renovarMes con destino ya tocado)', () => {
   const ACTUAL = '2027-03';
   const SIG = '2027-04';
-  // Marzo de 2027 es horario de invierno (UTC+1): el día 19 a las 23:30 de Madrid son las 22:30 UTC.
-  const DIA19_2330_MADRID = '2027-03-19T22:30:00Z';
-  // 00:30 del día 20 en Madrid son las 23:30 UTC del día 19: en UTC todavía es 19.
-  const DIA20_0030_MADRID = '2027-03-19T23:30:00Z';
+  // Marzo de 2027 es horario de invierno (UTC+1): el día 25 a las 23:30 de Madrid son las 22:30 UTC.
+  const DIA25_2330_MADRID = '2027-03-25T22:30:00Z';
+  // 00:30 del día 26 en Madrid son las 23:30 UTC del día 25: en UTC todavía es 25.
+  const DIA26_0030_MADRID = '2027-03-25T23:30:00Z';
 
   const fijarReloj = (iso: string) => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -338,13 +337,13 @@ describe('renovación automática (asegurarRenovacion y renovarMes con destino y
     enActual(g, 2);
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: SIG, n: 1, estado: 'cancelada' });
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: SIG, n: 2, estado: 'liberada' });
-    expect(await renovarMes(ACTUAL, SIG)).toEqual({ renovadas: 0, sinPlaza: 0 });
+    expect(await renovarMes(ACTUAL, SIG)).toMatchObject({ renovadas: 0, sinPlaza: 0 });
     expect(mensualesDe(g, SIG, 'pendiente')).toBe(0);
     expect(mensualesDe(g, SIG)).toBe(2);
   });
 
   it('una mensual cancelada o liberada en el destino no se vuelve a renovar con asegurarRenovacion', async () => {
-    fijarReloj(DIA20_0030_MADRID);
+    fijarReloj(DIA26_0030_MADRID);
     const g = crearGrupo(8);
     enActual(g, 1);
     enActual(g, 2);
@@ -356,8 +355,8 @@ describe('renovación automática (asegurarRenovacion y renovarMes con destino y
     expect(mensualesDe(g, SIG)).toBe(3);
   });
 
-  it('asegurarRenovacion no hace nada el día 19 a las 23:30 de Madrid', async () => {
-    fijarReloj(DIA19_2330_MADRID);
+  it('asegurarRenovacion no hace nada el día 25 a las 23:30 de Madrid (aún se puede avisar de la baja)', async () => {
+    fijarReloj(DIA25_2330_MADRID);
     const g = crearGrupo(8);
     enActual(g, 1);
     await asegurarRenovacion();
@@ -365,8 +364,8 @@ describe('renovación automática (asegurarRenovacion y renovarMes con destino y
     expect(await filasRenovaciones()).toEqual([]);
   });
 
-  it('asegurarRenovacion renueva el día 20 a las 00:30 de Madrid (aunque en UTC aún sea 19)', async () => {
-    fijarReloj(DIA20_0030_MADRID);
+  it('asegurarRenovacion renueva el día 26 a las 00:30 de Madrid (aunque en UTC aún sea 25)', async () => {
+    fijarReloj(DIA26_0030_MADRID);
     const g = crearGrupo(8);
     enActual(g, 1);
     await asegurarRenovacion();
@@ -375,7 +374,7 @@ describe('renovación automática (asegurarRenovacion y renovarMes con destino y
   });
 
   it('asegurarRenovacion se ejecuta una sola vez por mes destino y deja la fila en renovaciones', async () => {
-    fijarReloj(DIA20_0030_MADRID);
+    fijarReloj(DIA26_0030_MADRID);
     const g = crearGrupo(8);
     enActual(g, 1);
     await asegurarRenovacion();
@@ -386,8 +385,8 @@ describe('renovación automática (asegurarRenovacion y renovarMes con destino y
     expect(await filasRenovaciones()).toEqual([{ mes: SIG }]);
   });
 
-  it('prioridad: el día 20, con el grupo de 8 lleno en el mes actual, una persona nueva no entra en el siguiente', async () => {
-    fijarReloj(DIA20_0030_MADRID);
+  it('prioridad: el día 26, con el grupo de 8 lleno en el mes actual, una persona nueva no entra en el siguiente', async () => {
+    fijarReloj(DIA26_0030_MADRID);
     const g = crearGrupo(8);
     for (let n = 1; n <= 8; n++) enActual(g, n);
     expect(await reservarMensual(g, SIG, alumna(99))).toBeNull();
@@ -395,30 +394,19 @@ describe('renovación automática (asegurarRenovacion y renovarMes con destino y
     expect(await filasRenovaciones()).toEqual([{ mes: SIG }]);
   });
 
-  it('contraste: el día 19 (sin renovar) la misma persona nueva sí entra', async () => {
-    fijarReloj(DIA19_2330_MADRID);
+  it('contraste: el día 25 (sin renovar) la misma persona nueva sí entra', async () => {
+    fijarReloj(DIA25_2330_MADRID);
     const g = crearGrupo(8);
     for (let n = 1; n <= 8; n++) enActual(g, n);
     expect(await reservarMensual(g, SIG, alumna(99))).not.toBeNull();
     expect(mensualesDe(g, SIG)).toBe(1);
   });
 
-  it('una renovada que no paga se libera cuando pasa su caducidad (caduca_en pasada, con el reloj real de SQLite)', async () => {
-    // El 'now' de SQLite no se falsea: se renueva a un mes destino cuya caducidad (día 6) ya pasó de verdad.
+  it('una renovada sin cobrar no se libera nunca sola: si el cobro falla, la plaza se guarda', async () => {
     const g = crearGrupo(8);
     insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2025-12', n: 1 });
-    expect(await renovarMes('2025-12', '2026-01')).toEqual({ renovadas: 1, sinPlaza: 0 });
+    expect(await renovarMes('2025-12', '2026-01')).toMatchObject({ renovadas: 1, sinPlaza: 0 });
+    await liberarCaducadas();
     expect(mensualesDe(g, '2026-01', 'pendiente')).toBe(1);
-    await liberarCaducadas();
-    expect(mensualesDe(g, '2026-01', 'liberada')).toBe(1);
-    expect(mensualesDe(g, '2026-01', 'pendiente')).toBe(0);
-  });
-
-  it('una renovada con caducidad futura sigue pendiente tras liberarCaducadas', async () => {
-    const g = crearGrupo(8);
-    insertarReserva({ grupo: g, tipo: 'clase_mensual', mes: '2098-12', n: 1 });
-    expect(await renovarMes('2098-12', '2099-01')).toEqual({ renovadas: 1, sinPlaza: 0 });
-    await liberarCaducadas();
-    expect(mensualesDe(g, '2099-01', 'pendiente')).toBe(1);
   });
 });

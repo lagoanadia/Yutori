@@ -2,13 +2,16 @@
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
 import { todos, eurosCorto, fecha, DIAS, ESTADOS_RESERVA } from '../../lib/db';
-import { asegurarRenovacion, gruposActivos, meses, nombreMes, renovarMes } from '../../lib/clases';
+import { asegurarRenovacion, cambiarMetodoPago, DIA_RENOVACION, gruposActivos, marcarNoRenueva, meses, nombreMes, renovarMes } from '../../lib/clases';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
+import { cobrarRenovaciones, reintentarCobro } from '../../lib/pagos';
+import { stripeActivo } from '../../lib/stripe';
 
 const { actual, siguiente } = meses();
 const mes = Astro.url.searchParams.get('mes') === actual ? actual : siguiente;
 let renovadas: number | null = null;
-// Desde el día 20 las alumnas se renuevan solas; aquí también, para que Iris las vea ya renovadas.
+let cobro: { cobradas: number; fallidas: number } | null = null;
+// Desde el día 26 las alumnas se renuevan solas; aquí también, para que Iris las vea ya renovadas.
 await asegurarRenovacion();
 
 if (Astro.request.method === 'POST') {
@@ -16,26 +19,43 @@ if (Astro.request.method === 'POST') {
   const accion = String(datos.get('accion') ?? '');
   if (accion === 'renovar') {
     renovadas = (await renovarMes(actual, siguiente)).renovadas;
-  } else if (accion === 'pagado' || accion === 'cancelar') {
-    await cambiarEstadoReserva(Number(datos.get('reserva')), accion);
+  } else if (accion === 'cobrar') {
+    cobro = await cobrarRenovaciones();
+  } else if (['pagado', 'cancelar', 'no_renueva', 'si_renueva', 'reintentar', 'efectivo', 'tarjeta'].includes(accion)) {
+    const id = Number(datos.get('reserva'));
+    if (accion === 'pagado' || accion === 'cancelar') await cambiarEstadoReserva(id, accion);
+    else if (accion === 'no_renueva' || accion === 'si_renueva') await marcarNoRenueva(id, accion === 'no_renueva');
+    else if (accion === 'reintentar') await reintentarCobro(id);
+    else await cambiarMetodoPago(id, accion as 'efectivo' | 'tarjeta');
     return Astro.redirect(`/panel/clases?mes=${mes}&ok=guardado#g${datos.get('grupo')}`, 303);
   }
 }
 await liberarCaducadas();
 
 const grupos = await gruposActivos();
-const alumnas = await todos<{ id: number; grupo_id: number; nombre: string; nombre_menor: string | null; telefono: string; email: string; modalidad: string | null; estado: string }>(
-  `SELECT id, grupo_id, nombre, nombre_menor, telefono, email, modalidad, estado FROM reservas
+type Alumna = {
+  id: number; grupo_id: number; nombre: string; nombre_menor: string | null; telefono: string; email: string; modalidad: string | null;
+  estado: string; no_renueva: number; primera_vez: number | null; metodo_pago: string | null; tarjeta: string | null;
+  cobro_error: string | null; cobro_intentado_en: string | null; renovada_de: number | null; stripe_metodo: string | null;
+};
+const alumnas = await todos<Alumna>(
+  `SELECT id, grupo_id, nombre, nombre_menor, telefono, email, modalidad, estado, no_renueva, primera_vez, metodo_pago, tarjeta,
+          cobro_error, cobro_intentado_en, renovada_de, stripe_metodo FROM reservas
    WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY estado DESC, creado_en`, mes);
-const sueltas = await todos<{ id: number; grupo_id: number; nombre: string; telefono: string; fecha_sesion: string; estado: string; caduca_en: string | null }>(
-  `SELECT id, grupo_id, nombre, telefono, fecha_sesion, estado, caduca_en FROM reservas
+const sueltas = await todos<{ id: number; grupo_id: number; nombre: string; telefono: string; fecha_sesion: string; estado: string; caduca_en: string | null; primera_vez: number | null }>(
+  `SELECT id, grupo_id, nombre, telefono, fecha_sesion, estado, caduca_en, primera_vez FROM reservas
    WHERE tipo = 'clase_suelta' AND substr(fecha_sesion, 1, 7) = ?1 AND estado IN ('pendiente', 'confirmada') ORDER BY fecha_sesion`, mes);
 // Los horarios desactivados no salen arriba: se listan al final para poder volver a activarlos.
 const desactivados = await todos<{ id: number; nombre: string; dia_semana: number; hora_inicio: string; hora_fin: string }>(
   `SELECT g.id, c.nombre, g.dia_semana, g.hora_inicio, g.hora_fin FROM grupos g JOIN clases c ON c.id = g.clase_id
    WHERE g.activo = 0 ORDER BY c.id, g.dia_semana, g.hora_inicio`);
 const confirmadasActual = (await todos<{ n: number }>(
-  `SELECT count(*) AS n FROM reservas WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado = 'confirmada'`, actual))[0]?.n ?? 0;
+  `SELECT count(*) AS n FROM reservas WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado = 'confirmada' AND no_renueva = 0`, actual))[0]?.n ?? 0;
+// Plazas renovadas de este mes que esperan el cobro automático con tarjeta (la tarea diaria las cobra desde el día 1).
+const porCobrar = stripeActivo() ? (await todos<{ n: number }>(
+  `SELECT count(*) AS n FROM reservas WHERE tipo = 'clase_mensual' AND mes = ?1 AND estado = 'pendiente' AND metodo_pago = 'tarjeta'
+   AND renovada_de IS NOT NULL AND stripe_metodo IS NOT NULL AND cobro_intentado_en IS NULL`, actual))[0]?.n ?? 0 : 0;
+const pago = (a: Alumna) => a.metodo_pago === 'tarjeta' ? `Tarjeta${a.tarjeta ? ` ${a.tarjeta}` : ''}` : a.metodo_pago === 'efectivo' ? 'Efectivo' : null;
 ---
 <Panel titulo="Clases semanales">
   <p class="acciones-lista">
@@ -53,14 +73,31 @@ const confirmadasActual = (await todos<{ n: number }>(
     </p>
   )}
 
+  {cobro && (
+    <p class="aviso-ok" role="status">
+      {cobro.cobradas + cobro.fallidas === 0 ? 'No había mensualidades por cobrar.' : `${cobro.cobradas} cobradas${cobro.fallidas ? ` y ${cobro.fallidas} con el cobro fallido (te salen marcadas abajo)` : ''}.`}
+    </p>
+  )}
+
   <form method="post" class="tarjeta renovar">
     <input type="hidden" name="accion" value="renovar" />
     <div>
       <strong>Prioridad para tus alumnas</strong>
-      <p>Reserva su plaza de {nombreMes(siguiente)} a las {confirmadasActual} alumnas confirmadas de {nombreMes(actual)}, antes de abrir las plazas libres. Quedan pendientes de pago hasta que te paguen.</p>
+      <p>El día {DIA_RENOVACION} las {confirmadasActual} alumnas confirmadas de {nombreMes(actual)} que no han avisado de baja se renuevan solas para {nombreMes(siguiente)}, antes de abrir las plazas libres. Las de tarjeta se cobran el día 1; las de efectivo quedan pendientes hasta que te paguen. Si confirmas a alguna después, renuévala aquí.</p>
     </div>
     <button class="boton" type="submit" disabled={confirmadasActual === 0}>Renovar alumnas</button>
   </form>
+
+  {porCobrar > 0 && (
+    <form method="post" class="tarjeta renovar">
+      <input type="hidden" name="accion" value="cobrar" />
+      <div>
+        <strong>Mensualidades con tarjeta por cobrar</strong>
+        <p>{porCobrar} {porCobrar === 1 ? 'plaza renovada espera' : 'plazas renovadas esperan'} el cobro automático. Se cobran solas cada mañana; si no quieres esperar, cóbralas ahora.</p>
+      </div>
+      <button class="boton" type="submit">Cobrar ahora</button>
+    </form>
+  )}
 
   {grupos.map((g) => {
     const lista = alumnas.filter((a) => a.grupo_id === g.id);
@@ -71,6 +108,7 @@ const confirmadasActual = (await todos<{ n: number }>(
           {DIAS[g.dia_semana]} {g.hora_inicio}-{g.hora_fin} · {g.nombre}
           {g.publico === 'ninos' && <span class="estado">Niños</span>}
           <a class="boton-texto editar-horario" href={`/panel/clases/horario/${g.id}`}>Editar horario</a>
+          <a class="boton-texto editar-horario" href={`/panel/clases/profe/${g.clase_id}`}>{g.profe_nombre ? `Profe: ${g.profe_nombre}` : 'Añadir profe'}</a>
         </h2>
         <p class="grupo__resumen">
           <span class="ocupacion">
@@ -87,11 +125,24 @@ const confirmadasActual = (await todos<{ n: number }>(
                   <strong>{a.nombre_menor ? `${a.nombre_menor} (${a.nombre})` : a.nombre}</strong>{a.modalidad && <small> · {a.modalidad}</small>}<br />
                   <small><a href={`tel:${a.telefono}`}>{a.telefono}</a> · <a href={`mailto:${a.email}`}>{a.email}</a></small><br />
                   <span class={`estado estado--${a.estado}`}>{ESTADOS_RESERVA[a.estado]}</span>
+                  {pago(a) && <small> · {pago(a)}</small>}
+                  {g.kit_incluido && a.primera_vez ? <span class="estado estado--kit">1ª vez · kit</span> : null}
+                  {a.no_renueva ? <span class="estado estado--baja">No sigue en {nombreMes(siguiente).split(' ')[0]}</span> : null}
+                  {a.cobro_error && <><br /><small class="cobro-error">Cobro fallido: {a.cobro_error}</small></>}
                 </div>
                 <form method="post" class="apuntada__acciones">
                   <input type="hidden" name="reserva" value={a.id} />
                   <input type="hidden" name="grupo" value={g.id} />
                   {a.estado === 'pendiente' && <button class="boton" name="accion" value="pagado" type="submit">Pago recibido</button>}
+                  {a.cobro_error && stripeActivo() && <button class="boton boton--borde" name="accion" value="reintentar" type="submit">Reintentar cobro</button>}
+                  {a.renovada_de && a.estado === 'pendiente' && !a.cobro_intentado_en && (
+                    a.metodo_pago === 'tarjeta'
+                      ? <button class="boton-texto" name="accion" value="efectivo" type="submit">Pasar a efectivo</button>
+                      : a.stripe_metodo && <button class="boton-texto" name="accion" value="tarjeta" type="submit">Pasar a tarjeta</button>
+                  )}
+                  {mes === actual && (a.no_renueva
+                    ? <button class="boton-texto" name="accion" value="si_renueva" type="submit">Sí sigue</button>
+                    : <button class="boton-texto" name="accion" value="no_renueva" type="submit">No sigue el mes que viene</button>)}
                   <button class="boton-texto boton-texto--peligro" name="accion" value="cancelar" type="submit" onclick="return confirm('¿Cancelar esta plaza? Quedará libre.')">Cancelar</button>
                   <a class="boton-texto" href={`/panel/reservas/${a.id}`}>Editar</a>
                 </form>
@@ -100,7 +151,8 @@ const confirmadasActual = (await todos<{ n: number }>(
             {sueltasGrupo.map((s) => (
               <li class="tarjeta apuntada suelta">
                 <div>
-                  <strong>{s.nombre}</strong> <small>· clase suelta el {fecha(s.fecha_sesion)}</small><br />
+                  <strong>{s.nombre}</strong> <small>· clase suelta el {fecha(s.fecha_sesion)}</small>
+                  {g.kit_incluido && s.primera_vez ? <span class="estado estado--kit">1ª vez · kit</span> : null}<br />
                   <small><a href={`tel:${s.telefono}`}>{s.telefono}</a></small><br />
                   <span class={`estado estado--${s.estado}`}>{ESTADOS_RESERVA[s.estado]}</span>
                   {s.estado === 'pendiente' && s.caduca_en && <small> · hasta {fecha(s.caduca_en)}</small>}
@@ -136,5 +188,8 @@ const confirmadasActual = (await todos<{ n: number }>(
   .grupo h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 1.2rem; }
   .grupo__resumen { margin: 0 0 12px; }
   .suelta { border-style: dashed; }
+  .estado--kit { background: var(--salvia-suave); color: var(--verde-profundo); }
+  .estado--baja { background: color-mix(in srgb, var(--aviso) 14%, transparent); color: var(--aviso); }
+  .cobro-error { color: var(--aviso); }
   .editar-horario { font-family: var(--sans); font-size: 0.9rem; font-weight: 400; }
 </style>

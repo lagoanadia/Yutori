@@ -3,9 +3,17 @@ import { db, todos, uno } from './db';
 import { codigoAleatorio } from './util';
 import { avisoPagoConfirmado, avisoPlazasLiberadas, avisoReservaHecha } from './avisos';
 import { actualizarCalendario } from './calendario';
+import { stripeActivo } from './stripe';
 
-/** Horas que tiene un cliente para pagar antes de que su plaza se libere. TODO: confirmar con Iris. */
+/** Horas para pagar antes de que la plaza se libere, cuando se paga fuera de la web (sin Stripe). */
 export const PLAZO_PAGO_HORAS = 24;
+/**
+ * Minutos que se guarda la plaza mientras se paga con tarjeta. Iris pidió 20, pero Stripe no deja cerrar un pago antes de
+ * 30 minutos: la plaza dura un poco más que el pago para que nadie pague una plaza ya liberada.
+ */
+export const PLAZO_PAGO_TARJETA_MIN = 32;
+/** Plazo de pago para `strftime(..., 'now', plazo)`: unos minutos con tarjeta, horas si se paga fuera de la web. */
+export const plazoPago = () => (stripeActivo() ? `+${PLAZO_PAGO_TARJETA_MIN} minutes` : `+${PLAZO_PAGO_HORAS} hours`);
 /** Máximo de plazas por reserva. */
 export const MAX_PLAZAS_RESERVA = 4;
 
@@ -68,16 +76,18 @@ export async function reservarTaller(tallerId: number, d: { nombre: string; tele
   const codigo = codigoAleatorio();
   const resultado = await db()
     .prepare(`
-      INSERT INTO reservas (tipo, taller_id, nombre, telefono, email, plazas, estado, caduca_en, codigo, acepta_condiciones_en, acepta_privacidad_en)
+      INSERT INTO reservas (tipo, taller_id, nombre, telefono, email, plazas, estado, caduca_en, codigo, acepta_condiciones_en, acepta_privacidad_en,
+                            importe_cent)
       SELECT 'taller', t.id, ?2, ?3, ?4, ?5, 'pendiente',
              strftime('%Y-%m-%dT%H:%M:%S', 'now', ?6), ?7,
-             strftime('%Y-%m-%dT%H:%M:%S', 'now'), strftime('%Y-%m-%dT%H:%M:%S', 'now')
+             strftime('%Y-%m-%dT%H:%M:%S', 'now'), strftime('%Y-%m-%dT%H:%M:%S', 'now'), t.precio_cent * ?5
       FROM talleres t
       WHERE t.id = ?1 AND t.estado = 'publicado' AND t.fecha > ?8 AND t.plazas - ${OCUPADAS} >= ?5`)
-    .bind(tallerId, d.nombre, d.telefono, d.email, d.plazas, `+${PLAZO_PAGO_HORAS} hours`, codigo, hoyEspana())
+    .bind(tallerId, d.nombre, d.telefono, d.email, d.plazas, plazoPago(), codigo, hoyEspana())
     .run();
   if (resultado.meta.changes !== 1) return null;
-  await avisoReservaHecha(codigo);
+  // Con tarjeta el aviso sale al pagar (`confirmarPago`); sin Stripe, ahora, con las instrucciones de pago.
+  if (!stripeActivo()) await avisoReservaHecha(codigo);
   actualizarCalendario(tallerId);
   return codigo;
 }
@@ -88,14 +98,17 @@ export type ReservaDetalle = {
   plazas: number; estado: string; caduca_en: string | null; creado_en: string; modalidad: string | null; nombre_menor: string | null;
   mes: string | null; titulo: string; slug: string | null; fecha: string | null; dia_semana: number | null;
   hora_inicio: string; hora_fin: string; precio_cent: number | null; precio_max_cent: number | null;
-  datos_pago: string | null; imparte: string;
+  datos_pago: string | null; imparte: string; importe_cent: number | null; metodo_pago: string | null; tarjeta: string | null;
+  stripe_metodo: string | null; stripe_sesion: string | null; no_renueva: number; renovada_de: number | null;
+  cobro_intentado_en: string | null; cobro_error: string | null; kit_incluido: number | null; primera_vez: number | null;
 };
 
 export async function reservaPorCodigo(codigo: string) {
   await liberarCaducadas();
   return uno<ReservaDetalle>(`
     SELECT r.id, r.codigo, r.tipo, r.nombre, r.telefono, r.email, r.plazas, r.estado, r.caduca_en, r.creado_en,
-           r.modalidad, r.nombre_menor, r.mes,
+           r.modalidad, r.nombre_menor, r.mes, r.importe_cent, r.metodo_pago, r.tarjeta, r.stripe_metodo, r.stripe_sesion,
+           r.no_renueva, r.renovada_de, r.cobro_intentado_en, r.cobro_error, c.kit_incluido, r.primera_vez,
            COALESCE(t.titulo, c.nombre) AS titulo, t.slug,
            COALESCE(t.fecha, r.fecha_sesion) AS fecha, g.dia_semana,
            COALESCE(t.hora_inicio, g.hora_inicio) AS hora_inicio, COALESCE(t.hora_fin, g.hora_fin) AS hora_fin,

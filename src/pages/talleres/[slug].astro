@@ -2,11 +2,13 @@
 export const prerender = false;
 import { env } from 'cloudflare:workers';
 import Base from '../../layouts/Base.astro';
-import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres, textoReservasCerradas } from '../../data/yutori';
+import { emailUrl, fechaLarga, duracion, negocio, politicaTalleres, textoReservasCerradas, textosPago } from '../../data/yutori';
 import { euros } from '../../lib/db';
 import { MAX_PLAZAS_RESERVA, PLAZO_PAGO_HORAS, reservarTaller, tallerPublicado, tallerReservable } from '../../lib/reservas';
 import { turnstileActivo, verificarTurnstile } from '../../lib/turnstile';
 import { esEmail } from '../../lib/util';
+import { iniciarPago } from '../../lib/pagos';
+import { stripeActivo } from '../../lib/stripe';
 
 const taller = await tallerPublicado(Astro.params.slug ?? '');
 if (!taller) return new Response(null, { status: 404 });
@@ -39,7 +41,8 @@ if (Astro.request.method === 'POST' && !cerrado) {
 
   if (errores.length === 0) {
     const codigo = await reservarTaller(taller.id, { nombre: v.nombre, telefono: v.telefono, email: v.email, plazas });
-    if (codigo) return Astro.redirect(`/reserva/${codigo}`, 303);
+    // Con tarjeta se va directa a pagar; si Stripe falla, su página de reserva tiene el botón para reintentarlo.
+    if (codigo) return Astro.redirect((await iniciarPago(codigo, Astro.url.origin).catch(() => null)) ?? `/reserva/${codigo}`, 303);
     errores.push(plazas > 1
       ? 'Ya no quedan tantas plazas libres. Prueba con menos.'
       : 'Lo sentimos, se acaba de ocupar la última plaza.');
@@ -97,7 +100,7 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
         ) : (
           <div class="reserva" id="reserva">
             <h2>Reserva tu plaza</h2>
-            <p class="reserva__intro">Tu plaza queda apartada {PLAZO_PAGO_HORAS} horas. Para confirmarla, paga a {taller.imparte} con los datos que verás al reservar.</p>
+            <p class="reserva__intro">{stripeActivo() ? textosPago.tallerIntro : `Tu plaza queda apartada ${PLAZO_PAGO_HORAS} horas. Para confirmarla, paga a ${taller.imparte} con los datos que verás al reservar.`}</p>
             {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
             <form class="formulario formulario-grande reserva__form" method="post" id="form-reserva">
               {/* Progreso y flechas: solo con JavaScript (los textos accesibles están pendientes de aprobar por Iris) */}

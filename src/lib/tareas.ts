@@ -3,7 +3,7 @@
 import { todos, uno, eurosCorto } from './db';
 import { cambiarEstadoReserva, hoyEspana, liberarCaducadas, PLAZO_PAGO_HORAS } from './reservas';
 import { publicarTaller } from './talleres';
-import { DIA_APERTURA, gruposActivos, meses, renovarMes } from './clases';
+import { DIA_RENOVACION, gruposActivos, meses, renovarMes } from './clases';
 import { cambiarEstadoSolicitud, cambiarEstadoTallerista, marcarPagoReserva } from './acciones';
 import { diaSemana, telefonoWhatsApp } from './util';
 
@@ -129,7 +129,10 @@ export async function cargarDatos(hoy: string, ahora: Date): Promise<DatosHoy> {
   const { actual, siguiente } = meses();
   const hace7dias = momentoUTC(new Date(ahora.getTime() - 7 * 86_400_000));
   const [pendientes, liberadas, talleres, solicitudes, talleristas, renovacion] = await Promise.all([
-    todos<FilaReserva>(`${SELECT_RESERVA} WHERE r.estado = 'pendiente' ORDER BY r.creado_en`),
+    // Las renovadas no son tarea hasta que empieza su mes, y las de tarjeta solo si el cobro automático ha fallado.
+    todos<FilaReserva>(`${SELECT_RESERVA} WHERE r.estado = 'pendiente'
+      AND NOT (r.renovada_de IS NOT NULL AND (r.mes > ?1 OR (r.metodo_pago = 'tarjeta' AND r.cobro_error IS NULL)))
+      ORDER BY r.creado_en`, actual),
     todos<FilaReserva>(`${SELECT_RESERVA} WHERE r.estado = 'liberada' AND r.caduca_en >= ?1 ORDER BY r.caduca_en DESC`, hace7dias),
     todos<FilaTaller>(`
       SELECT t.id, t.titulo, t.fecha, t.estado, t.pago_reserva_recibido, t.fecha_limite, t.tallerista_id,
@@ -147,7 +150,7 @@ export async function cargarDatos(hoy: string, ahora: Date): Promise<DatosHoy> {
              sum(CASE WHEN NOT EXISTS (SELECT 1 FROM reservas x WHERE x.tipo = 'clase_mensual' AND x.mes = ?2 AND x.grupo_id = r.grupo_id
                   AND lower(x.email) = lower(r.email) AND lower(x.nombre) = lower(r.nombre) AND COALESCE(x.nombre_menor, '') = COALESCE(r.nombre_menor, '')
                   AND x.estado IN ('pendiente', 'confirmada')) THEN 1 ELSE 0 END) AS sin_renovar
-      FROM reservas r WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada'`, actual, siguiente),
+      FROM reservas r WHERE r.tipo = 'clase_mensual' AND r.mes = ?1 AND r.estado = 'confirmada' AND r.no_renueva = 0`, actual, siguiente),
   ]);
   return {
     pendientes, liberadas, talleres, solicitudes, talleristas,
@@ -353,7 +356,7 @@ function recordatorio(t: FilaTaller, c: Contexto, href: string): Accion {
 function tareaDeRenovacion(datos: DatosHoy, c: Contexto): Tarea[] {
   const { actual, siguiente } = meses();
   const dia = Number(c.hoy.slice(8, 10));
-  if (dia < DIA_APERTURA || datos.renovacion.sinRenovar === 0) return [];
+  if (dia < DIA_RENOVACION || datos.renovacion.sinRenovar === 0) return [];
   const texto = `Renueva a tus alumnas para ${nombreMesCorto(siguiente)} (${datos.renovacion.confirmadas} confirmadas en ${nombreMesCorto(actual)})`;
   return [{
     clave: 'T12', codigo: 'T12', bloque: 'semana', informativa: false, grupo: null, peso: 40, orden: siguiente,
@@ -448,7 +451,7 @@ export function mensajeHecho(hecho: string, de: string) {
 export async function ejecutarAccion(accion: string, id: number): Promise<ResultadoAccion> {
   if (accion === 'renovar') {
     const { actual, siguiente } = meses();
-    return { ok: true, hecho: 'renovadas', de: String(await renovarMes(actual, siguiente)) };
+    return { ok: true, hecho: 'renovadas', de: String((await renovarMes(actual, siguiente)).renovadas) };
   }
   if (!Number.isInteger(id) || id <= 0) return { ok: false, errores: ['No encuentro esa tarea.'] };
 

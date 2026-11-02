@@ -2,19 +2,56 @@
 // Página privada de cada reserva (el código largo es la llave). Sirve para talleres y para clases.
 export const prerender = false;
 import Base from '../../layouts/Base.astro';
-import { emailUrl, fechaLarga, negocio, politicaClases, politicaTalleres } from '../../data/yutori';
+import { emailUrl, fechaLarga, negocio, politicaClases, politicaTalleres, textosPago } from '../../data/yutori';
 import { DIAS, euros, eurosCorto, fecha } from '../../lib/db';
-import { nombreMes } from '../../lib/clases';
+import { bajaAbierta, cambiarMetodoPago, marcarNoRenueva, meses, nombreMes } from '../../lib/clases';
 import { reservaPorCodigo } from '../../lib/reservas';
+import { confirmarPago, iniciarPago } from '../../lib/pagos';
+import { stripeActivo } from '../../lib/stripe';
 
-const r = await reservaPorCodigo(Astro.params.codigo ?? '');
+const codigo = Astro.params.codigo ?? '';
+let r = await reservaPorCodigo(codigo);
 if (!r) return new Response(null, { status: 404 });
+
+// Vuelta de la página de pago: se confirma aquí también, por si el aviso de Stripe todavía no ha llegado.
+const vueltaPago = Astro.url.searchParams.get('pago') === 'ok';
+if (vueltaPago && r.estado === 'pendiente' && r.stripe_sesion && stripeActivo()) {
+  await confirmarPago(r.stripe_sesion).catch(() => false);
+  r = (await reservaPorCodigo(codigo))!;
+}
+
+const conTarjeta = stripeActivo();
+const renovada = r.tipo === 'clase_mensual' && r.renovada_de != null;
+// Plaza renovada que aún no se ha cobrado: se puede elegir tarjeta (si hay una guardada) o efectivo.
+const eligeMetodo = renovada && r.estado === 'pendiente' && !r.cobro_intentado_en;
+// Hasta el día 25 se puede avisar de que no se sigue el mes siguiente (en la plaza del mes en curso).
+const avisoBaja = r.tipo === 'clase_mensual' && r.mes === meses().actual && bajaAbierta() && ['pendiente', 'confirmada'].includes(r.estado);
+// Se paga con tarjeta en la web si está pendiente, salvo las renovadas que esperan su cobro del día 1 o van en efectivo sin fallo.
+const puedePagar = conTarjeta && r.estado === 'pendiente' && !!r.importe_cent && !(eligeMetodo && r.metodo_pago === 'tarjeta');
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const accion = String(datos.get('accion') ?? '');
+  if (accion === 'pagar' && puedePagar) {
+    const url = await iniciarPago(codigo, Astro.url.origin).catch(() => null);
+    if (url) return Astro.redirect(url, 303);
+  } else if ((accion === 'no_renovar' || accion === 'si_renovar') && avisoBaja) {
+    await marcarNoRenueva(r.id, accion === 'no_renovar');
+  } else if (accion === 'metodo' && eligeMetodo) {
+    const metodo = String(datos.get('metodo'));
+    if (metodo === 'tarjeta' || metodo === 'efectivo') await cambiarMetodoPago(r.id, metodo);
+  }
+  return Astro.redirect(`/reserva/${codigo}`, 303);
+}
 
 const esTaller = r.tipo === 'taller';
 const esMensual = r.tipo === 'clase_mensual';
+const mesSiguiente = nombreMes(meses().siguiente);
 const quien = r.nombre_menor ? `${r.nombre_menor} (${r.nombre})` : r.nombre;
 
-const importe = r.precio_cent == null ? null
+const importe = r.importe_cent != null && r.tipo !== 'taller' ? `${eurosCorto(r.importe_cent)}${esMensual ? '/mes' : ''}`
+  : r.importe_cent != null ? euros(r.importe_cent)
+  : r.precio_cent == null ? null
   : esMensual && r.precio_max_cent ? `${r.precio_cent / 100}-${eurosCorto(r.precio_max_cent)}/mes`
   : esMensual ? `${eurosCorto(r.precio_cent)}/mes`
   : euros(r.precio_cent * r.plazas);
@@ -46,10 +83,39 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
           <h1>Tu plaza está reservada</h1>
           <div class="tarjeta pago">
             {importe && <p class="pago__importe">{importe}</p>}
-            <p>Las clases se abonan en el momento de la reserva. Cuando recibamos el pago, tu plaza de <strong>{nombreMes(r.mes!)}</strong> quedará confirmada.</p>
-            <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por email enseguida.'}</p>
-            {comoPagar && <p><strong>Concepto:</strong> {concepto}</p>}
-            {r.caduca_en && <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>}
+            {renovada ? (
+              <>
+                {r.cobro_error ? <p class="pago__plazo">{textosPago.cobroFallido}</p>
+                  : r.metodo_pago === 'tarjeta' ? <p>{textosPago.renovadaTarjeta(r.tarjeta)}</p>
+                  : <p>{textosPago.renovadaEfectivo}</p>}
+                {eligeMetodo && (
+                  <form method="post" class="metodo">
+                    <input type="hidden" name="accion" value="metodo" />
+                    <fieldset>
+                      <legend>{textosPago.formaPago}</legend>
+                      {r.stripe_metodo && <label class="casilla"><input type="radio" name="metodo" value="tarjeta" checked={r.metodo_pago === 'tarjeta'} /> {textosPago.tarjeta}</label>}
+                      <label class="casilla"><input type="radio" name="metodo" value="efectivo" checked={r.metodo_pago !== 'tarjeta'} /> {textosPago.efectivo}</label>
+                    </fieldset>
+                    {r.stripe_metodo && <button class="boton boton--borde" type="submit">{textosPago.guardar}</button>}
+                  </form>
+                )}
+              </>
+            ) : conTarjeta ? (
+              <>
+                {vueltaPago ? <p>{textosPago.pagoProcesando}</p> : <p>{textosPago.pendienteTarjeta}</p>}
+                {r.caduca_en && <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>}
+              </>
+            ) : (
+              <>
+                <p>Las clases se abonan en el momento de la reserva. Cuando recibamos el pago, tu plaza de <strong>{nombreMes(r.mes!)}</strong> quedará confirmada.</p>
+                <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por email enseguida.'}</p>
+                {comoPagar && <p><strong>Concepto:</strong> {concepto}</p>}
+                {r.caduca_en && <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>}
+              </>
+            )}
+            {puedePagar && (
+              <form method="post"><input type="hidden" name="accion" value="pagar" /><button class="boton" type="submit">{textosPago.pagarTarjeta}</button></form>
+            )}
           </div>
         </>
       )}
@@ -59,11 +125,20 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
           <h1>Ahora solo falta el pago</h1>
           <div class="tarjeta pago">
             {importe && <p class="pago__importe">{importe}</p>}
-            <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por email enseguida.'}</p>
-            {comoPagar && <p><strong>Concepto:</strong> {concepto}</p>}
-            <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>
+            {conTarjeta ? (
+              <p>{vueltaPago ? textosPago.pagoProcesando : textosPago.pendienteTarjeta}</p>
+            ) : (
+              <>
+                <p><strong>Cómo pagar:</strong> {comoPagar ?? 'te lo indicaremos por email enseguida.'}</p>
+                {comoPagar && <p><strong>Concepto:</strong> {concepto}</p>}
+              </>
+            )}
+            {r.caduca_en && <p class="pago__plazo">Tienes hasta el <strong>{fecha(r.caduca_en)}</strong> para pagar. Si no, la plaza se liberará para otra persona.</p>}
+            {puedePagar && (
+              <form method="post"><input type="hidden" name="accion" value="pagar" /><button class="boton" type="submit">{textosPago.pagarTarjeta}</button></form>
+            )}
           </div>
-          <p>Cuando {r.imparte} reciba el pago, tu plaza quedará confirmada. Puedes volver a esta página para comprobarlo: <strong>guárdala en favoritos</strong>.</p>
+          {!conTarjeta && <p>Cuando {r.imparte} reciba el pago, tu plaza quedará confirmada. Puedes volver a esta página para comprobarlo: <strong>guárdala en favoritos</strong>.</p>}
         </>
       )}
       {r.estado === 'confirmada' && (
@@ -103,6 +178,24 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
         )}
       </div>
 
+      {avisoBaja && (
+        <form method="post" class="tarjeta baja">
+          {r.no_renueva ? (
+            <>
+              <p>{textosPago.noRenovarHecho(mesSiguiente)}</p>
+              <input type="hidden" name="accion" value="si_renovar" />
+              <button class="boton boton--borde" type="submit">{textosPago.siRenovar}</button>
+            </>
+          ) : (
+            <>
+              <p>{textosPago.noRenovarAyuda(mesSiguiente)}</p>
+              <input type="hidden" name="accion" value="no_renovar" />
+              <button class="boton boton--borde" type="submit">{textosPago.noRenovar}</button>
+            </>
+          )}
+        </form>
+      )}
+
       <details class="politica">
         <summary>¿Necesitas cancelar o cambiar tu plaza?</summary>
         <ul class="lista-politica">{politica.map((p) => <li>{p}</li>)}</ul>
@@ -124,5 +217,9 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
   .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin-bottom: 16px; }
   .datos dt { font-weight: 700; color: var(--tinta-suave); }
   .datos dd { margin: 0; }
+  .metodo fieldset { border: 0; padding: 0; margin: 12px 0; }
+  .metodo legend { font-weight: 700; margin-bottom: 6px; }
+  .baja { margin: 24px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .baja p { margin: 0; max-width: 46ch; }
   .politica summary { cursor: pointer; font-weight: 700; color: var(--verde); }
 </style>
