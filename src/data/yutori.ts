@@ -55,7 +55,6 @@ export const detallesTalleres: { titulo: string; texto: string | string[]; enlac
     titulo: 'Política de reservas y cancelaciones',
     texto: [
       'Tu plaza queda confirmada con el pago.',
-      'Los talleres de otras artesanas se pagan directamente a ellas.',
       'Más de 7 días antes: reembolso o cambio al próximo taller.',
       'Menos de 7 días: puedes ceder tu plaza.',
     ],
