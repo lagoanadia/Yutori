@@ -498,35 +498,51 @@ export type EventoAgenda = {
   tipo: 'taller' | 'clase'; hora: string; titulo: string; href: string;
   /** Plazas ocupadas y totales (talleres) o alumnas y plazas (clases). */
   ocupadas: number; plazas: number; sinPagar: number; sueltas: number;
+  /** Talleres: hueco o enviado = aún sin publicar (sale en la agenda del mes para planificar). */
+  estado?: string;
 };
 export type DiaAgenda = { fecha: string; etiqueta: string; hoy: boolean; manana: boolean; eventos: EventoAgenda[] };
 
 /** De hoy a hoy+6: talleres publicados y clases de los grupos activos. Los días sin nada no salen. */
 export async function agendaSemana(hoy = hoyEspana()): Promise<DiaAgenda[]> {
-  const fin = sumarDias(hoy, 6);
-  const dias = Array.from({ length: 7 }, (_, i) => sumarDias(hoy, i));
-  const mesesDeLaSemana = [...new Set(dias.map((d) => d.slice(0, 7)))];
+  const eventos = await eventosAgenda(hoy, 7, false);
+  return [...eventos].flatMap(([fecha, lista], i): DiaAgenda[] => {
+    if (lista.length === 0) return [];
+    const etiqueta = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : diaCorto(fecha).replace(/^./, (x) => x.toUpperCase());
+    return [{ fecha, etiqueta, hoy: i === 0, manana: i === 1, eventos: lista }];
+  });
+}
 
-  const talleres = await todos<{ id: number; titulo: string; fecha: string; hora_inicio: string | null; plazas: number; ocupadas: number; sin_pagar: number }>(`
-    SELECT t.id, COALESCE(t.titulo, 'Taller') AS titulo, t.fecha, t.hora_inicio, t.plazas,
+/**
+ * Talleres y clases de `dias` días seguidos desde `desde`, día a día (también los vacíos), ordenados por hora.
+ * Con `conHuecos` salen también los talleres aún sin publicar (hueco o enviado), para planificar el mes.
+ */
+export async function eventosAgenda(desde: string, dias: number, conHuecos: boolean) {
+  const fin = sumarDias(desde, dias - 1);
+  const fechas = Array.from({ length: dias }, (_, i) => sumarDias(desde, i));
+  const mesesDelRango = [...new Set(fechas.map((d) => d.slice(0, 7)))];
+
+  const talleres = await todos<{ id: number; titulo: string; fecha: string; hora_inicio: string | null; plazas: number; ocupadas: number; sin_pagar: number; estado: string }>(`
+    SELECT t.id, COALESCE(t.titulo, 'Taller') AS titulo, t.fecha, t.hora_inicio, t.plazas, t.estado,
            (SELECT COALESCE(sum(r.plazas), 0) FROM reservas r WHERE r.taller_id = t.id AND r.estado IN ('pendiente', 'confirmada')) AS ocupadas,
            (SELECT COALESCE(sum(r.plazas), 0) FROM reservas r WHERE r.taller_id = t.id AND r.estado = 'pendiente') AS sin_pagar
-    FROM talleres t WHERE t.estado = 'publicado' AND t.fecha BETWEEN ?1 AND ?2 ORDER BY t.fecha, t.hora_inicio`, hoy, fin);
+    FROM talleres t WHERE t.estado IN (${conHuecos ? "'publicado', 'hueco', 'enviado'" : "'publicado'"}) AND t.fecha BETWEEN ?1 AND ?2
+    ORDER BY t.fecha, t.hora_inicio`, desde, fin);
 
   const grupos = await gruposActivos();
   const mensuales = await todos<{ grupo_id: number; mes: string; estado: string; n: number }>(
     `SELECT grupo_id, mes, estado, count(*) AS n FROM reservas
-     WHERE tipo = 'clase_mensual' AND mes IN (${mesesDeLaSemana.map((_, i) => `?${i + 1}`).join(',')}) AND estado IN ('pendiente', 'confirmada')
-     GROUP BY grupo_id, mes, estado`, ...mesesDeLaSemana);
+     WHERE tipo = 'clase_mensual' AND mes IN (${mesesDelRango.map((_, i) => `?${i + 1}`).join(',')}) AND estado IN ('pendiente', 'confirmada')
+     GROUP BY grupo_id, mes, estado`, ...mesesDelRango);
   const sueltas = await todos<{ grupo_id: number; fecha_sesion: string; estado: string; n: number }>(
     `SELECT grupo_id, fecha_sesion, estado, count(*) AS n FROM reservas
      WHERE tipo = 'clase_suelta' AND fecha_sesion BETWEEN ?1 AND ?2 AND estado IN ('pendiente', 'confirmada')
-     GROUP BY grupo_id, fecha_sesion, estado`, hoy, fin);
+     GROUP BY grupo_id, fecha_sesion, estado`, desde, fin);
 
-  return dias.flatMap((fecha, i): DiaAgenda[] => {
+  return new Map(fechas.map((fecha): [string, EventoAgenda[]] => {
     const eventos: EventoAgenda[] = talleres.filter((t) => t.fecha === fecha).map((t) => ({
       tipo: 'taller', hora: t.hora_inicio ?? '', titulo: t.titulo, href: `/panel/talleres/${t.id}`,
-      ocupadas: t.ocupadas, plazas: t.plazas, sinPagar: t.sin_pagar, sueltas: 0,
+      ocupadas: t.ocupadas, plazas: t.plazas, sinPagar: t.sin_pagar, sueltas: 0, estado: t.estado,
     }));
     for (const g of grupos.filter((x) => x.dia_semana === diaSemana(fecha))) {
       const delMes = mensuales.filter((m) => m.grupo_id === g.id && m.mes === fecha.slice(0, 7));
@@ -537,9 +553,7 @@ export async function agendaSemana(hoy = hoyEspana()): Promise<DiaAgenda[]> {
         ocupadas: suma(delMes), plazas: g.plazas, sinPagar: suma(delMes, 'pendiente') + suma(delDia, 'pendiente'), sueltas: suma(delDia),
       });
     }
-    if (eventos.length === 0) return [];
     eventos.sort((a, b) => a.hora.localeCompare(b.hora));
-    const etiqueta = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : diaCorto(fecha).replace(/^./, (x) => x.toUpperCase());
-    return [{ fecha, etiqueta, hoy: i === 0, manana: i === 1, eventos }];
-  });
+    return [fecha, eventos];
+  }));
 }

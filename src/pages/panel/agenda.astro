@@ -1,0 +1,142 @@
+---
+// Agenda del mes: talleres (también los huecos aún sin publicar) y clases en un calendario, con el resumen del mes arriba.
+// En el móvil se ve como lista de los días con algo; desde 760 px, como calendario.
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { eventosAgenda } from '../../lib/tareas';
+import { hoyEspana } from '../../lib/reservas';
+import { nombreMes } from '../../lib/clases';
+import { diaSemana } from '../../lib/util';
+
+const hoy = hoyEspana();
+const pedido = Astro.url.searchParams.get('mes') ?? '';
+const mes = /^\d{4}-(0[1-9]|1[0-2])$/.test(pedido) ? pedido : hoy.slice(0, 7);
+const [a, m] = mes.split('-').map(Number);
+const diasMes = new Date(Date.UTC(a, m, 0)).getUTCDate();
+const otroMes = (salto: number) => new Date(Date.UTC(a, m - 1 + salto, 1)).toISOString().slice(0, 7);
+
+const eventos = await eventosAgenda(`${mes}-01`, diasMes, true);
+const dias = [...eventos];
+const huecosAntes = diaSemana(`${mes}-01`) - 1;
+
+// Resumen del mes.
+const talleres = dias.flatMap(([, l]) => l.filter((e) => e.tipo === 'taller'));
+const publicados = talleres.filter((t) => t.estado === 'publicado');
+const plazasTalleres = publicados.reduce((s, t) => s + t.plazas, 0);
+const vendidas = publicados.reduce((s, t) => s + t.ocupadas, 0);
+const sinPagar = dias.reduce((s, [, l]) => s + l.reduce((x, e) => x + (e.tipo === 'taller' ? e.sinPagar : 0), 0), 0);
+// Alumnas mensuales: cada grupo cuenta una vez (en todas sus sesiones del mes salen las mismas).
+const grupos = new Map(dias.flatMap(([, l]) => l.filter((e) => e.tipo === 'clase').map((e) => [`${e.href}|${e.hora}`, e] as const)));
+const alumnas = [...grupos.values()].reduce((s, e) => s + e.ocupadas, 0);
+const plazasClases = [...grupos.values()].reduce((s, e) => s + e.plazas, 0);
+const porcentaje = (x: number, total: number) => (total ? Math.round((x / total) * 100) : 0);
+
+const titulo = nombreMes(mes).replace(/^./, (x) => x.toUpperCase());
+const SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const nivel = (ocupadas: number, plazas: number) => (plazas && ocupadas >= plazas ? 'lleno' : ocupadas / (plazas || 1) >= 0.5 ? 'medio' : 'bajo');
+---
+<Panel titulo="Agenda" ocultarTitulo>
+  <header class="cabecera-agenda">
+    <a class="flecha" href={`/panel/agenda?mes=${otroMes(-1)}`} aria-label="Mes anterior">←</a>
+    <h1>{titulo}</h1>
+    <a class="flecha" href={`/panel/agenda?mes=${otroMes(1)}`} aria-label="Mes siguiente">→</a>
+    {mes !== hoy.slice(0, 7) && <a class="boton-texto" href="/panel/agenda">Hoy</a>}
+  </header>
+
+  <ul class="resumen" aria-label="Resumen del mes">
+    <li><strong>{publicados.length}</strong><span>talleres publicados{talleres.length > publicados.length && ` · ${talleres.length - publicados.length} por cerrar`}</span></li>
+    <li>
+      <strong>{vendidas}/{plazasTalleres}</strong><span>plazas de talleres vendidas</span>
+      <span class="barrita"><span style={`width:${porcentaje(vendidas, plazasTalleres)}%`}></span></span>
+    </li>
+    <li>
+      <strong>{alumnas}/{plazasClases}</strong><span>alumnas mensuales</span>
+      <span class="barrita"><span style={`width:${porcentaje(alumnas, plazasClases)}%`}></span></span>
+    </li>
+    <li class:list={{ alerta: sinPagar > 0 }}><strong>{sinPagar}</strong><span>plazas de talleres sin pagar</span></li>
+  </ul>
+
+  <p class="leyenda" aria-hidden="true">
+    <span class="chip chip--taller">Taller</span>
+    <span class="chip chip--taller chip--hueco">Taller sin publicar</span>
+    <span class="chip chip--clase">Clase</span>
+  </p>
+
+  <div class="calendario">
+    {SEMANA.map((d) => <div class="calendario__cabecera" aria-hidden="true">{d.slice(0, 3)}</div>)}
+    {Array.from({ length: huecosAntes }, () => <div class="calendario__vacio" aria-hidden="true"></div>)}
+    {dias.map(([fecha, lista]) => (
+      <section class:list={['dia', { 'dia--hoy': fecha === hoy, 'dia--pasado': fecha < hoy, 'dia--sin': lista.length === 0 }]} aria-label={fecha}>
+        <h2 class="dia__numero">
+          <span class="dia__semana">{SEMANA[diaSemana(fecha) - 1]}</span> {Number(fecha.slice(8))}
+        </h2>
+        <ul>
+          {lista.map((e) => (
+            <li>
+              <a class:list={['chip', `chip--${e.tipo}`, `chip--${nivel(e.ocupadas, e.plazas)}`, { 'chip--hueco': e.tipo === 'taller' && e.estado !== 'publicado' }]} href={e.href}>
+                <span class="chip__hora">{e.hora}</span>
+                <span class="chip__titulo">{e.titulo}</span>
+                <span class="chip__plazas">
+                  {e.tipo === 'taller' && e.estado !== 'publicado' ? (e.estado === 'hueco' ? 'hueco' : 'por revisar') : `${e.ocupadas}/${e.plazas}`}
+                  {e.sueltas > 0 && ` +${e.sueltas}`}
+                  {e.sinPagar > 0 && <span class="chip__aviso" title={`${e.sinPagar} sin pagar`}>●</span>}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</Panel>
+
+<style>
+  .cabecera-agenda { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .cabecera-agenda h1 { margin: 0; font-size: clamp(1.5rem, 5vw, 2rem); }
+  .flecha { display: inline-grid; place-items: center; width: 48px; height: 48px; flex: none; border-radius: 50%; border: 1.5px solid var(--verde); color: var(--verde); text-decoration: none; font-size: 1.2rem; font-weight: 700; }
+  .flecha:hover { background: var(--salvia-suave); }
+
+  .resumen { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+  .resumen li { background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .resumen strong { font-family: var(--serif); font-size: 1.8rem; line-height: 1; color: var(--verde-profundo); }
+  .resumen span { font-size: 0.85rem; color: var(--tinta-suave); }
+  .resumen .alerta strong { color: var(--aviso); }
+  .barrita { display: block; height: 6px; border-radius: 99px; background: var(--salvia-suave); margin-top: 6px; overflow: hidden; }
+  .barrita span { display: block; height: 100%; background: var(--verde); border-radius: inherit; }
+
+  .leyenda { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+
+  .chip { display: flex; align-items: baseline; gap: 6px; padding: 5px 8px; border-radius: 10px; font-size: 0.82rem; line-height: 1.25; text-decoration: none; color: var(--tinta); border-left: 4px solid; }
+  .leyenda .chip { display: inline-flex; padding: 3px 10px; }
+  .chip--taller { background: #f6eadb; border-color: var(--oro); }
+  .chip--clase { background: var(--salvia-suave); border-color: var(--verde); }
+  .chip--hueco { background: transparent; border: 1.5px dashed var(--oro); border-left-width: 4px; }
+  .chip--lleno .chip__plazas { color: var(--verde-profundo); font-weight: 800; }
+  .chip__hora { font-weight: 700; color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+  .chip__titulo { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip__plazas { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--tinta-suave); }
+  .chip__aviso { color: var(--aviso); margin-left: 3px; }
+  a.chip:hover { filter: brightness(0.96); }
+
+  /* Móvil: lista de los días con algo. */
+  .calendario__cabecera, .calendario__vacio, .dia--sin { display: none; }
+  .dia { padding: 10px 0; border-top: 1px solid var(--borde); }
+  .dia__numero { font-family: var(--sans); font-size: 0.95rem; font-weight: 800; color: var(--verde); margin: 0 0 6px; }
+  .dia ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .dia--hoy .dia__numero { color: var(--aviso); }
+  .dia--pasado { display: none; }
+
+  @media (min-width: 760px) {
+    .resumen { grid-template-columns: repeat(4, 1fr); }
+    .calendario { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+    .calendario__cabecera { display: block; font-size: 0.8rem; font-weight: 800; color: var(--tinta-suave); text-transform: uppercase; padding: 0 6px; }
+    .calendario__vacio, .dia--sin, .dia--pasado { display: block; }
+    .dia--pasado { opacity: 0.55; }
+    .dia { border: 1px solid var(--borde); border-radius: 12px; background: var(--crema-claro); padding: 6px; min-height: 112px; }
+    .dia__semana { display: none; }
+    .dia__numero { font-size: 0.9rem; margin: 0 0 4px 2px; }
+    .dia--hoy { border-color: var(--aviso); box-shadow: inset 0 0 0 1px var(--aviso); }
+    .chip { font-size: 0.76rem; padding: 4px 6px; gap: 4px; flex-wrap: wrap; }
+    .chip__titulo { flex-basis: 100%; order: -1; }
+  }
+</style>
