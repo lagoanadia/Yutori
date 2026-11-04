@@ -16,9 +16,10 @@ const menu: { href: string; texto: string; globo?: keyof Pendientes; icono: stri
   { href: '/panel/personas', texto: 'Personas', globo: 'personas', icono: 'M9 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.8c2 .6 3.5 2.2 3.5 5.2',
     incluye: ['/panel/reservas', '/panel/talleristas', '/panel/solicitudes'] },
   { href: '/panel/clases', texto: 'Clases', globo: 'clases', icono: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4' },
+  { href: '/panel/plazas', texto: 'Plazas', icono: 'M5 11V7a7 7 0 0 1 14 0v4M4 11h16v5H4zM6 16v4M18 16v4' },
 ];
-// Barra inferior del móvil: con seis apartados caben todos; «Más» solo sale si algún día hay más de los que caben.
-const enBarra = ['/panel', '/panel/agenda', '/panel/talleres', '/panel/clases', '/panel/personas', '/panel/asistente'];
+// Barra inferior del móvil: los cinco más usados y «Más» con el resto (el asistente y las plazas).
+const enBarra = ['/panel', '/panel/agenda', '/panel/talleres', '/panel/clases', '/panel/personas'];
 const principales = menu.filter((m) => enBarra.includes(m.href));
 const secundarios = menu.filter((m) => !enBarra.includes(m.href));
 const pendientes = await pendientesDelMenu();

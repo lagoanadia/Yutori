@@ -1,0 +1,123 @@
+---
+// Plazas: lo que queda libre en talleres y clases (mensuales y sueltas), de un vistazo. Es el «inventario» de Yutori.
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { DIAS, fecha } from '../../lib/db';
+import { talleresPublicados } from '../../lib/reservas';
+import { disponibilidadSueltas, gruposActivos, meses, mesInscripcion, nombreMes, ocupacionMes } from '../../lib/clases';
+
+const { actual, siguiente } = meses();
+// Desde el día 26 interesa ya el mes siguiente (las renovadas están dentro y se abren las plazas libres).
+const mesClases = mesInscripcion() ?? actual;
+const [talleres, grupos, ocupacion] = await Promise.all([talleresPublicados(), gruposActivos(), ocupacionMes(mesClases)]);
+const sueltas = await disponibilidadSueltas(grupos);
+
+const libresTaller = (t: (typeof talleres)[number]) => Math.max(0, t.plazas - t.ocupadas);
+const libresGrupo = (g: (typeof grupos)[number]) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
+const totalTalleres = talleres.reduce((s, t) => s + libresTaller(t), 0);
+const totalMensual = grupos.reduce((s, g) => s + libresGrupo(g), 0);
+const totalSueltas = [...sueltas.values()].flat().reduce((s, x) => s + x.libres, 0);
+
+// Color según lo que queda: libre, pocas (una o dos) o completo.
+const nivel = (libres: number) => (libres === 0 ? 'completo' : libres <= 2 ? 'pocas' : 'libre');
+const textoLibres = (n: number) => (n === 0 ? 'Completo' : `${n} ${n === 1 ? 'libre' : 'libres'}`);
+
+// Las clases, agrupadas por clase (Ganchillo: sus horarios).
+const porClase = new Map<string, typeof grupos>();
+for (const g of grupos) porClase.set(g.nombre, [...(porClase.get(g.nombre) ?? []), g]);
+---
+<Panel titulo="Plazas">
+  <ul class="resumen" aria-label="Plazas libres">
+    <li><strong>{totalTalleres}</strong><span>libres en talleres</span></li>
+    <li><strong>{totalMensual}</strong><span>mensuales libres en {nombreMes(mesClases).split(' ')[0]}</span></li>
+    <li><strong>{totalSueltas}</strong><span>sueltas libres (4 semanas)</span></li>
+  </ul>
+
+  <h2>Talleres</h2>
+  {talleres.length === 0 ? <p class="vacio">No hay talleres publicados próximos.</p> : (
+    <ul class="rejilla-plazas">
+      {talleres.map((t) => {
+        const libres = libresTaller(t);
+        return (
+          <li class:list={['plaza', 'tarjeta', `plaza--${nivel(libres)}`]}>
+            <a href={`/panel/talleres/${t.id}`} class="plaza__titulo">{t.titulo}</a>
+            <small>{fecha(t.fecha)}{t.hora_inicio && ` · ${t.hora_inicio}`} · {t.imparte}</small>
+            <div class="asientos" aria-label={`${t.ocupadas} de ${t.plazas} ocupadas`}>
+              {Array.from({ length: t.plazas }, (_, i) => <span class:list={['asiento', { 'asiento--ocupado': i < t.ocupadas }]}></span>)}
+            </div>
+            <p class="plaza__libres">{textoLibres(libres)} <small>de {t.plazas}</small></p>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+
+  <h2>Clases · {nombreMes(mesClases)}</h2>
+  {[...porClase].map(([nombre, lista]) => (
+    <section class="clase-plazas tarjeta">
+      <h3>{nombre}</h3>
+      <ul class="horarios-plazas">
+        {lista.map((g) => {
+          const libres = libresGrupo(g);
+          const proximas = sueltas.get(g.id) ?? [];
+          return (
+            <li>
+              <a class="horario-plazas__nombre" href={`/panel/clases?mes=${mesClases === siguiente ? siguiente : actual}#g${g.id}`}>
+                {DIAS[g.dia_semana]} {g.hora_inicio}{g.publico === 'ninos' && ' · niños'}
+              </a>
+              <span class:list={['pastilla', `pastilla--${nivel(libres)}`]} title="Plaza mensual">Mensual: {textoLibres(libres)}</span>
+              {proximas.length > 0 && (
+                <span class="sueltas" aria-label="Clases sueltas de las próximas semanas">
+                  {proximas.map((s) => (
+                    <span class:list={['dia-suelta', `dia-suelta--${nivel(s.libres)}`]} title={`${fecha(s.fecha)}: ${textoLibres(s.libres)}`}>
+                      {Number(s.fecha.slice(8))}<small>{s.libres}</small>
+                    </span>
+                  ))}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  ))}
+  <p class="leyenda"><span class="pastilla pastilla--libre">Libre</span> <span class="pastilla pastilla--pocas">1 o 2</span> <span class="pastilla pastilla--completo">Completo</span> · En las sueltas: día del mes y plazas libres.</p>
+</Panel>
+
+<style>
+  .resumen { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+  .resumen li { background: var(--crema-claro); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px 14px; display: flex; flex-direction: column; }
+  .resumen strong { font-family: var(--serif); font-size: clamp(1.4rem, 5vw, 2rem); line-height: 1.1; color: var(--verde-profundo); }
+  .resumen span { font-size: 0.85rem; color: var(--tinta-suave); }
+
+  .rejilla-plazas { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+  .plaza { display: flex; flex-direction: column; gap: 6px; border-top: 5px solid var(--verde); }
+  .plaza--pocas { border-top-color: var(--oro); }
+  .plaza--completo { border-top-color: var(--aviso); }
+  .plaza__titulo { font-weight: 800; color: var(--tinta); text-decoration: none; }
+  .plaza__titulo:hover { text-decoration: underline; }
+  .plaza small { color: var(--tinta-suave); }
+  .asientos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .asiento { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--verde); }
+  .asiento--ocupado { background: var(--verde); }
+  .plaza--completo .asiento--ocupado { background: var(--aviso); border-color: var(--aviso); }
+  .plaza__libres { margin: 0; font-family: var(--serif); font-size: 1.3rem; color: var(--verde-profundo); }
+  .plaza--completo .plaza__libres { color: var(--aviso); }
+
+  .clase-plazas { margin-bottom: 10px; }
+  .clase-plazas h3 { margin: 0 0 6px; }
+  .horarios-plazas { list-style: none; padding: 0; margin: 0; }
+  .horarios-plazas li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; border-top: 1px solid var(--borde); }
+  .horario-plazas__nombre { min-width: 140px; font-weight: 700; color: var(--tinta); text-decoration: none; }
+  .pastilla { font-size: 0.8rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .pastilla--libre { background: var(--salvia-suave); color: var(--verde-profundo); }
+  .pastilla--pocas { background: #f6eadb; color: #7a5a22; }
+  .pastilla--completo { background: color-mix(in srgb, var(--aviso) 15%, transparent); color: var(--aviso); }
+  .sueltas { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dia-suelta { display: inline-flex; flex-direction: column; align-items: center; min-width: 34px; padding: 2px 4px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; line-height: 1.15; }
+  .dia-suelta small { font-size: 0.7rem; font-weight: 600; }
+  .dia-suelta--libre { background: var(--salvia-suave); color: var(--verde-profundo); }
+  .dia-suelta--pocas { background: #f6eadb; color: #7a5a22; }
+  .dia-suelta--completo { background: color-mix(in srgb, var(--aviso) 15%, transparent); color: var(--aviso); }
+  .leyenda { font-size: 0.85rem; color: var(--tinta-suave); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+</style>
