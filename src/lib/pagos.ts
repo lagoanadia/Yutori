@@ -7,6 +7,7 @@ import { actualizarCalendario } from './calendario';
 import { meses, nombreMes } from './clases';
 import { fechaLarga } from '../data/yutori';
 import { PLAZO_PAGO_TARJETA_MIN } from './reservas';
+import { confirmarPagoBono } from './bonos';
 
 const AHORA = `strftime('%Y-%m-%dT%H:%M:%S', 'now')`;
 
@@ -64,7 +65,7 @@ export async function iniciarPago(codigo: string, origen: string) {
 }
 
 type Sesion = {
-  id: string; payment_status: string; customer: string | null; metadata: { codigo?: string };
+  id: string; payment_status: string; customer: string | null; metadata: { codigo?: string; bono?: string };
   payment_intent: { id: string; payment_method: { id: string; card?: { brand: string; last4: string } } | null } | null;
 };
 
@@ -77,6 +78,8 @@ export async function confirmarPago(sesionId: string) {
   const s = await stripe<Sesion>('GET', `checkout/sessions/${encodeURIComponent(sesionId)}`, { expand: ['payment_intent.payment_method'] });
   const codigo = s.metadata?.codigo;
   const pago = s.payment_intent;
+  // Los bonos regalo van por su lado (no son reservas).
+  if (s.metadata?.bono) return s.payment_status === 'paid' && !!pago && !!(await confirmarPagoBono(Number(s.metadata.bono), pago.id));
   if (s.payment_status !== 'paid' || !codigo || !pago) return false;
   const tarjeta = pago.payment_method?.card ? `${pago.payment_method.card.brand} ···· ${pago.payment_method.card.last4}` : null;
   const hecha = await db()

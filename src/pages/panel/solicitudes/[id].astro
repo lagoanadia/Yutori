@@ -4,6 +4,8 @@ import Panel from '../../../layouts/Panel.astro';
 import CamposSolicitud from '../../../components/panel/CamposSolicitud.astro';
 import { db, todos, uno, fecha } from '../../../lib/db';
 import { mapaCategorias, mensajes, mapearSolicitud } from '../../../lib/importar';
+import { canjearBono } from '../../../lib/bonos';
+import { eurosCorto } from '../../../lib/db';
 
 const id = Number(Astro.params.id);
 const s = Number.isInteger(id)
@@ -17,6 +19,10 @@ let v: Record<string, string> = Object.fromEntries(Object.entries(s).map(([k, x]
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
+  if (datos.get('accion') === 'canjear' || datos.get('accion') === 'descanjear') {
+    await canjearBono(id, datos.get('accion') === 'canjear');
+    return Astro.redirect(`/panel/solicitudes/${id}?ok=guardado`, 303);
+  }
   if (datos.get('accion') === 'eliminar') {
     await db().prepare('DELETE FROM solicitudes WHERE id = ?1').bind(id).run();
     return Astro.redirect('/panel/solicitudes?ok=eliminado', 303);
@@ -38,6 +44,21 @@ const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categori
   <p><a href={`/panel/solicitudes#s${id}`}>← Privados y bonos</a></p>
   <p><small>Llegó el {fecha(String(s.creado_en))}</small></p>
 
+  {s.codigo_bono && (
+    <form method="post" class:list={['tarjeta', 'bono-panel', { 'bono-panel--usado': s.canjeado_en }]}>
+      <div>
+        <strong class="bono-panel__codigo">{s.codigo_bono}</strong>
+        <p>Pagado con tarjeta el {fecha(String(s.pagada_en))}{s.importe_cent != null && ` · ${eurosCorto(Number(s.importe_cent))}`} · válido hasta el {fecha(String(s.caduca_bono))}</p>
+        <p>{s.canjeado_en ? `Usado el ${fecha(String(s.canjeado_en))}` : 'Sin usar'}</p>
+      </div>
+      <div class="botones">
+        <a class="boton boton--borde" href={`/bono/${s.codigo_bono}`} target="_blank" rel="noopener">Ver el bono</a>
+        {s.canjeado_en
+          ? <button class="boton-texto" name="accion" value="descanjear" type="submit">Deshacer el canje</button>
+          : <button class="boton" name="accion" value="canjear" type="submit">Marcar como usado</button>}
+      </div>
+    </form>
+  )}
   {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
   <form method="post" class="formulario tarjeta">
@@ -52,3 +73,10 @@ const categorias = (await todos<{ nombre: string }>('SELECT nombre FROM categori
     <button class="boton-texto boton-texto--peligro" type="submit" onclick="return confirm('¿Eliminar esta petición? No se puede deshacer.')">Eliminar</button>
   </form>
 </Panel>
+
+<style>
+  .bono-panel { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; border: 2px solid var(--verde); margin-bottom: 16px; }
+  .bono-panel--usado { border-color: var(--borde); opacity: 0.8; }
+  .bono-panel p { margin: 4px 0 0; color: var(--tinta-suave); }
+  .bono-panel__codigo { font-family: ui-monospace, monospace; font-size: 1.2rem; letter-spacing: 0.06em; color: var(--verde-profundo); }
+</style>

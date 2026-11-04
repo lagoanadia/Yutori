@@ -2,15 +2,23 @@
 export const prerender = false;
 import Base from '../layouts/Base.astro';
 import Turnstile from '../components/Turnstile.astro';
-import { db } from '../lib/db';
 import { talleresPublicados, tallerReservable } from '../lib/reservas';
 import { verificarTurnstile } from '../lib/turnstile';
+import { textosPago } from '../data/yutori';
+import { confirmarSesionBono, crearBono, iniciarPagoBono } from '../lib/bonos';
 import { avisoSolicitud } from '../lib/avisos';
+import { stripeActivo } from '../lib/stripe';
 import { esEmail } from '../lib/util';
 
 // Solo los talleres que siguen a la venta: con plazas libres, con precio y que aún se pueden reservar.
 const talleres = (await talleresPublicados()).filter((t) => t.plazas > t.ocupadas && t.precio_cent != null && tallerReservable(t.fecha));
 const enviado = Astro.url.searchParams.has('enviado');
+// Vuelta de la página de pago de Stripe: se confirma aquí también por si su aviso aún no ha llegado.
+const bonoPagado = Astro.url.searchParams.has('bono');
+const codigoPagado = bonoPagado
+  ? await confirmarSesionBono(Number(Astro.url.searchParams.get('bono')), Astro.url.searchParams.get('s') ?? '').catch(() => null)
+  : null;
+const conTarjeta = stripeActivo();
 const errores: string[] = [];
 // Importe: de 30 a 100 €, de 5 en 5.
 const IMPORTES = Array.from({ length: 15 }, (_, i) => 30 + i * 5);
@@ -43,12 +51,15 @@ if (Astro.request.method === 'POST') {
     const detalle = v.tipo === 'importe'
       ? `${importe.toLocaleString('es-ES', { maximumFractionDigits: 2 })} €`
       : v.taller || 'Aún no sabe qué taller';
-    await db()
-      .prepare(`INSERT INTO solicitudes (tipo, nombre, email, telefono, tipo_bono, detalle, para_quien, acepta_privacidad_en)
-                VALUES ('bono', ?1, ?2, ?3, ?4, ?5, ?6, strftime('%Y-%m-%dT%H:%M:%S', 'now')) RETURNING id`)
-      .bind(v.nombre, v.email, v.telefono, v.tipo, detalle, v.para)
-      .first<{ id: number }>()
-      .then((fila) => fila && avisoSolicitud(fila.id));
+    // Con importe conocido (cantidad o taller elegido) se paga ya con tarjeta; si no, se gestiona a mano como antes.
+    const importeCent = v.tipo === 'importe' ? importe * 100 : talleres.find((t) => t.titulo === v.taller)?.precio_cent ?? null;
+    const bono = await crearBono({ nombre: v.nombre, email: v.email, telefono: v.telefono, tipo: v.tipo as 'taller' | 'importe', detalle, para: v.para, importeCent });
+    if (bono?.pagaEnLaWeb) {
+      const url = await iniciarPagoBono(bono.id, Astro.url.origin).catch(() => null);
+      if (url) return Astro.redirect(url, 303);
+      // Stripe no responde: se gestiona a mano, como antes.
+      await avisoSolicitud(bono.id);
+    }
     return Astro.redirect('/bonos?enviado', 303);
   }
 }
@@ -61,7 +72,17 @@ if (Astro.request.method === 'POST') {
         <h1>Bonos regalo</h1>
       </div>
 
-      {enviado ? (
+      {bonoPagado ? (
+        <div class="tarjeta gracias" role="status">
+          {codigoPagado ? (
+            <>
+              <h2>{textosPago.bonoPagadoTitulo}</h2>
+              <p>{textosPago.bonoPagadoTexto}</p>
+              <a class="boton" href={`/bono/${codigoPagado}`}>{textosPago.verBono}</a>
+            </>
+          ) : <p>{textosPago.pagoProcesando}</p>}
+        </div>
+      ) : enviado ? (
         <div class="tarjeta gracias" role="status">
           <h2>¡Gracias! Hemos recibido tu petición</h2>
           <p>Te escribimos en breve para el pago y te enviamos el bono para que puedas regalarlo. Recuerda que es válido durante 3 meses.</p>
@@ -87,7 +108,7 @@ if (Astro.request.method === 'POST') {
             <h2 class="como-funciona">Cómo funciona</h2>
             <ol class="pasos">
               <li>Rellena el formulario con el tipo de bono y para quién es.</li>
-              <li>Te escribimos para el pago y te enviamos el bono.</li>
+              <li>{conTarjeta ? textosPago.pasoBono : 'Te escribimos para el pago y te enviamos el bono.'}</li>
               <li>La persona que lo recibe elige su taller y reserva.</li>
             </ol>
           </div>
@@ -165,7 +186,7 @@ if (Astro.request.method === 'POST') {
                     <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
                     <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
                     <Turnstile />
-                    <button class="boton" type="submit">Pedir mi bono</button>
+                    <button class="boton" type="submit">{conTarjeta ? textosPago.pagarBono : 'Pedir mi bono'}</button>
                   </div>
                 </div>
               </div>

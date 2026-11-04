@@ -193,6 +193,20 @@ export const textosPago = {
   noRenovarAyuda: (mes: string) => `Puedes avisarnos hasta el día 25. Si no, tu plaza de ${mes} se renueva sola.`,
   noRenovarHecho: (mes: string) => `Nos has avisado de que no sigues en ${mes}. Si cambias de idea antes del día 25, puedes deshacerlo.`,
   siRenovar: 'Sí seguiré',
+  pasoBono: 'Pagas con tarjeta y te enviamos el bono por email al momento.',
+  pagarBono: 'Pagar mi bono',
+  bonoPagadoTitulo: '¡Gracias! Tu bono está listo',
+  bonoPagadoTexto: 'Te lo hemos enviado por email. También puedes verlo e imprimirlo aquí. Recuerda que es válido durante 3 meses.',
+  verBono: 'Ver el bono',
+  bonoTitulo: 'Bono regalo',
+  bonoPara: 'Para',
+  bonoDe: 'De parte de',
+  bonoCodigo: 'Código',
+  bonoValido: 'Válido hasta el',
+  bonoComoUsar: 'Para usarlo, reserva tu plaza y danos este código.',
+  bonoCanjeado: 'Este bono ya se ha usado.',
+  bonoCaducado: 'Este bono ha caducado.',
+  imprimir: 'Imprimir',
 };
 
 export const politicaTalleres = [

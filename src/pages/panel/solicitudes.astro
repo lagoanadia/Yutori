@@ -31,6 +31,7 @@ const filas = await todos<{
   id: number; tipo: string; nombre: string; email: string; telefono: string | null; motivo: string | null;
   categoria: string | null; fecha_aprox: string | null; personas: number | null; tipo_bono: string | null;
   detalle: string | null; para_quien: string | null; mensaje: string | null; estado: string; notas: string | null; creado_en: string;
+  importe_cent: number | null; codigo_bono: string | null; pagada_en: string | null; stripe_sesion: string | null; canjeado_en: string | null;
 }>(`
   SELECT s.*, COALESCE(s.tipos_taller, c.nombre) AS categoria FROM solicitudes s LEFT JOIN categorias c ON c.id = s.categoria_id
   ${condiciones.length ? 'WHERE ' + condiciones.join(' AND ') : ''}
@@ -90,6 +91,8 @@ const whatsapp = (s: (typeof filas)[number]) => {
               <>
                 <dt>Bono</dt><dd>{s.tipo_bono === 'importe' ? 'Por importe' : 'Taller'}: {s.detalle}</dd>
                 <dt>Para</dt><dd>{s.para_quien ?? '—'}</dd>
+                {s.codigo_bono && <><dt>Pagado</dt><dd><strong>{s.codigo_bono}</strong>{s.canjeado_en ? ' · usado' : ' · sin usar'}</dd></>}
+                {!s.pagada_en && s.stripe_sesion && <><dt>Pago</dt><dd>Empezó a pagar con tarjeta y no terminó</dd></>}
               </>
             )}
           </dl>

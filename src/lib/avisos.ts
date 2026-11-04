@@ -224,6 +224,30 @@ export async function avisoPagoDevuelto(codigo: string) {
   );
 }
 
+/** Bono regalo pagado en la web: el bono a quien lo compra y el aviso a Yutori. */
+export async function avisoBonoPagado(id: number) {
+  const b = await uno<{ nombre: string; email: string; telefono: string | null; para_quien: string | null; tipo_bono: string; detalle: string;
+    importe_cent: number | null; codigo_bono: string; caduca_bono: string }>(
+    `SELECT nombre, email, telefono, para_quien, tipo_bono, detalle, importe_cent, codigo_bono, caduca_bono FROM solicitudes WHERE id = ?1`, id);
+  if (!b) return;
+  const que = b.tipo_bono === 'importe' ? `un bono de **${eurosCorto(b.importe_cent)}**` : `un bono para el taller **${b.detalle}**`;
+  enviar(
+    {
+      para: b.email, asunto: 'Tu bono regalo de Yutori', titulo: `¡Gracias, ${nombrePila(b.nombre)}! Aquí tienes tu bono`,
+      parrafos: [
+        `Has regalado ${que}${b.para_quien ? ` para **${b.para_quien}**` : ''}.`,
+        `Código del bono: **${b.codigo_bono}**. Es válido hasta el **${dia(b.caduca_bono)}**.`,
+        'Puedes reenviar este email o imprimir el bono desde el botón. Para usarlo, solo hay que darnos el código al reservar.',
+      ],
+      boton: { texto: 'Ver el bono', url: url(`/bono/${b.codigo_bono}`) },
+    },
+    paraYutori(`Bono regalo pagado: ${b.codigo_bono}`, 'Bono regalo pagado en la web', [
+      `**${b.nombre}** · ${b.telefono ?? ''} · ${b.email}`,
+      `${b.tipo_bono === 'importe' ? eurosCorto(b.importe_cent) : b.detalle}${b.para_quien ? ` · para ${b.para_quien}` : ''} · válido hasta el ${dia(b.caduca_bono)}`,
+    ], `/panel/solicitudes/${id}`),
+  );
+}
+
 export function avisoPlazasLiberadas(lista: { codigo: string; nombre: string; email: string; titulo: string }[]) {
   enviar(...lista.map((l) => ({
     para: l.email, asunto: `Tu plaza se ha liberado: ${l.titulo}`, titulo: 'Tu plaza se ha liberado',

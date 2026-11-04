@@ -1,0 +1,62 @@
+---
+// Página del bono regalo (el código es la llave): para enseñarlo, reenviarlo o imprimirlo.
+export const prerender = false;
+import Base from '../../layouts/Base.astro';
+import { negocio, textosPago } from '../../data/yutori';
+import { eurosCorto } from '../../lib/db';
+import { bonoPorCodigo } from '../../lib/bonos';
+import { hoyEspana } from '../../lib/reservas';
+
+const b = await bonoPorCodigo((Astro.params.codigo ?? '').toUpperCase());
+if (!b?.codigo_bono || !b.caduca_bono) return new Response(null, { status: 404 });
+const caducado = b.caduca_bono < hoyEspana();
+const valido = new Date(`${b.caduca_bono}T00:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const regalo = b.tipo_bono === 'importe' ? eurosCorto(b.importe_cent) : b.detalle;
+---
+<Base titulo={textosPago.bonoTitulo} noindex>
+  <section class="seccion">
+    <div class="contenedor bono-pagina">
+      <article class:list={['bono-tarjeta', { 'bono-tarjeta--usado': b.canjeado_en || caducado }]}>
+        <span class="mariposa-marca bono-tarjeta__mariposa" aria-hidden="true"></span>
+        <p class="script">Yutori Espacio Creativo</p>
+        <h1>{textosPago.bonoTitulo}</h1>
+        <p class="bono-tarjeta__regalo">{regalo}</p>
+        <dl>
+          {b.para_quien && <><dt>{textosPago.bonoPara}</dt><dd>{b.para_quien}</dd></>}
+          <dt>{textosPago.bonoDe}</dt><dd>{b.nombre}</dd>
+          <dt>{textosPago.bonoCodigo}</dt><dd class="bono-tarjeta__codigo">{b.codigo_bono}</dd>
+          <dt>{textosPago.bonoValido}</dt><dd>{valido}</dd>
+        </dl>
+        <p class="bono-tarjeta__uso">
+          {b.canjeado_en ? textosPago.bonoCanjeado : caducado ? textosPago.bonoCaducado : textosPago.bonoComoUsar}
+        </p>
+        <p class="bono-tarjeta__pie">{negocio.direccion}, {negocio.ciudad}</p>
+      </article>
+      <div class="botones no-imprimir">
+        <button class="boton" type="button" onclick="window.print()">{textosPago.imprimir}</button>
+        <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .bono-pagina { max-width: 640px; display: grid; gap: 20px; justify-items: center; }
+  .bono-tarjeta { position: relative; overflow: hidden; width: 100%; padding: 36px 32px; border-radius: 28px; text-align: center;
+    background: linear-gradient(150deg, var(--salvia-suave), var(--crema-claro) 60%); border: 2px solid var(--verde); box-shadow: var(--sombra); }
+  .bono-tarjeta--usado { filter: grayscale(0.8); opacity: 0.75; }
+  .bono-tarjeta__mariposa { position: absolute; right: -30px; top: -30px; width: 180px; opacity: 0.18; color: var(--verde); }
+  .bono-tarjeta .script { margin: 0; font-size: 1.6rem; }
+  .bono-tarjeta h1 { margin: 0 0 8px; }
+  .bono-tarjeta__regalo { font-family: var(--serif); font-size: clamp(2rem, 8vw, 3rem); color: var(--verde-profundo); margin: 0 0 16px; line-height: 1.1; }
+  .bono-tarjeta dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; text-align: left; max-width: 380px; margin: 0 auto 16px; }
+  .bono-tarjeta dt { font-weight: 700; color: var(--tinta-suave); }
+  .bono-tarjeta dd { margin: 0; }
+  .bono-tarjeta__codigo { white-space: nowrap; font-family: ui-monospace, monospace; font-size: clamp(0.95rem, 3.6vw, 1.15rem); font-weight: 700; letter-spacing: 0.08em; color: var(--verde-profundo); }
+  .bono-tarjeta__uso { font-weight: 700; color: var(--verde); }
+  .bono-tarjeta__pie { font-size: 0.85rem; color: var(--tinta-suave); margin: 0; }
+  @media print {
+    :global(header), :global(footer), :global(.saltar), .no-imprimir { display: none !important; }
+    .bono-tarjeta { box-shadow: none; }
+  }
+</style>
