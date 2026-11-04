@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
+import PestanasPersonas from '../../components/panel/PestanasPersonas.astro';
 import { todos, fecha, DIAS, ESTADOS_RESERVA, TIPOS_RESERVA } from '../../lib/db';
 import { cambiarEstadoReserva, liberarCaducadas } from '../../lib/reservas';
 
@@ -50,6 +51,7 @@ const enlace = (cambios: Record<string, string | null>) => {
 };
 ---
 <Panel titulo="Reservas">
+  <PestanasPersonas />
   <nav class="filtros" aria-label="Filtrar por estado">
     <a href={enlace({ estado: null })} aria-current={!filtroEstado ? 'true' : undefined}>Todos los estados</a>
     {Object.entries(ESTADOS_RESERVA).map(([k, v]) => <a href={enlace({ estado: k })} aria-current={filtroEstado === k ? 'true' : undefined}>{v}</a>)}

@@ -1,0 +1,27 @@
+---
+// Pestañas de «Personas»: la lista de todas y las pantallas de trabajo de cada tipo (antes eran apartados del menú).
+import { pendientesDelMenu } from '../../lib/pendientes';
+
+const pendientes = await pendientesDelMenu();
+const pestanas = [
+  { href: '/panel/personas', texto: 'Todas', globo: 0 },
+  { href: '/panel/reservas', texto: 'Reservas', globo: pendientes.reservas },
+  { href: '/panel/talleristas', texto: 'Talleristas', globo: pendientes.talleristas },
+  { href: '/panel/solicitudes', texto: 'Privados y bonos', globo: pendientes.solicitudes },
+];
+const actual = Astro.url.pathname.replace(/\/$/, '');
+---
+<nav class="pestanas" aria-label="Personas">
+  {pestanas.map((p) => (
+    <a href={p.href} aria-current={actual === p.href ? 'page' : undefined}>
+      {p.texto}{p.globo > 0 && <span class="globo" aria-label={`${p.globo} pendientes`}>{p.globo}</span>}
+    </a>
+  ))}
+</nav>
+
+<style>
+  .pestanas { display: flex; gap: 4px; overflow-x: auto; margin: -4px 0 18px; padding-bottom: 2px; border-bottom: 1px solid var(--borde); scrollbar-width: none; }
+  .pestanas a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px; white-space: nowrap; text-decoration: none; color: var(--tinta-suave); font-weight: 700; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .pestanas a[aria-current='page'] { color: var(--verde); border-bottom-color: var(--verde); }
+  .pestanas .globo { margin-left: 6px; }
+</style>

@@ -8,26 +8,26 @@ import { pendientesDelMenu, type Pendientes } from '../lib/pendientes';
 interface Props { titulo: string; ocultarTitulo?: boolean; pantalla?: boolean }
 const { titulo, ocultarTitulo = false, pantalla = false } = Astro.props;
 
-const menu: { href: string; texto: string; globo?: keyof Pendientes; icono: string }[] = [
+const menu: { href: string; texto: string; globo?: keyof Pendientes; icono: string; incluye?: string[] }[] = [
   { href: '/panel', texto: 'Hoy', icono: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z' },
   { href: '/panel/agenda', texto: 'Agenda', icono: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2' },
   { href: '/panel/asistente', texto: 'Asistente', icono: 'M4 5h16v11H9l-5 4z' },
-  { href: '/panel/talleristas', texto: 'Talleristas', globo: 'talleristas', icono: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 20c0-4 3.5-6 8-6s8 2 8 6' },
   { href: '/panel/talleres', texto: 'Talleres', globo: 'talleres', icono: 'M4 5h16v14H4zM4 10h16M9 5v14' },
-  { href: '/panel/reservas', texto: 'Reservas', globo: 'reservas', icono: 'M5 6h14v4a2 2 0 0 0 0 4v4H5v-4a2 2 0 0 0 0-4zM14 6v12' },
+  { href: '/panel/personas', texto: 'Personas', globo: 'personas', icono: 'M9 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.8c2 .6 3.5 2.2 3.5 5.2',
+    incluye: ['/panel/reservas', '/panel/talleristas', '/panel/solicitudes'] },
   { href: '/panel/clases', texto: 'Clases', globo: 'clases', icono: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4' },
-  { href: '/panel/solicitudes', texto: 'Privados y bonos', globo: 'solicitudes', icono: 'M4 8h16v11H4zM4 12h16M12 8v11M12 8c-3 0-4-4-1.5-4S12 8 12 8zm0 0c3 0 4-4 1.5-4S12 8 12 8z' },
 ];
-// Barra inferior del móvil: los apartados más usados y «Más» con el resto, para verlos todos sin deslizar.
-const enBarra = ['/panel', '/panel/agenda', '/panel/talleres', '/panel/clases'];
+// Barra inferior del móvil: con seis apartados caben todos; «Más» solo sale si algún día hay más de los que caben.
+const enBarra = ['/panel', '/panel/agenda', '/panel/talleres', '/panel/clases', '/panel/personas', '/panel/asistente'];
 const principales = menu.filter((m) => enBarra.includes(m.href));
 const secundarios = menu.filter((m) => !enBarra.includes(m.href));
 const pendientes = await pendientesDelMenu();
 const globo = (m: (typeof menu)[number]) => (m.globo ? pendientes[m.globo] : 0);
 const globoMas = secundarios.reduce((suma, m) => suma + globo(m), 0);
 const actual = Astro.url.pathname.replace(/\/$/, '');
-// La sección se marca también en sus subpáginas (/panel/clases/alumna → Clases).
-const seccion = menu.filter((m) => actual === m.href || actual.startsWith(m.href + '/')).pop()?.href;
+// La sección se marca también en sus subpáginas (/panel/clases/alumna → Clases) y en las que agrupa (Reservas → Personas).
+const dentro = (ruta: string) => actual === ruta || actual.startsWith(ruta + '/');
+const seccion = menu.filter((m) => dentro(m.href) || m.incluye?.some(dentro)).pop()?.href;
 const enMas = secundarios.some((m) => m.href === seccion);
 
 // Aviso tras guardar algo (las acciones redirigen con ?ok=código).
@@ -70,13 +70,14 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
       </div>
     </header>
 
-    <nav class="menu-movil" aria-label="Panel">
+    <nav class="menu-movil" aria-label="Panel" style={`--columnas: ${principales.length + (secundarios.length ? 1 : 0)}`}>
       {principales.map((m) => (
         <a href={m.href} aria-current={seccion === m.href ? 'page' : undefined}>
           <span class="menu-movil__icono"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d={m.icono} /></svg>{globo(m) > 0 && <span class="globo" aria-label={`${globo(m)} pendientes`}>{globo(m)}</span>}</span>
           {m.texto}
         </a>
       ))}
+      {secundarios.length > 0 && <>
       <button type="button" class:list={['menu-movil__mas', { 'menu-movil__mas--actual': enMas }]} popovertarget="menu-mas">
         <span class="menu-movil__icono"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>{globoMas > 0 && <span class="globo" aria-label={`${globoMas} pendientes`}>{globoMas}</span>}</span>
         Más
@@ -88,6 +89,7 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
           </a>
         ))}
       </div>
+      </>}
     </nav>
 
     <main class="contenedor panel">
@@ -114,7 +116,7 @@ const aviso = ok === 'anadidos' && n > 0 ? `${n} ${n === 1 ? 'añadido' : 'añad
   .menu-movil { display: grid; }
 
   /* Móvil: barra fija abajo con los apartados más usados y «Más». */
-  .menu-movil { position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; grid-template-columns: repeat(5, 1fr); background: var(--crema-claro); border-top: 1px solid var(--borde); box-shadow: 0 -4px 16px rgba(36, 51, 47, 0.08); padding-bottom: env(safe-area-inset-bottom); }
+  .menu-movil { position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; grid-template-columns: repeat(var(--columnas, 5), 1fr); background: var(--crema-claro); border-top: 1px solid var(--borde); box-shadow: 0 -4px 16px rgba(36, 51, 47, 0.08); padding-bottom: env(safe-area-inset-bottom); }
   .menu-movil a, .menu-movil__mas { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 60px; padding: 6px 2px; color: var(--tinta-suave); text-decoration: none; font: inherit; font-size: 0.75rem; font-weight: 700; background: none; border: 0; cursor: pointer; }
   .menu-movil a[aria-current='page'], .menu-movil__mas--actual { color: var(--verde); box-shadow: inset 0 3px 0 var(--verde); }
   .menu-movil__icono { position: relative; display: inline-flex; }

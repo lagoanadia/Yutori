@@ -2,7 +2,7 @@
 import { uno } from './db';
 import { hoyEspana } from './reservas';
 
-export type Pendientes = { talleristas: number; talleres: number; reservas: number; clases: number; solicitudes: number };
+export type Pendientes = { talleristas: number; talleres: number; reservas: number; clases: number; solicitudes: number; personas: number };
 
 /** Números de pendientes por apartado. Ignora las reservas con el plazo vencido (se liberan al abrir su pantalla). */
 export async function pendientesDelMenu(): Promise<Pendientes> {
@@ -15,5 +15,7 @@ export async function pendientesDelMenu(): Promise<Pendientes> {
       (SELECT count(*) FROM reservas WHERE estado = 'pendiente' AND tipo <> 'taller'
          AND (caduca_en IS NULL OR caduca_en >= strftime('%Y-%m-%dT%H:%M:%S', 'now'))) AS clases,
       (SELECT count(*) FROM solicitudes WHERE estado = 'nueva') AS solicitudes`, hoyEspana());
-  return { talleristas: f?.talleristas ?? 0, talleres: f?.talleres ?? 0, reservas: f?.reservas ?? 0, clases: f?.clases ?? 0, solicitudes: f?.solicitudes ?? 0 };
+  const p = { talleristas: f?.talleristas ?? 0, talleres: f?.talleres ?? 0, reservas: f?.reservas ?? 0, clases: f?.clases ?? 0, solicitudes: f?.solicitudes ?? 0 };
+  // Personas agrupa reservas, talleristas y peticiones de privados y bonos.
+  return { ...p, personas: p.reservas + p.talleristas + p.solicitudes };
 }

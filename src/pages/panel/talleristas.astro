@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
+import PestanasPersonas from '../../components/panel/PestanasPersonas.astro';
 import { todos, fecha, ESTADOS_TALLERISTA } from '../../lib/db';
 
 type Fila = {
@@ -33,6 +34,7 @@ for (const f of filas) {
 const siNo = (v: number | null) => (v == null ? '—' : v ? 'Sí' : 'No');
 ---
 <Panel titulo="Talleristas">
+  <PestanasPersonas />
   <p class="acciones-lista"><a class="boton" href="/panel/talleristas/nueva">+ Añadir tallerista</a></p>
   <nav class="filtros" aria-label="Filtrar por estado">
     <a href="/panel/talleristas" aria-current={!filtro ? 'true' : undefined}>Todas</a>

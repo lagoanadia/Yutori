@@ -511,3 +511,6 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
   .lamina { display: block; }
 }
 .pagina-formulario .formulario { max-width: none; }
+
+/* Texto solo para lectores de pantalla (etiquetas de buscadores, por ejemplo). */
+.visualmente-oculto { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

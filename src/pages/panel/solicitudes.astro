@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Panel from '../../layouts/Panel.astro';
+import PestanasPersonas from '../../components/panel/PestanasPersonas.astro';
 import { db, todos, fecha, ESTADOS_SOLICITUD } from '../../lib/db';
 import { telefonoWhatsApp } from '../../lib/util';
 
@@ -53,6 +54,7 @@ const whatsapp = (s: (typeof filas)[number]) => {
 };
 ---
 <Panel titulo="Privados y bonos">
+  <PestanasPersonas />
   <p class="acciones-lista"><a class="boton" href="/panel/solicitudes/nueva">+ Añadir</a></p>
   <nav class="filtros" aria-label="Filtrar por tipo">
     <a href={enlace({ tipo: null })} aria-current={!filtroTipo ? 'true' : undefined}>Todo</a>

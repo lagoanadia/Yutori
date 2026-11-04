@@ -1,0 +1,97 @@
+---
+// Personas: todas las alumnas, talleristas y clientas de privados y bonos en una lista, con búsqueda y filtros.
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import PestanasPersonas from '../../components/panel/PestanasPersonas.astro';
+import { eurosCorto, fecha } from '../../lib/db';
+import { ETIQUETAS, listarPersonas, type Etiqueta } from '../../lib/personas';
+import { telefonoWhatsApp } from '../../lib/util';
+
+const FILTROS: Record<string, { texto: string; etiquetas: Etiqueta[] }> = {
+  alumnas: { texto: 'Alumnas', etiquetas: ['mensual', 'clases'] },
+  talleres: { texto: 'Talleres', etiquetas: ['talleres'] },
+  talleristas: { texto: 'Talleristas', etiquetas: ['tallerista'] },
+  clientas: { texto: 'Privados y bonos', etiquetas: ['privado', 'bono'] },
+};
+const ver = Astro.url.searchParams.get('ver') ?? '';
+const q = (Astro.url.searchParams.get('q') ?? '').trim().toLowerCase().slice(0, 80);
+const filtro = FILTROS[ver];
+
+const todas = await listarPersonas();
+const sinAcentos = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const personas = todas.filter((p) =>
+  (!filtro || p.etiquetas.some((e) => filtro.etiquetas.includes(e)))
+  && (!q || sinAcentos(`${p.nombre} ${p.email} ${p.telefono ?? ''} ${p.tallerista?.marca ?? ''}`).includes(sinAcentos(q))));
+const cuenta = (clave: string) => todas.filter((p) => p.etiquetas.some((e) => FILTROS[clave].etiquetas.includes(e))).length;
+const enlace = (v: string) => `/panel/personas${v || q ? `?${new URLSearchParams({ ...(v ? { ver: v } : {}), ...(q ? { q } : {}) })}` : ''}`;
+const iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
+---
+<Panel titulo="Personas">
+  <PestanasPersonas />
+
+  <form class="buscador" method="get" role="search">
+    {ver && <input type="hidden" name="ver" value={ver} />}
+    <label for="q" class="visualmente-oculto">Buscar</label>
+    <input id="q" name="q" type="search" value={q} placeholder="Buscar por nombre, email o teléfono" autocomplete="off" />
+    <button class="boton" type="submit">Buscar</button>
+  </form>
+
+  <nav class="filtros" aria-label="Filtrar">
+    <a href={enlace('')} aria-current={!filtro ? 'true' : undefined}>Todas · {todas.length}</a>
+    {Object.entries(FILTROS).map(([k, f]) => <a href={enlace(k)} aria-current={ver === k ? 'true' : undefined}>{f.texto} · {cuenta(k)}</a>)}
+  </nav>
+
+  {personas.length === 0 ? <p class="vacio">No hay nadie{q ? ` que coincida con «${q}»` : ''}.</p> : (
+    <ul class="personas">
+      {personas.map((p) => {
+        const wa = telefonoWhatsApp(p.telefono);
+        return (
+          <li class="persona tarjeta">
+            <a class="persona__principal" href={`/panel/personas/${encodeURIComponent(p.email)}`}>
+              <span class:list={['avatar', { 'avatar--tallerista': p.tallerista }]} aria-hidden="true">{iniciales(p.nombre)}</span>
+              <span class="persona__texto">
+                <strong>{p.nombre}</strong>
+                <small>{p.tallerista?.marca ?? p.email}</small>
+                <span class="etiquetas">{p.etiquetas.map((e) => <span class={`etiqueta-p etiqueta-p--${e}`}>{ETIQUETAS[e]}</span>)}</span>
+              </span>
+              <span class="persona__datos">
+                {p.gastoCent > 0 && <strong>{eurosCorto(p.gastoCent)}</strong>}
+                <small>{p.reservas > 0 ? `${p.reservas} ${p.reservas === 1 ? 'reserva' : 'reservas'}` : ''}{p.solicitudes > 0 ? `${p.reservas ? ' · ' : ''}${p.solicitudes} ${p.solicitudes === 1 ? 'petición' : 'peticiones'}` : ''}</small>
+                <small>{fecha(p.ultima)}</small>
+                {p.pendientes > 0 && <span class="pendiente">{p.pendientes} sin pagar</span>}
+              </span>
+            </a>
+            <span class="persona__contacto">
+              {wa && <a class="contacto" href={`https://wa.me/${wa}`} target="_blank" rel="noopener" aria-label={`WhatsApp a ${p.nombre}`}>WhatsApp</a>}
+              <a class="contacto" href={`mailto:${p.email}`} aria-label={`Email a ${p.nombre}`}>Email</a>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</Panel>
+
+<style>
+  .buscador { display: flex; gap: 8px; margin-bottom: 12px; }
+  .buscador input { flex: 1; min-height: 48px; }
+  .personas { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .persona { display: flex; align-items: center; gap: 8px; padding: 10px 12px; flex-wrap: wrap; }
+  .persona__principal { flex: 1 1 320px; display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; min-width: 0; }
+  .avatar { flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: var(--salvia-suave); color: var(--verde-profundo); }
+  .avatar--tallerista { background: #f6eadb; color: var(--oro); }
+  .persona__texto { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .persona__texto small { color: var(--tinta-suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .etiquetas { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .etiqueta-p { font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--salvia-suave); color: var(--verde-profundo); }
+  .etiqueta-p--tallerista, .etiqueta-p--talleres { background: #f6eadb; color: #7a5a22; }
+  .etiqueta-p--privado, .etiqueta-p--bono { background: #ece4f3; color: #5b4370; }
+  .persona__datos { display: flex; flex-direction: column; align-items: flex-end; text-align: right; flex: none; }
+  .persona__datos strong { font-family: var(--serif); font-size: 1.2rem; color: var(--verde-profundo); }
+  .persona__datos small { color: var(--tinta-suave); font-size: 0.8rem; }
+  .pendiente { font-size: 0.75rem; font-weight: 700; color: var(--aviso); }
+  .persona__contacto { display: flex; gap: 6px; }
+  .contacto { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--borde); color: var(--verde); text-decoration: none; font-size: 0.85rem; font-weight: 700; }
+  .contacto:hover { background: var(--salvia-suave); }
+  @media (max-width: 600px) { .persona__contacto { width: 100%; justify-content: flex-end; } }
+</style>
