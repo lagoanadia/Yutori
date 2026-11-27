@@ -23,6 +23,20 @@ const menu = [
   { href: '/colabora', texto: 'Imparte tu Taller' },
 ];
 const actual = Astro.url.pathname.replace(/\/$/, '');
+// Móvil: barra fija abajo (al alcance del pulgar) y «Más» con el resto, que se abre desde abajo.
+const barra = [
+  { href: '/', texto: 'Inicio', icono: 'M4 11 12 4l8 7v9h-5v-6H9v6H4z' },
+  { href: '/talleres', texto: 'Talleres', icono: 'M4 5h16v15H4zM4 10h16M9 3v4M15 3v4' },
+  { href: '/clases', texto: 'Clases', icono: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM4.5 9.5c4 1 11 1 15 0M4.5 14.5c4-1 11-1 15 0M12 4c-3 3-3 13 0 16M12 4c3 3 3 13 0 16' },
+  { href: '/bonos', texto: 'Bonos', icono: 'M3.5 9h17v11.5h-17zM2.5 9h19M12 9v11.5M12 9c-1.8-4.5-6.5-4.8-6.5-2.2C5.5 9 12 9 12 9Zm0 0c1.8-4.5 6.5-4.8 6.5-2.2C18.5 9 12 9 12 9Z' },
+];
+const masMenu = [
+  { href: '/privados', texto: 'Talleres Privados', icono: 'M9 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.8c2 .6 3.5 2.2 3.5 5.2' },
+  { href: '/espacio', texto: 'El Espacio', icono: 'M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12zM12 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z' },
+  { href: '/colabora', texto: 'Imparte tu Taller', icono: 'M5 19 15.5 8.5M14 5l5 5M4 20l2.5-.5L5 18zM13 6l2-2 5 5-2 2' },
+  { href: '/condiciones', texto: 'Reservas y cancelaciones', icono: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5' },
+];
+const dentro = (href: string) => (href === '/' ? actual === '' : actual === href || actual.startsWith(href + '/'));
 const tituloCompleto = titulo === 'Inicio'
   ? `${negocio.nombre} ${negocio.subtitulo} · Talleres creativos en A Coruña`
   : `${titulo} · ${negocio.nombre} ${negocio.subtitulo}`;
@@ -109,6 +123,33 @@ const sitio = env.SITIO_URL || Astro.url.origin;
         </div>
       </div>
     </footer>
+
+    <nav class="barra-movil" aria-label="Principal (móvil)">
+      {barra.map((m) => (
+        <a href={m.href} aria-current={dentro(m.href) ? 'page' : undefined}>
+          <span class="barra-movil__ico"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d={m.icono} /></svg></span>
+          {m.texto}
+        </a>
+      ))}
+      <button type="button" class:list={['barra-movil__mas', { actual: masMenu.some((m) => dentro(m.href)) }]} popovertarget="hoja-mas">
+        <span class="barra-movil__ico"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg></span>
+        Más
+      </button>
+    </nav>
+    <div id="hoja-mas" popover class="hoja-mas" aria-label="Más">
+      <span class="hoja-mas__asa" aria-hidden="true"></span>
+      {masMenu.map((m) => (
+        <a href={m.href} aria-current={dentro(m.href) ? 'page' : undefined}>
+          <span class="hoja-mas__ico"><svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"><path d={m.icono} /></svg></span>
+          {m.texto}<span class="hoja-mas__flecha" aria-hidden="true">›</span>
+        </a>
+      ))}
+      <a href={negocio.instagram} rel="noopener" target="_blank">
+        <span class="hoja-mas__ico"><svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"><path d="M3 3h18v18H3zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM17.5 6.5h.01" /></svg></span>
+        {negocio.instagramUsuario}<span class="hoja-mas__flecha" aria-hidden="true">›</span>
+      </a>
+      <p class="hoja-mas__pie">{negocio.direccion}, {negocio.ciudad}<br /><a href="/aviso-legal">Aviso legal</a> · <a href="/privacidad">Privacidad</a> · <a href="/cookies">Cookies</a></p>
+    </div>
 
     <script is:inline>
       // Menú móvil: se cierra al pulsar fuera, con Esc o al elegir un enlace. Sin JavaScript funciona igual (details).
@@ -253,4 +294,54 @@ const sitio = env.SITIO_URL || Astro.url.origin;
   .pie__contacto { list-style: none; padding: 0; margin: 0 0 1em; display: grid; gap: 8px; }
   .pie__contacto li { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
   .pie__contacto svg { flex: none; }
+
+  /* ——— Móvil (hasta 759 px): navegación de app abajo; el menú de arriba y el pie se recogen en «Más». ——— */
+  .barra-movil, .hoja-mas { display: none; }
+  @media (max-width: 759px) {
+    .cabecera { position: relative; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+    .cabecera__fila { min-height: 64px; }
+    .menu-movil, .pie { display: none; }
+    .marca :global(img) { width: 42px; }
+    .marca__nombre { font-size: 1.3rem; }
+    body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+    .barra-movil {
+      position: fixed; z-index: 40; left: 0; right: 0; bottom: 0;
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+      background: color-mix(in srgb, var(--crema-claro) 94%, transparent);
+      backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+      border-top: 1px solid var(--borde);
+    }
+    .barra-movil a, .barra-movil__mas {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 54px; padding: 0 2px;
+      border: 0; background: none; cursor: pointer; font: inherit; font-size: 0.7rem; font-weight: 600;
+      color: var(--tinta-suave); text-decoration: none;
+    }
+    .barra-movil svg { display: block; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .barra-movil__mas svg { stroke-width: 3; }
+    .barra-movil__ico { padding: 2px 14px; border-radius: 999px; }
+    .barra-movil a[aria-current='page'], .barra-movil__mas.actual { color: var(--verde-profundo); }
+    .barra-movil a[aria-current='page'] .barra-movil__ico, .barra-movil__mas.actual .barra-movil__ico { background: var(--salvia-suave); }
+
+    .hoja-mas {
+      position: fixed; inset: auto 0 0 0; width: 100%; max-width: none; margin: 0; z-index: 50;
+      padding: 6px 16px calc(28px + env(safe-area-inset-bottom)); border: 0; border-radius: 28px 28px 0 0;
+      background: var(--crema-claro); box-shadow: 0 -10px 40px rgba(38, 51, 47, 0.25);
+    }
+    .hoja-mas:popover-open { display: block; }
+    .hoja-mas::backdrop { background: rgba(38, 51, 47, 0.38); }
+    .hoja-mas__asa { display: block; width: 40px; height: 5px; border-radius: 99px; background: var(--borde); margin: 4px auto 10px; }
+    .hoja-mas > a { display: flex; align-items: center; gap: 14px; min-height: 64px; border-bottom: 1px solid var(--borde); color: var(--tinta); text-decoration: none; font-weight: 700; }
+    .hoja-mas > a[aria-current='page'] { color: var(--verde-profundo); }
+    .hoja-mas__ico { width: 40px; height: 40px; border-radius: 13px; background: var(--salvia-suave); color: var(--verde-profundo); display: grid; place-items: center; flex: none; }
+    .hoja-mas__ico svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .hoja-mas__flecha { margin-left: auto; color: var(--tinta-suave); font-size: 1.4rem; font-weight: 400; }
+    .hoja-mas__pie { margin: 14px 0 0; font-size: 0.8rem; color: var(--tinta-suave); line-height: 1.6; }
+    .hoja-mas__pie a { color: var(--tinta-suave); }
+    @media (prefers-reduced-motion: no-preference) {
+      .hoja-mas { transition: translate 280ms var(--curva-salida), display 280ms allow-discrete, overlay 280ms allow-discrete; }
+      @starting-style { .hoja-mas:popover-open { translate: 0 100%; } }
+      .hoja-mas:not(:popover-open) { translate: 0 100%; }
+    }
+  }
 </style>

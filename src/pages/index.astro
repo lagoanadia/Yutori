@@ -294,4 +294,53 @@ const iconos: Record<string, string> = {
     .encuentro__bloque--oscuro { padding-right: 120px; min-height: 420px; }
     .encuentro__bloque--arco { margin-left: -72px; padding-top: 104px; }
   }
+
+  /* ——— Móvil: portada en tarjeta, lo que se puede hacer en cuatro baldosas y los talleres en carrusel. ——— */
+  @media (max-width: 759px) {
+    .portada { padding-top: 0; }
+    .portada__lienzo { border-radius: 28px; min-height: 0; padding: 28px 20px 24px; }
+    .portada__titulo { font-size: 2rem; line-height: 1.06; }
+    .portada__lema { font-size: 0.92rem; margin-bottom: 0; }
+    .portada__arcos { display: none; }
+    .servicios { margin: 20px 0 0; padding: 0; background: none; box-shadow: none; animation: none; }
+    .servicios__titulo { font-size: 0.95rem; margin-bottom: 10px; }
+    .servicios__lista { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .servicio {
+      position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+      min-height: 132px; padding: 14px; border: 0; border-radius: 22px; background: var(--crema-claro); box-shadow: var(--sombra-suave);
+    }
+    .servicio--1 { background: var(--verde-profundo); }
+    .servicio--1 h3 { color: #fff; }
+    .servicio--1 .servicio__icono { background: rgba(255, 255, 255, 0.14); color: #fff; }
+    .servicio__icono { width: 44px; height: 44px; padding: 0; border-radius: 15px; display: grid; place-items: center; background: var(--salvia-suave); color: var(--verde-profundo); margin: 0; flex: none; }
+    .servicio h3 { font-size: 1.12rem; line-height: 1.15; margin: 0; }
+    .servicio__cuerpo p { display: none; }
+    /* El enlace cubre la baldosa entera; su texto queda para los lectores de pantalla. */
+    .servicio__enlace { font-size: 0; margin: 0; }
+    .servicio__enlace::after { display: none; }
+    .servicio__enlace::before { border-radius: 22px; }
+
+    .proximos { padding-top: 28px; }
+    .titulo-con-enlace { margin-bottom: 12px; }
+    .proximos__rejilla { grid-auto-columns: 78%; gap: 12px; }
+    .proximos__rejilla :global(.taller__boton) { min-height: 0; height: 0; padding: 0; overflow: hidden; border: 0; margin: 0; }
+    .proximos__rejilla :global(.taller) { padding: 8px 8px 14px; border-radius: 24px; }
+    .proximos__rejilla :global(.taller__media) { margin-bottom: 12px; border-radius: 18px; }
+    .proximos__rejilla :global(.taller__foto), .proximos__rejilla :global(.taller__hueco) { aspect-ratio: 16 / 10; }
+    .proximos__rejilla :global(.taller > :not(.taller__media):not(.taller__etiqueta)) { margin-inline: 8px; }
+    .proximos__rejilla :global(.taller h3) { font-size: 1.2rem; }
+    .proximos__rejilla :global(.taller__quien) { margin-bottom: 6px; font-size: 0.85rem; }
+    .proximos__rejilla :global(.taller__cuando) { font-size: 0.85rem; }
+    .proximos__rejilla :global(.taller__extra) { display: none; }
+    .proximos__rejilla :global(.taller__precio) { font-size: 1.3rem; }
+    .titulo-con-enlace h2 { font-size: 1.5rem; }
+    .proximos__rejilla :global(.taller__pie) { margin-bottom: 0; }
+
+    .encuentro-seccion { padding-top: 8px; }
+    .encuentro { gap: 12px; }
+    .encuentro__bloque { padding: 22px 20px; border-radius: 24px; }
+    .encuentro__bloque h2 { font-size: 1.4rem; }
+    .encuentro__bloque .intro { font-size: 0.92rem; margin-bottom: 14px; }
+    .encuentro__bloque :global(.boton) { width: 100%; justify-content: center; }
+  }
 </style>
