@@ -43,10 +43,17 @@ export function formularioPorPasos(form: HTMLFormElement, { antesDeMostrar = () 
     return !malo;
   };
   const ajustarAlto = () => { ventana.style.height = pasos[actual].offsetHeight + 'px'; };
+  // Un paso sin nada que rellenar (por ejemplo, sin talleres a la venta que elegir) se salta.
+  const vacio = (n: number) => campos(pasos[n]).length === 0 && !pasos[n].contains(enviar);
 
   const ir = (n: number, conFoco = true) => {
+    const sentido = n < actual ? -1 : 1;
     actual = Math.max(0, Math.min(ultimo, n));
     antesDeMostrar();
+    while (vacio(actual) && actual + sentido >= 0 && actual + sentido <= ultimo) {
+      actual += sentido;
+      antesDeMostrar();
+    }
     pasos.forEach((p, i) => { p.inert = i !== actual; p.classList.toggle('paso--actual', i === actual); });
     pista.style.transform = `translateX(${-100 * actual}%)`;
     ajustarAlto();

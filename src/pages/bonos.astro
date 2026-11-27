@@ -22,14 +22,14 @@ const conTarjeta = stripeActivo();
 const errores: string[] = [];
 // Importe: de 30 a 100 €, de 5 en 5.
 const IMPORTES = Array.from({ length: 15 }, (_, i) => 30 + i * 5);
-let v = { tipo: 'taller', taller: '', importe: '', para: '', nombre: '', telefono: '', email: '' };
+let v = { tipo: 'taller', taller: '', importe: '', para: '', nombre: '', telefono: '', email: '', privacidad: '' };
 
 if (Astro.request.method === 'POST') {
   const datos = await Astro.request.formData();
   const campo = (k: string, max = 160) => String(datos.get(k) ?? '').trim().slice(0, max);
   v = {
     tipo: campo('tipo', 10), taller: campo('taller', 120), importe: campo('importe', 6), para: campo('para', 120),
-    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'),
+    nombre: campo('nombre', 120), telefono: campo('telefono', 30), email: campo('email'), privacidad: campo('privacidad', 2),
   };
   if (campo('web')) return Astro.redirect('/bonos?enviado', 303);
 
@@ -143,7 +143,8 @@ if (Astro.request.method === 'POST') {
                   </fieldset>
 
                   <div data-paso>
-                    <fieldset class="campo" data-bono="taller">
+                    {/* Sin talleres a la venta no hay nada que elegir: el bono queda como «aún no sabe qué taller» y el paso se salta. */}
+                    <fieldset class="campo" data-bono="taller" data-vacio={talleres.length === 0 ? '1' : undefined} hidden={talleres.length === 0}>
                       <legend>¿Qué taller quieres regalar?</legend>
                       <div class="opciones">
                         <label class="opcion">
@@ -180,11 +181,11 @@ if (Astro.request.method === 'POST') {
 
                   <div data-paso>
                     <div class="dos-col">
-                      <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+                      <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required pattern="\s*\+?[\d\s().\-]{9,}" title="Escribe un teléfono de contacto." /></div>
                       <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
                     </div>
                     <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
-                    <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+                    <label class="casilla"><input type="checkbox" name="privacidad" required checked={v.privacidad === 'on'} /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
                     <Turnstile />
                     <button class="boton" type="submit">{conTarjeta ? textosPago.pagarBono : 'Pedir mi bono'}</button>
                   </div>
@@ -216,7 +217,7 @@ if (Astro.request.method === 'POST') {
     // Muestra solo el campo del tipo de bono elegido.
     const actualizarTipo = () => {
       const tipo = form.querySelector<HTMLInputElement>('input[name=tipo]:checked')?.value;
-      form.querySelectorAll<HTMLElement>('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo; });
+      form.querySelectorAll<HTMLElement>('[data-bono]').forEach((c) => { c.hidden = c.dataset.bono !== tipo || c.dataset.vacio === '1'; });
     };
     form.addEventListener('change', actualizarTipo);
     form.addEventListener('input', actualizarTipo);
