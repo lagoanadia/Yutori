@@ -29,6 +29,7 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
             </figure>
           ))}
     </div>
+    <div class="resenas__puntos" aria-hidden="true"></div>
     <div class="resenas__flechas" hidden>
       <button type="button" class="resenas__flecha" data-dir="-1" aria-label="Reseña anterior">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
@@ -55,7 +56,8 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
   .resenas__nota strong { font-family: var(--serif); font-size: 1.6rem; font-weight: 400; color: var(--verde-profundo); font-variant-numeric: lining-nums; }
   .resenas__estrellas { color: var(--oro); letter-spacing: 4px; font-size: 1.3rem; }
 
-  /* Carrusel: se desliza con el dedo, con la rueda o con las flechas. Sin movimiento automático. */
+  /* Carrusel: se desliza con el dedo, con la rueda o con las flechas, y avanza solo cada pocos segundos
+     (se para al pasar el ratón, al tocarlo o si la persona prefiere reducir el movimiento). */
   .resenas__lista {
     display: grid;
     grid-auto-flow: column;
@@ -67,9 +69,10 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
     scroll-snap-type: x mandatory;
     scroll-padding-inline: 4px;
     padding: 8px 6px 28px;
-    margin-bottom: 16px;
-    scrollbar-width: thin;
+    margin-bottom: 8px;
+    scrollbar-width: none;
   }
+  .resenas__lista::-webkit-scrollbar { display: none; }
   .resenas__lista:focus-visible { outline: 3px solid var(--foco); outline-offset: 4px; border-radius: var(--radio-grande); }
   .resena {
     position: relative;
@@ -88,6 +91,10 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
   .resena figcaption small { color: var(--tinta-suave); font-weight: 400; }
   .resena--hueco { border: 1px dashed var(--borde); color: var(--tinta-suave); }
 
+  .resenas__puntos { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; min-height: 8px; }
+  .resenas__puntos :global(span) { width: 8px; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--verde) 25%, transparent); }
+  .resenas__puntos :global(span.activo) { width: 26px; background: var(--verde); }
+
   .resenas__flechas { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
   .resenas__flechas[hidden] { display: none; }
   .resenas__flecha {
@@ -104,30 +111,69 @@ import { negocio, resenas, resenasGoogle } from '../data/yutori';
   }
   @media (prefers-reduced-motion: no-preference) {
     .resenas__lista { scroll-behavior: smooth; }
+    .resenas__puntos :global(span) { transition: width 400ms var(--curva, ease), background-color 400ms; }
+    /* Cada tarjeta crece y se ilumina al pasar por el centro y se aleja hacia los lados (según su posición en el carrusel). */
+    @supports (animation-timeline: view()) {
+      .resena {
+        animation: resena-foco linear both;
+        animation-timeline: view(inline);
+      }
+      @keyframes resena-foco {
+        0% { opacity: 0.45; scale: 0.86; rotate: -2deg; translate: 0 14px; }
+        30%, 70% { opacity: 1; scale: 1; rotate: 0deg; translate: 0 0; }
+        100% { opacity: 0.45; scale: 0.86; rotate: 2deg; translate: 0 14px; }
+      }
+    }
     .resenas__flecha { transition: background-color var(--duracion-corta), color var(--duracion-corta); }
   }
 </style>
 
 <script>
-  // Flechas del carrusel: solo aparecen si hay reseñas que no caben en pantalla.
+  // Flechas, puntos y avance automático del carrusel. Las flechas solo aparecen si hay reseñas que no caben.
+  const reducir = matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (const carrusel of document.querySelectorAll('.resenas__carrusel')) {
     const lista = carrusel.querySelector<HTMLElement>('.resenas__lista')!;
     const flechas = carrusel.querySelector<HTMLElement>('.resenas__flechas')!;
+    const puntos = carrusel.querySelector<HTMLElement>('.resenas__puntos')!;
     const [antes, despues] = flechas.querySelectorAll<HTMLButtonElement>('button');
+    const tarjetas = [...lista.children] as HTMLElement[];
+    puntos.replaceChildren(...tarjetas.map(() => document.createElement('span')));
+    const paso = () => (tarjetas[0]?.offsetWidth ?? lista.clientWidth) + 16;
+    const max = () => lista.scrollWidth - lista.clientWidth;
     const actualizar = () => {
-      const max = lista.scrollWidth - lista.clientWidth;
-      flechas.hidden = max <= 4;
+      flechas.hidden = max() <= 4;
+      puntos.hidden = max() <= 4;
       antes.disabled = lista.scrollLeft <= 4;
-      despues.disabled = lista.scrollLeft >= max - 4;
+      despues.disabled = lista.scrollLeft >= max() - 4;
+      const actual = lista.scrollLeft >= max() - 4 ? tarjetas.length - 1 : Math.round(lista.scrollLeft / paso());
+      [...puntos.children].forEach((p, i) => p.classList.toggle('activo', i === actual));
+    };
+    // Avanza una tarjeta; al llegar al final vuelve al principio.
+    const avanzar = (dir: number) => {
+      if (dir > 0 && lista.scrollLeft >= max() - 4) lista.scrollTo({ left: 0 });
+      else lista.scrollBy({ left: dir * paso() });
     };
     flechas.addEventListener('click', (e) => {
       const boton = (e.target as Element).closest<HTMLButtonElement>('button');
-      if (!boton) return;
-      const paso = (lista.firstElementChild as HTMLElement | null)?.offsetWidth ?? lista.clientWidth;
-      lista.scrollBy({ left: Number(boton.dataset.dir) * (paso + 16) });
+      if (boton) avanzar(Number(boton.dataset.dir));
     });
     lista.addEventListener('scroll', actualizar, { passive: true });
     new ResizeObserver(actualizar).observe(lista);
     actualizar();
+
+    if (!reducir) {
+      let pausado = false;
+      const pausar = () => { pausado = true; };
+      const seguir = () => { pausado = false; };
+      carrusel.addEventListener('pointerenter', pausar);
+      carrusel.addEventListener('pointerleave', seguir);
+      carrusel.addEventListener('focusin', pausar);
+      carrusel.addEventListener('focusout', seguir);
+      // Si lo toca con el dedo, deja de avanzar solo: ya está leyendo.
+      lista.addEventListener('touchstart', () => { pausado = true; carrusel.removeEventListener('pointerleave', seguir); }, { passive: true });
+      setInterval(() => {
+        if (!pausado && !document.hidden && max() > 4 && lista.getBoundingClientRect().top < innerHeight) avanzar(1);
+      }, 5500);
+    }
   }
 </script>
