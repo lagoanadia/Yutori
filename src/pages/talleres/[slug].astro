@@ -57,7 +57,7 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
   </Fragment>
   <section class="seccion ficha-seccion">
     {/* Orden visual: información, reserva y foto en móvil; en escritorio, información y foto a la izquierda y la reserva fija a la derecha */}
-    <div class="contenedor-amplio ficha">
+    <div class="contenedor-amplio ficha" id="ficha">
       <div class="ficha__media arco-capas">
         {taller.foto
           ? <img class="ficha__foto" src={`/fotos/${taller.foto}`} alt={`Taller ${taller.titulo}`} style={`view-transition-name: foto-${taller.slug}`} />
@@ -98,7 +98,9 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
             <p>Si quieres que te avisemos si se libera una plaza, escríbenos por <a href={emailUrl(`Lista de espera: ${taller.titulo}`)}>email</a> o por <a href={negocio.instagram} rel="noopener" target="_blank">Instagram</a>.</p>
           </div>
         ) : (
-          <div class="reserva" id="reserva">
+          <div class:list={['reserva', { 'reserva--abierta': errores.length > 0 }]} id="reserva">
+            <a class="reserva__cerrar" href="#ficha" aria-label="Cerrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></a>
+            <span class="reserva__asa" aria-hidden="true"></span>
             <h2>Reserva tu plaza</h2>
             <p class="reserva__intro">{stripeActivo() ? textosPago.tallerIntro : `Tu plaza queda apartada ${PLAZO_PAGO_HORAS} horas. Para confirmarla, paga a ${taller.imparte} con los datos que verás al reservar.`}</p>
             {errores.length > 0 && <div class="errores" role="alert"><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
@@ -159,6 +161,13 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
       </div>
     </div>
 
+    {/* Móvil: barra fija con el precio y el botón que abre la reserva desde abajo. */}
+    {!cerrado && libres > 0 && (
+      <div class="dock-reserva">
+        <p class="dock-reserva__precio">{euros(taller.precio_cent)}<small>por persona</small></p>
+        <a class="boton" href="#reserva">Reservar plaza</a>
+      </div>
+    )}
     {/* Móvil: atajo a la reserva mientras queda por debajo (solo con JavaScript; texto accesible pendiente de Iris) */}
     {!sinPrecio && libres > 0 && (
       <a class="ir-reserva" href="#reserva" aria-label="Ir a la reserva" hidden>
@@ -340,5 +349,69 @@ const maxPlazas = Math.min(MAX_PLAZAS_RESERVA, libres);
     }
     .ficha__reserva { position: sticky; top: 96px; align-self: start; }
     .ir-reserva { display: none; }
+  }
+
+  /* ——— Móvil: foto a todo el ancho, datos en una tarjeta y la reserva en una hoja que sube desde abajo. ——— */
+  .dock-reserva, .reserva__cerrar, .reserva__asa { display: none; }
+  @media (max-width: 759px) {
+    .seccion.ficha-seccion { padding-top: 0; padding-bottom: 120px; }
+    .ficha { position: relative; gap: 0; grid-template-areas: 'media' 'info' 'reserva'; padding: 0; }
+    /* En la ficha la foto manda: sin cabecera encima y de borde a borde. */
+    :global(body:has(.ficha) .cabecera) { display: none; }
+    .ficha__media { margin: 0 calc(-1 * var(--margen)); padding: 0 !important; }
+    .ficha__media > :global(*) { box-shadow: none !important; }
+    .ficha__media::before, .ficha__media::after { display: none !important; }
+    .ficha__foto { border-radius: 0 !important; aspect-ratio: auto !important; height: 360px; width: 100%; object-fit: cover; }
+    /* «Foto del taller» queda por encima de la tarjeta que se monta sobre la foto. */
+    .ficha__media :global(.foto-hueco) { align-items: flex-end; padding-bottom: 52px; }
+    .ficha__info { position: relative; margin: -30px calc(-1 * var(--margen)) 0; padding: 22px var(--margen) 0; background: var(--crema); border-radius: 28px 28px 0 0; }
+    .ficha__volver {
+      position: absolute; top: calc(-310px + env(safe-area-inset-top)); left: 16px; z-index: 3; width: 44px; height: 44px; min-height: 0; padding: 0;
+      border-radius: 50%; justify-content: center; font-size: 0; background: color-mix(in srgb, var(--crema-claro) 88%, transparent);
+      box-shadow: var(--sombra-suave); backdrop-filter: blur(8px);
+    }
+    .ficha__volver::before { content: '‹'; font-size: 30px; line-height: 1; color: var(--verde-profundo); margin-top: -3px; }
+    .ficha h1 { font-size: 1.9rem; line-height: 1.1; }
+    .ficha__quien { font-size: 0.95rem; margin-bottom: 14px; }
+    .ficha__datos { flex-direction: column; gap: 0; padding: 4px 16px; background: var(--crema-claro); border-radius: 24px; box-shadow: var(--sombra-suave); }
+    .dato, .dato--cuando, .dato--precio, .dato--completo {
+      flex: none; background: none; box-shadow: none; border-radius: 0; padding: 12px 0; color: var(--tinta);
+      font-family: var(--sans); font-size: 0.98rem; font-weight: 700; border-bottom: 1px solid var(--borde);
+    }
+    .dato:last-child { border-bottom: 0; }
+    .dato strong, .dato--cuando strong, .dato--precio strong { margin-bottom: 2px; font-size: 0.75rem; color: var(--tinta-suave); }
+    .dato svg, .dato--cuando svg { color: var(--verde); }
+    .dato--completo { color: var(--aviso); }
+    .ficha__texto { font-size: 1rem; margin-top: 16px; }
+    .ficha__reserva { padding: 16px 0 0; }
+    .ir-reserva { display: none !important; }
+
+    .dock-reserva {
+      position: fixed; z-index: 35; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom));
+      display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+      background: linear-gradient(to top, var(--crema) 70%, transparent);
+    }
+    .dock-reserva__precio { margin: 0; font-family: var(--serif); font-size: 1.5rem; color: var(--verde-profundo); line-height: 1.1; flex: none; }
+    .dock-reserva__precio small { display: block; font-family: var(--sans); font-size: 0.75rem; color: var(--tinta-suave); }
+    .dock-reserva .boton { flex: 1; justify-content: center; }
+
+    /* La tarjeta de reserva se convierte en una hoja: se abre con #reserva (o sola si el servidor devolvió errores). */
+    .reserva:not(.reserva--aviso) {
+      position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; top: 56px; margin: 0; overflow-y: auto;
+      border-radius: 28px 28px 0 0; padding: 8px 16px calc(24px + env(safe-area-inset-bottom));
+      translate: 0 105%; visibility: hidden;
+    }
+    .reserva:not(.reserva--aviso):target, .reserva--abierta { translate: 0 0; visibility: visible; box-shadow: 0 0 0 100vmax rgba(38, 51, 47, 0.38); }
+    .ficha:has(.reserva:target) ~ .dock-reserva, .ficha-seccion:has(.reserva:target) .dock-reserva,
+    .ficha-seccion:has(.reserva--abierta) .dock-reserva { display: none; }
+    .reserva__asa { display: block; width: 40px; height: 5px; border-radius: 99px; background: var(--borde); margin: 2px auto 10px; }
+    .reserva__cerrar {
+      display: grid; place-items: center; position: absolute; top: 12px; right: 14px; width: 40px; height: 40px;
+      border-radius: 50%; background: var(--crema); color: var(--verde-profundo);
+    }
+    .reserva h2 { font-size: 1.8rem; }
+    @media (prefers-reduced-motion: no-preference) {
+      .reserva:not(.reserva--aviso) { transition: translate 300ms var(--curva-salida), visibility 300ms; }
+    }
   }
 </style>
