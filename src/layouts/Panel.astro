@@ -11,6 +11,7 @@ const { titulo, ocultarTitulo = false, pantalla = false } = Astro.props;
 const menu: { href: string; texto: string; globo?: keyof Pendientes; icono: string; incluye?: string[] }[] = [
   { href: '/panel', texto: 'Hoy', icono: 'M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z' },
   { href: '/panel/agenda', texto: 'Agenda', icono: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2' },
+  { href: '/panel/mensajes', texto: 'Mensajes', icono: 'M4 6h16v10H8l-4 4zM8 10h8M8 13h5' },
   { href: '/panel/asistente', texto: 'Asistente', icono: 'M4 5h16v11H9l-5 4z' },
   { href: '/panel/talleres', texto: 'Talleres', globo: 'talleres', icono: 'M4 5h16v14H4zM4 10h16M9 5v14' },
   { href: '/panel/personas', texto: 'Personas', globo: 'personas', icono: 'M9 4a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM2.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.8c2 .6 3.5 2.2 3.5 5.2',

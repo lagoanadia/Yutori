@@ -1,0 +1,137 @@
+---
+// Mensajes: elegir a quién (un horario, un taller, pendientes de pago…), elegir el aviso, retocarlo y enviarlo
+// por email a todas o por WhatsApp de una en una. También se puede copiar para el grupo de WhatsApp de la clase.
+export const prerender = false;
+import Panel from '../../layouts/Panel.astro';
+import { destinatarios, emailsActivos, enviarPorEmail, gruposDisponibles, PLANTILLAS, rellenar } from '../../lib/mensajes';
+import { telefonoWhatsApp } from '../../lib/util';
+
+const grupos = await gruposDisponibles();
+const params = Astro.url.searchParams;
+let para = params.get('para') ?? '';
+let plantilla = PLANTILLAS[params.get('plantilla') ?? ''] ? params.get('plantilla')! : 'recordatorio';
+let texto = PLANTILLAS[plantilla].texto;
+let asunto = PLANTILLAS[plantilla].asunto;
+let enviados: number | null = null;
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  para = String(datos.get('para') ?? '');
+  plantilla = PLANTILLAS[String(datos.get('plantilla'))] ? String(datos.get('plantilla')) : plantilla;
+  texto = String(datos.get('texto') ?? '').trim().slice(0, 2000) || texto;
+  asunto = String(datos.get('asunto') ?? '').trim().slice(0, 120) || asunto;
+  if (grupos.some((g) => g.clave === para) && emailsActivos()) enviados = enviarPorEmail(await destinatarios(para), asunto, texto);
+}
+
+const grupo = grupos.find((g) => g.clave === para);
+const lista = grupo ? await destinatarios(para) : [];
+const secciones = [...new Set(grupos.map((g) => g.seccion))];
+// Para el grupo de WhatsApp de la clase: sin el nombre de nadie.
+const paraGrupo = texto.replace(/^¡Hola, \{nombre\}! ?/, '¡Hola a todas! ').replaceAll('{enlace}', '').replaceAll('{nombre}', '');
+---
+<Panel titulo="Mensajes">
+  {enviados !== null && <p class="aviso-ok" role="status">Email enviado a {enviados} {enviados === 1 ? 'persona' : 'personas'}.</p>}
+
+  <form method="get" class="tarjeta elegir">
+    <div class="campo">
+      <label for="para">¿A quién?</label>
+      <select id="para" name="para" required>
+        <option value="">Elige un grupo</option>
+        {secciones.map((s) => (
+          <optgroup label={s}>
+            {grupos.filter((g) => g.seccion === s).map((g) => <option value={g.clave} selected={g.clave === para}>{g.titulo}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+    <div class="campo">
+      <label for="plantilla">¿Qué aviso?</label>
+      <select id="plantilla" name="plantilla">
+        {Object.entries(PLANTILLAS).map(([k, p]) => <option value={k} selected={k === plantilla}>{p.titulo}</option>)}
+      </select>
+    </div>
+    <button class="boton" type="submit">Preparar</button>
+  </form>
+
+  {grupo && (
+    <>
+      <form method="post" class="tarjeta redactar" id="redactar">
+        <input type="hidden" name="para" value={para} />
+        <input type="hidden" name="plantilla" value={plantilla} />
+        <div class="campo"><label for="asunto">Asunto del email</label><input id="asunto" name="asunto" maxlength="120" value={asunto} /></div>
+        <div class="campo">
+          <label for="texto">Mensaje <small>({'{nombre}'}, {'{que}'}, {'{cuando}'} y {'{enlace}'} se cambian por los datos de cada persona)</small></label>
+          <textarea id="texto" name="texto" rows="5" maxlength="2000">{texto}</textarea>
+        </div>
+        <div class="botones">
+          {emailsActivos()
+            ? <button class="boton" type="submit" disabled={lista.length === 0} onclick={`return confirm('¿Enviar el email a ${lista.filter((d) => d.email).length} personas?')`}>Enviar por email a todas ({lista.filter((d) => d.email).length})</button>
+            : <p class="aviso-email">Los emails todavía no están activados en la web (falta configurar el remitente). Mientras tanto, envíalo por WhatsApp.</p>}
+          <button class="boton boton--borde" type="button" data-copiar>Copiar para el grupo de WhatsApp</button>
+        </div>
+        <textarea class="visualmente-oculto" id="texto-grupo" aria-hidden="true" tabindex="-1">{paraGrupo}</textarea>
+      </form>
+
+      <h2>{lista.length} {lista.length === 1 ? 'persona' : 'personas'} · {grupo.titulo}</h2>
+      {lista.length === 0 ? <p class="vacio">No hay nadie en este grupo.</p> : (
+        <ul class="destinatarios">
+          {lista.map((d) => {
+            const tel = telefonoWhatsApp(d.telefono);
+            return (
+              <li class="tarjeta destinatario" data-nombre={d.nombre} data-que={d.que} data-cuando={d.cuando} data-enlace={d.enlace} data-tel={tel}>
+                <div>
+                  <strong>{d.nombre}</strong>
+                  <small>{d.email || 'sin email'}{d.telefono && ` · ${d.telefono}`}</small>
+                  <p class="vista">{rellenar(texto, d)}</p>
+                </div>
+                {tel
+                  ? <a class="boton whatsapp" href={`https://wa.me/${tel}?text=${encodeURIComponent(rellenar(texto, d))}`} target="_blank" rel="noopener">WhatsApp</a>
+                  : <span class="sin-telefono">Sin teléfono</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  )}
+</Panel>
+
+<script>
+  // Al retocar el mensaje se actualizan la vista previa y los enlaces de WhatsApp de cada persona.
+  const caja = document.querySelector<HTMLTextAreaElement>('#texto');
+  const grupo = document.querySelector<HTMLTextAreaElement>('#texto-grupo');
+  const rellenar = (t: string, d: DOMStringMap) =>
+    t.replaceAll('{nombre}', d.nombre ?? '').replaceAll('{que}', d.que ?? '').replaceAll('{cuando}', d.cuando ?? '').replaceAll('{enlace}', d.enlace ?? '');
+  caja?.addEventListener('input', () => {
+    document.querySelectorAll<HTMLElement>('.destinatario').forEach((li) => {
+      const texto = rellenar(caja.value, li.dataset);
+      li.querySelector('.vista')!.textContent = texto;
+      const wa = li.querySelector<HTMLAnchorElement>('.whatsapp');
+      if (wa) wa.href = `https://wa.me/${li.dataset.tel}?text=${encodeURIComponent(texto)}`;
+    });
+    if (grupo) grupo.value = caja.value.replace(/^¡Hola, \{nombre\}! ?/, '¡Hola a todas! ').replaceAll('{enlace}', '').replaceAll('{nombre}', '');
+  });
+  document.querySelector<HTMLButtonElement>('[data-copiar]')?.addEventListener('click', async (e) => {
+    const boton = e.currentTarget as HTMLButtonElement;
+    await navigator.clipboard.writeText(grupo?.value ?? '');
+    boton.textContent = 'Copiado';
+  });
+  // Al marcar una persona como hecha (pulsar su WhatsApp), se atenúa para no repetir.
+  document.querySelectorAll<HTMLAnchorElement>('.whatsapp').forEach((a) => a.addEventListener('click', () => a.closest('li')?.classList.add('hecho')));
+</script>
+
+<style>
+  .elegir { display: grid; gap: 12px; grid-template-columns: 1fr; align-items: end; margin-bottom: 16px; }
+  @media (min-width: 760px) { .elegir { grid-template-columns: 2fr 1fr auto; } }
+  .elegir .campo { margin: 0; }
+  .redactar { margin-bottom: 16px; }
+  .aviso-email { margin: 0; color: var(--aviso); font-weight: 600; flex-basis: 100%; }
+  .destinatarios { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .destinatario { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .destinatario > div { min-width: 0; display: flex; flex-direction: column; }
+  .destinatario small { color: var(--tinta-suave); overflow-wrap: anywhere; }
+  .vista { margin: 6px 0 0; font-size: 0.88rem; color: var(--tinta-suave); white-space: pre-line; }
+  .destinatario.hecho { opacity: 0.5; }
+  .whatsapp { flex: none; }
+  .sin-telefono { flex: none; font-size: 0.85rem; color: var(--tinta-suave); }
+</style>
