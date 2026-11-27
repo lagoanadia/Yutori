@@ -72,31 +72,56 @@ if (Astro.request.method === 'POST') {
         <div class="hoja">
           {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
-          <form class="formulario" method="post">
-            <div class="dos-col">
-              <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
-              <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+          <form class="formulario formulario-grande" method="post" id="form-privado">
+            {/* Por pasos con JavaScript (pasos.ts); sin él se ve el formulario entero y el servidor valida igual. */}
+            <div class="pasos-progreso" role="progressbar" aria-label="Progreso de la petición" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" hidden>
+              <span></span><span></span><span></span><span></span>
             </div>
-            <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
-            <div class="campo">
-              <label for="motivo">¿Qué celebráis?</label>
-              <select id="motivo" name="motivo">{MOTIVOS.map((m) => <option selected={m === v.motivo}>{m}</option>)}</select>
-            </div>
-            <fieldset class="campo">
-              <legend>Tipo de taller</legend>
-              <div class="tipos">
-                {categorias.map((c) => <label class="casilla"><input type="checkbox" name="tipos" value={c.nombre} checked={tipos.includes(c.nombre)} /> {c.nombre}</label>)}
+            <div class="pasos-ventana">
+              <div class="pasos-pista">
+                <fieldset class="campo" data-paso>
+                  <legend>¿Qué celebráis?</legend>
+                  <div class="opciones opciones--motivos">
+                    {MOTIVOS.map((m) => (
+                      <label class="opcion"><input type="radio" name="motivo" value={m} checked={m === v.motivo} required /><span class="opcion__marca" aria-hidden="true"></span><span>{m}</span></label>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <fieldset class="campo" data-paso>
+                  <legend>Tipo de taller</legend>
+                  <div class="tipos">
+                    {categorias.map((c) => <label class="ficha-tipo"><input type="checkbox" name="tipos" value={c.nombre} checked={tipos.includes(c.nombre)} /><span>{c.nombre}</span></label>)}
+                  </div>
+                </fieldset>
+
+                <div data-paso>
+                  <div class="campo"><label for="fecha">Fecha aproximada</label><input id="fecha" name="fecha" type="date" value={v.fecha} /></div>
+                  <div class="campo"><label for="personas">Número de personas</label><input id="personas" name="personas" type="number" min="1" max="100" inputmode="numeric" value={v.personas} /></div>
+                </div>
+
+                <div data-paso>
+                  <div class="dos-col">
+                    <div class="campo"><label for="nombre">Nombre</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+                    <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
+                  </div>
+                  <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+                  <div class="campo"><label for="mensaje">Cuéntanos un poco más</label><textarea id="mensaje" name="mensaje" rows="3" maxlength="2000">{v.mensaje}</textarea></div>
+                  <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+                  <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+                  <Turnstile />
+                  <button class="boton" type="submit">Pedir información</button>
+                </div>
               </div>
-            </fieldset>
-            <div class="dos-col">
-              <div class="campo"><label for="fecha">Fecha aproximada</label><input id="fecha" name="fecha" type="date" value={v.fecha} /></div>
-              <div class="campo"><label for="personas">Número de personas</label><input id="personas" name="personas" type="number" min="1" max="100" inputmode="numeric" value={v.personas} /></div>
             </div>
-            <div class="campo"><label for="mensaje">Cuéntanos un poco más</label><textarea id="mensaje" name="mensaje" rows="4" maxlength="2000">{v.mensaje}</textarea></div>
-            <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
-            <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
-            <Turnstile />
-            <button class="boton" type="submit">Pedir información</button>
+            <div class="pasos-nav" hidden>
+              <button type="button" class="pasos-flecha pasos-flecha--atras" aria-label="Paso anterior">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+              </button>
+              <button type="button" class="pasos-flecha pasos-flecha--siguiente" aria-label="Paso siguiente">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -104,9 +129,31 @@ if (Astro.request.method === 'POST') {
   </section>
 </Base>
 
+<script>
+  import { formularioPorPasos } from '../scripts/pasos';
+  const form = document.getElementById('form-privado') as HTMLFormElement | null;
+  if (form) formularioPorPasos(form);
+</script>
+
 <style>
   .gracias { max-width: 640px; }
   .formulario [type='submit'] { justify-self: start; }
-  .tipos { display: grid; gap: 8px 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  /* Tipos de taller como fichas que se tocan (se pueden elegir varias). */
+  .tipos { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ficha-tipo { position: relative; }
+  .ficha-tipo input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .ficha-tipo span {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 46px; padding: 0 16px; border-radius: 999px;
+    background: #fff; border: 1.5px solid var(--borde); font-weight: 600; font-size: 0.95rem;
+  }
+  .ficha-tipo input:checked + span { background: var(--verde-profundo); border-color: var(--verde-profundo); color: #fff; }
+  .ficha-tipo input:checked + span::before { content: '✓'; }
+  .ficha-tipo input:focus-visible + span { outline: 3px solid var(--foco); outline-offset: 2px; }
+  .opciones--motivos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opciones--motivos .opcion { min-width: 0; padding-inline: 12px; gap: 10px; }
+  @media (max-width: 759px) {
+    .hoja { background: none; box-shadow: none; padding: 0; }
+    .lamina { display: none; }
+  }
   .gracias h2 { font-size: 1.5rem; }
 </style>
