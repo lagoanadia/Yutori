@@ -533,7 +533,7 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
     opacity: 1; translate: 0 0;
     transition: opacity var(--duracion-corta), translate var(--duracion-corta) var(--curva-salida), display var(--duracion-corta) allow-discrete, overlay var(--duracion-corta) allow-discrete;
   }
-  @starting-style { ::picker(select):popover-open { opacity: 0; translate: 0 -6px; } }
+  @starting-style { ::picker(select) { opacity: 0; translate: 0 -6px; } }
   select option { padding: 10px 14px; border-radius: 10px; min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
   select option:hover, select option:focus-visible { background: var(--salvia-suave); outline: none; }
   select option:checked { background: var(--verde); color: #fff; font-weight: 600; }
