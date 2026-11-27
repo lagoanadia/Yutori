@@ -92,4 +92,12 @@ import { negocio } from '../data/yutori';
     .donde__hoja { grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; padding: 40px 48px; }
     .donde__mariposa { right: 30%; }
   }
+  @media (max-width: 759px) {
+    /* Móvil: las fotos se deslizan de lado en lugar de apilarse. */
+    .galeria { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin-inline: calc(-1 * var(--margen)); padding: 0 var(--margen) 8px; scrollbar-width: none; }
+    .galeria::-webkit-scrollbar, .galeria::before { display: none; }
+    .galeria__foto, .galeria__foto--grande, .galeria__foto--taller, .galeria__foto--trabajos {
+      flex: none; width: 82%; aspect-ratio: 4 / 5; margin: 0; scroll-snap-align: start; border-radius: 28px;
+    }
+  }
 </style>

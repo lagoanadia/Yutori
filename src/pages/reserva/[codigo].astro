@@ -217,6 +217,13 @@ const volver = esTaller ? `/talleres/${r.slug}` : '/clases';
   .datos { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin-bottom: 16px; }
   .datos dt { font-weight: 700; color: var(--tinta-suave); }
   .datos dd { margin: 0; }
+  @media (max-width: 759px) {
+    .datos { grid-template-columns: 1fr; gap: 0; }
+    .datos dt { font-size: 0.78rem; margin-top: 10px; }
+    .datos dd { font-weight: 600; }
+    .resumen .botones { display: grid; gap: 10px; }
+    .resumen .botones .boton { justify-content: center; }
+  }
   .metodo fieldset { border: 0; padding: 0; margin: 12px 0; }
   .metodo legend { font-weight: 700; margin-bottom: 6px; }
   .baja { margin: 24px 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }

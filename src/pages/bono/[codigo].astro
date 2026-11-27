@@ -33,7 +33,8 @@ const regalo = b.tipo_bono === 'importe' ? eurosCorto(b.importe_cent) : b.detall
         <p class="bono-tarjeta__pie">{negocio.direccion}, {negocio.ciudad}</p>
       </article>
       <div class="botones no-imprimir">
-        <button class="boton" type="button" onclick="window.print()">{textosPago.imprimir}</button>
+        <a class="boton" href={`https://wa.me/?text=${encodeURIComponent(`${textosPago.bonoTitulo} · ${regalo}: ${Astro.url.href}`)}`} target="_blank" rel="noopener">{textosPago.enviarWhatsApp}</a>
+        <button class="boton boton--borde" type="button" onclick="window.print()">{textosPago.imprimir}</button>
         <a class="boton boton--borde" href="/talleres">Ver los talleres del mes</a>
       </div>
     </div>
@@ -55,6 +56,10 @@ const regalo = b.tipo_bono === 'importe' ? eurosCorto(b.importe_cent) : b.detall
   .bono-tarjeta__codigo { white-space: nowrap; font-family: ui-monospace, monospace; font-size: clamp(0.95rem, 3.6vw, 1.15rem); font-weight: 700; letter-spacing: 0.08em; color: var(--verde-profundo); }
   .bono-tarjeta__uso { font-weight: 700; color: var(--verde); }
   .bono-tarjeta__pie { font-size: 0.85rem; color: var(--tinta-suave); margin: 0; }
+  @media (max-width: 759px) {
+    .bono-pagina .botones { display: grid; width: 100%; gap: 10px; }
+    .bono-pagina .botones .boton { justify-content: center; }
+  }
   @media print {
     :global(header), :global(footer), :global(.saltar), .no-imprimir { display: none !important; }
     .bono-tarjeta { box-shadow: none; }

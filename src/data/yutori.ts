@@ -207,6 +207,7 @@ export const textosPago = {
   bonoCanjeado: 'Este bono ya se ha usado.',
   bonoCaducado: 'Este bono ha caducado.',
   imprimir: 'Imprimir',
+  enviarWhatsApp: 'Enviar por WhatsApp',
 };
 
 export const politicaTalleres = [
