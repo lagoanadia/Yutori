@@ -36,6 +36,10 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
         <h1>Clases semanales</h1>
       </div>
 
+      {/* Móvil: una clase cada vez, con pestañas arriba y el botón de reservar fijo abajo. */}
+      <nav class="pestanas-clases" aria-label="Clases">
+        {[...clases.values()].map((c, i) => <a href={`#${c.slug}`} aria-current={i === 0 ? 'true' : undefined} data-pestana={c.slug}>{c.nombre}</a>)}
+      </nav>
       <div class="rejilla clases">
         {[...clases.values()].map((c) => (
           <article class="tarjeta clase" id={c.slug}>
@@ -85,6 +89,8 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
     </div>
   </section>
 
+  <div class="dock-clases"><a class="boton" href={`/clases/pedir-plaza?clase=${[...clases.values()][0]?.slug ?? ''}`} data-reservar>Reservar plaza</a></div>
+
   <section class="seccion seccion--salvia">
     <div class="contenedor">
       <h2>Cómo funcionan</h2>
@@ -107,6 +113,34 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
     </div>
   </section>
 </Base>
+
+<script>
+  // Móvil: las clases se deslizan de lado; la pestaña y el botón de reservar siguen a la clase que se ve.
+  const lista = document.querySelector<HTMLElement>('.clases');
+  const pestanas = [...document.querySelectorAll<HTMLAnchorElement>('[data-pestana]')];
+  const reservar = document.querySelector<HTMLAnchorElement>('[data-reservar]');
+  if (lista && reservar) {
+    const marcar = (slug: string) => {
+      pestanas.forEach((p) => p.toggleAttribute('aria-current', p.dataset.pestana === slug));
+      const pestana = pestanas.find((p) => p.dataset.pestana === slug);
+      if (pestana) pestana.parentElement!.scrollTo({ left: pestana.offsetLeft - 16 });
+      reservar.href = `/clases/pedir-plaza?clase=${slug}`;
+    };
+    const observador = new IntersectionObserver((entradas) => {
+      for (const e of entradas) if (e.isIntersecting) marcar(e.target.id);
+    }, { root: lista, threshold: 0.6 });
+    lista.querySelectorAll('.clase').forEach((c) => observador.observe(c));
+    pestanas.forEach((p) => p.addEventListener('click', (e) => {
+      e.preventDefault();
+      // Solo de lado: la página no se mueve hacia abajo.
+      const clase = document.getElementById(p.dataset.pestana!);
+      if (!clase) return;
+      const margen = parseFloat(getComputedStyle(lista).paddingLeft) || 0;
+      const izquierda = lista.scrollLeft + clase.getBoundingClientRect().left - lista.getBoundingClientRect().left - margen;
+      lista.scrollTo({ left: izquierda, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }));
+  }
+</script>
 
 <style>
   .clases { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 28px; }
@@ -137,4 +171,29 @@ const libres = (g: Grupo) => Math.max(0, g.plazas - (ocupacion.get(g.id) ?? 0));
   .como__bloque { padding-top: 20px; border-top: 1px solid color-mix(in srgb, var(--verde) 25%, transparent); }
   .como__bloque h3 { margin-bottom: 8px; }
   .como__bloque .lista-politica { margin: 0; }
+
+  /* ——— Móvil: pestañas, una clase por pantalla (se desliza) y el botón de reservar fijo. ——— */
+  .pestanas-clases, .dock-clases { display: none; }
+  @media (max-width: 759px) {
+    .cabecera-pagina h1 { font-size: 2rem; }
+    .pestanas-clases { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 14px; padding-bottom: 4px; scrollbar-width: none; }
+    .pestanas-clases::-webkit-scrollbar { display: none; }
+    .pestanas-clases a {
+      flex: none; display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px; border-radius: 999px;
+      background: var(--crema-claro); border: 1px solid var(--borde); color: var(--tinta); text-decoration: none; font-weight: 700; font-size: 0.92rem;
+    }
+    .pestanas-clases a[aria-current] { background: var(--verde-profundo); border-color: var(--verde-profundo); color: #fff; }
+    .clases {
+      display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; align-items: start;
+      margin-inline: calc(-1 * var(--margen)); padding: 0 var(--margen) 8px; scroll-padding-inline: var(--margen); scrollbar-width: none;
+    }
+    .clases::-webkit-scrollbar { display: none; }
+    .clase { flex: none; width: 100%; scroll-snap-align: start; padding-bottom: 18px; }
+    .clase .botones { display: none; }
+    .clase .foto-hueco { aspect-ratio: 16 / 9; }
+    .clase h2 { font-size: 1.6rem; }
+    .dock-clases { display: block; position: fixed; z-index: 35; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom)); padding: 12px 16px; background: linear-gradient(to top, var(--crema) 70%, transparent); }
+    .dock-clases .boton { width: 100%; justify-content: center; }
+    .seccion--salvia { padding-bottom: 96px; }
+  }
 </style>

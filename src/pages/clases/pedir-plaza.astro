@@ -93,89 +93,137 @@ const sesiones = [...sueltas].flatMap(([gid, lista]) => lista.map((s) => ({ g: g
       <div class="hoja">
       {errores.length > 0 && <div class="errores" role="alert"><p><strong>Revisa estos datos:</strong></p><ul>{errores.map((e) => <li>{e}</li>)}</ul></div>}
 
-      <form class="formulario" method="post" id="form-clase">
-        <fieldset class="campo">
-          <legend>Frecuencia</legend>
-          <label class="casilla"><input type="radio" name="tipo" value="mensual" checked={v.tipo !== 'suelta'} disabled={!mesAbierto} /> Semanal</label>
-          {hayAdultos && <label class="casilla"><input type="radio" name="tipo" value="suelta" checked={v.tipo === 'suelta'} /> Clase suelta</label>}
-        </fieldset>
-
-        {!mesAbierto && <p class="aviso-mes">{textosPago.inscripcionCerrada(nombreMes(meses().siguiente).split(' ')[0])}</p>}
-        <div class="campo" data-tipo="mensual" hidden={!mesAbierto}>
-          <label for="grupo">Horario</label>
-          <select id="grupo" name="grupo">
-            <option value="">Elige uno</option>
-            {grupos.map((g) => (
-              <option value={g.id} selected={String(g.id) === v.grupo} disabled={libresMes(g.id) === 0}
-                data-publico={g.publico} data-modalidades={g.modalidades}>
-                {Mes}, {etiquetaClase(g)}{DIAS[g.dia_semana]} {horas(g)} · {plazasTexto(libresMes(g.id))}
-              </option>
-            ))}
-          </select>
+      <form class="formulario formulario-grande" method="post" id="form-clase">
+        {/* Por pasos con JavaScript (pasos.ts); sin él se ve el formulario entero y el servidor valida igual. */}
+        <div class="pasos-progreso" role="progressbar" aria-label="Progreso de la reserva" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" hidden>
+          <span></span><span></span><span></span><span></span>
         </div>
+        <div class="pasos-ventana">
+          <div class="pasos-pista">
+            <div data-paso>
+              <fieldset class="campo">
+                <legend>Frecuencia</legend>
+                <div class="opciones">
+                  <label class="opcion" data-desactivada={!mesAbierto ? '' : undefined}>
+                    <input type="radio" name="tipo" value="mensual" checked={v.tipo !== 'suelta'} disabled={!mesAbierto} />
+                    <span class="opcion__marca" aria-hidden="true"></span><span>Semanal</span>
+                  </label>
+                  {hayAdultos && (
+                    <label class="opcion">
+                      <input type="radio" name="tipo" value="suelta" checked={v.tipo === 'suelta'} />
+                      <span class="opcion__marca" aria-hidden="true"></span><span>Clase suelta</span>
+                    </label>
+                  )}
+                </div>
+              </fieldset>
+              {!mesAbierto && <p class="aviso-mes">{textosPago.inscripcionCerrada(nombreMes(meses().siguiente).split(' ')[0])}</p>}
+            </div>
 
-        {hayAdultos && (
-          <div class="campo" data-tipo="suelta">
-            <label for="sesion">Día y horario</label>
-            <select id="sesion" name="sesion">
-              <option value="">Elige un día</option>
-              {sesiones.map((s) => (
-                <option value={`${s.g.id}|${s.fecha}`} disabled={s.libres === 0} selected={`${s.g.id}|${s.fecha}` === v.sesion}
-                  data-publico="adultos" data-modalidades={s.g.modalidades}>
-                  {fechaLarga(s.fecha)}, {etiquetaClase(s.g)}{horas(s.g)} · {plazasTexto(s.libres)}
-                </option>
-              ))}
-            </select>
+            <div data-paso>
+              <fieldset class="campo" data-tipo="mensual" hidden={!mesAbierto}>
+                <legend>Horario</legend>
+                <div class="opciones">
+                  {grupos.map((g) => (
+                    <label class="opcion opcion--doble">
+                      <input type="radio" name="grupo" value={g.id} checked={String(g.id) === v.grupo} disabled={libresMes(g.id) === 0}
+                        data-publico={g.publico} data-modalidades={g.modalidades} />
+                      <span class="opcion__marca" aria-hidden="true"></span>
+                      <span>{Mes}, {etiquetaClase(g)}{DIAS[g.dia_semana]} {horas(g)}<small>{plazasTexto(libresMes(g.id))}</small></span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {hayAdultos && (
+                <fieldset class="campo" data-tipo="suelta">
+                  <legend>Día y horario</legend>
+                  <div class="opciones">
+                    {sesiones.map((s) => (
+                      <label class="opcion opcion--doble">
+                        <input type="radio" name="sesion" value={`${s.g.id}|${s.fecha}`} disabled={s.libres === 0} checked={`${s.g.id}|${s.fecha}` === v.sesion}
+                          data-publico="adultos" data-modalidades={s.g.modalidades} />
+                        <span class="opcion__marca" aria-hidden="true"></span>
+                        <span>{fechaLarga(s.fecha)}, {etiquetaClase(s.g)}{horas(s.g)}<small>{plazasTexto(s.libres)}</small></span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+              <fieldset class="campo" data-modalidad>
+                <legend>Modalidad</legend>
+                <div class="opciones opciones--dos">
+                  {['Con máquina', 'Sin máquina'].map((m) => (
+                    <label class="opcion"><input type="radio" name="modalidad" value={m} checked={v.modalidad === m} /><span class="opcion__marca" aria-hidden="true"></span><span>{m}</span></label>
+                  ))}
+                </div>
+              </fieldset>
+              <div class="campo" data-solo-ninos>
+                <label for="menor">Nombre del niño o niña</label>
+                <small>Rellena el resto del formulario con tus datos como madre, padre o tutor.</small>
+                <input id="menor" name="menor" maxlength="120" value={v.menor} />
+              </div>
+            </div>
+
+            <div data-paso>
+              <div class="campo"><label for="nombre">Nombre y apellidos</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
+              <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required pattern="\s*\+?[\d\s().\-]{9,}" title="Escribe un teléfono de contacto." /></div>
+              <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
+            </div>
+
+            <div data-paso>
+              <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
+              <label class="casilla"><input type="checkbox" name="condiciones" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
+              <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
+              {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
+              <button class="boton" type="submit">Reservar plaza</button>
+            </div>
           </div>
-        )}
-
-        <div class="campo" data-modalidad>
-          <label for="modalidad">Modalidad</label>
-          <select id="modalidad" name="modalidad">
-            <option value="">Elige una</option>
-            <option selected={v.modalidad === 'Con máquina'}>Con máquina</option>
-            <option selected={v.modalidad === 'Sin máquina'}>Sin máquina</option>
-          </select>
         </div>
-
-        <div class="campo" data-solo-ninos>
-          <label for="menor">Nombre del niño o niña</label>
-          <small>Rellena el resto del formulario con tus datos como madre, padre o tutor.</small>
-          <input id="menor" name="menor" maxlength="120" value={v.menor} />
+        <div class="pasos-nav" hidden>
+          <button type="button" class="pasos-flecha pasos-flecha--atras" aria-label="Paso anterior">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+          </button>
+          <button type="button" class="pasos-flecha pasos-flecha--siguiente" aria-label="Paso siguiente">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </button>
         </div>
-
-        <div class="dos-col">
-          <div class="campo"><label for="nombre">Nombre y apellidos</label><input id="nombre" name="nombre" autocomplete="name" maxlength="120" value={v.nombre} required /></div>
-          <div class="campo"><label for="telefono">Teléfono</label><input id="telefono" name="telefono" type="tel" autocomplete="tel" maxlength="30" value={v.telefono} required /></div>
-        </div>
-        <div class="campo"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="160" value={v.email} required /></div>
-        <div class="trampa" aria-hidden="true"><label for="web">No rellenes este campo</label><input id="web" name="web" tabindex="-1" autocomplete="off" /></div>
-        <label class="casilla"><input type="checkbox" name="condiciones" required /> He leído y acepto las <a href="/condiciones">condiciones de reserva y cancelación</a>.</label>
-        <label class="casilla"><input type="checkbox" name="privacidad" required /> Acepto la <a href="/privacidad">política de privacidad</a>.</label>
-        {turnstileActivo() && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="es" data-theme="light"></div>}
-        <button class="boton" type="submit">Reservar plaza</button>
       </form>
       </div>
     </div>
   </section>
 </Base>
 
-<script is:inline>
+<script>
+  import { formularioPorPasos } from '../../scripts/pasos';
+
   // Primero la frecuencia; después solo se ven los horarios (semanal) o los días (clase suelta) que tocan.
   // Sin JavaScript se ve todo y el servidor valida.
-  const form = document.getElementById('form-clase');
+  const form = document.getElementById('form-clase') as HTMLFormElement;
   const actualizar = () => {
-    const tipo = form.querySelector('input[name=tipo]:checked')?.value ?? 'mensual';
-    for (const c of form.querySelectorAll('[data-tipo]')) c.hidden = c.dataset.tipo !== tipo;
-    const op = form.querySelector(tipo === 'suelta' ? '#sesion' : '#grupo')?.selectedOptions[0];
-    const ninos = op?.dataset.publico === 'ninos';
-    form.querySelector('[data-solo-ninos]').hidden = !ninos;
-    form.querySelector('[data-modalidad]').hidden = (op?.dataset.modalidades ?? '[]') === '[]';
+    const tipo = form.querySelector<HTMLInputElement>('input[name=tipo]:checked')?.value ?? 'mensual';
+    for (const c of form.querySelectorAll<HTMLElement>('[data-tipo]')) c.hidden = c.dataset.tipo !== tipo;
+    const elegido = form.querySelector<HTMLInputElement>(`input[name=${tipo === 'suelta' ? 'sesion' : 'grupo'}]:checked`);
+    const modalidad = form.querySelector<HTMLElement>('[data-modalidad]')!;
+    form.querySelector<HTMLElement>('[data-solo-ninos]')!.hidden = elegido?.dataset.publico !== 'ninos';
+    modalidad.hidden = (elegido?.dataset.modalidades ?? '[]') === '[]';
+    // Obligatorio solo lo que se ve: así cada paso avisa de lo suyo y lo oculto no bloquea el envío.
+    form.querySelectorAll<HTMLInputElement>('input[name=grupo]').forEach((i) => { i.required = tipo === 'mensual'; });
+    form.querySelectorAll<HTMLInputElement>('input[name=sesion]').forEach((i) => { i.required = tipo === 'suelta'; });
+    form.querySelectorAll<HTMLInputElement>('input[name=modalidad]').forEach((i) => { i.required = !modalidad.hidden; });
+    (form.querySelector('#menor') as HTMLInputElement).required = elegido?.dataset.publico === 'ninos';
   };
   form.addEventListener('change', actualizar);
   actualizar();
+  formularioPorPasos(form, { antesDeMostrar: actualizar });
 </script>
 
 <style>
-  .aviso-mes { background: var(--salvia-suave); color: var(--verde-profundo); border-radius: 14px; padding: 12px 16px; margin: 0; }
+  .aviso-mes { background: var(--salvia-suave); color: var(--verde-profundo); border-radius: 14px; padding: 12px 16px; margin: 12px 0 0; }
+  .opcion--doble span small { display: block; font-size: 0.82rem; font-weight: 500; color: var(--tinta-suave); margin-top: 2px; }
+  .opciones--dos { grid-template-columns: 1fr 1fr; }
+  .opcion[data-desactivada] { opacity: 0.5; }
+  @media (max-width: 759px) {
+    /* En el móvil el formulario ya es una tarjeta: sin la hoja de alrededor. */
+    .hoja { background: none; box-shadow: none; padding: 0; }
+    .lamina { display: none; }
+  }
 </style>
